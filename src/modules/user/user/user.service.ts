@@ -3,9 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { CreateUserDto } from '../dtos/user/create-user.dto';
-import { UserDto } from '../dtos/user/user.dto';
+import { PublicUserDto, publicUserFields, UserDto } from '../dtos/user/user.dto';
 import { plainToInstance } from 'class-transformer';
 import { HashService } from 'src/services/hash.service';
+import { UpdateProfileDto } from '../dtos/user/update-profile.dto';
 
 @Injectable()
 export class UserService {
@@ -76,12 +77,15 @@ export class UserService {
      *  - `true` if a user with the specified email or phone exists.
      *  - `false` if no user matches the provided value.
      */
-    async userExistsBy(option: "email" | "phone", value: string): Promise<boolean> {
+    async userExistsBy(option: "email" | "phone" | "id", value: string): Promise<boolean> {
         if (option === "email") {
             return await this.userRepository.existsBy({ email: value });
         }
-        else {
+        else if (option === "phone") {
             return await this.userRepository.existsBy({ phone: value });
+        }
+        else {
+            return await this.userRepository.existsBy({ id: parseInt(value) });
         }
     }
 
@@ -166,32 +170,80 @@ export class UserService {
     }
 
     /**
-     * @function getUserById - Retrieves a user by UUID with optional related data
-     * @param {string} uuid - The unique identifier of the user
+     * @function getUserById - Retrieves a user by ID with optional related data
+     * @param {number} id - The unique identifier of the user
      * @param {boolean} [location] - Whether to include the user's location relation
      * @param {boolean} [paymentMethod] - Whether to include the user's payment method relation
      *
-     * @returns {Promise<UserDto>} - The user data matching the provided UUID
+     * @returns {Promise<UserDto>} - The user data matching the provided ID
      *
-     * @throws {NotFoundException} - If no user is found with the given UUID
+     * @throws {NotFoundException} - If no user is found with the given ID
      * @throws {InternalServerErrorException} - If an unexpected error occurs while fetching the user
      */
-    async getUserById(uuid: string, location?: boolean, paymentMethod?: boolean): Promise<UserDto> {
+    async getUserById(id: number, location?: boolean, paymentMethod?: boolean): Promise<UserDto> {
         try {
             const relations: string[] = [];
-            if (location) relations.push("location");
-            if (paymentMethod) relations.push("payment_method");
+            if (location) relations.push("locations");
+            if (paymentMethod) relations.push("payment_methods");
 
             const user = await this.userRepository.findOne({
-                where: { uuid },
+                where: { id },
                 relations: relations,
+            });
+
+            if (!user) {
+                throw new NotFoundException(`User not found`);
+            }
+            return plainToInstance(UserDto, user, { excludeExtraneousValues: true });
+        }
+        catch (error) {
+            if (error instanceof NotFoundException) throw error;
+            this.logger.error(error.message);
+            throw new InternalServerErrorException("Failed to find user by ID");
+        }
+    }
+
+    /**
+     * @function updateUserProfile - Updates a user's profile with new data
+     * @param {number} id - The unique identifier of the user
+     * @param {UpdateProfileDto} newUserProfile - DTO containing the updated user profile fields
+     *
+     * @returns {Promise<UserDto>} - Returns the updated user data
+     *
+     * @throws {InternalServerErrorException} - If the profile update fails
+     */
+    async updateUserProfile(id: number, newUserProfile: UpdateProfileDto): Promise<UserDto> {
+        try {
+            const data = this.userRepository.create(newUserProfile);
+            await this.userRepository.update({ id }, data);
+            return await this.getUserById(id);
+        }
+        catch (error) {
+            this.logger.error(error.message);
+            throw new InternalServerErrorException("Failed to update user profile");
+        }
+    }
+
+    /**
+     * @function getPublicUser - Retrieves a user's public profile data by UUID
+     * @param {string} uuid - The unique identifier of the user
+     *
+     * @returns {Promise<PublicUserDto>} - Returns the user's public information, excluding sensitive fields
+     *
+     * @throws {NotFoundException} - If no user is found with the given UUID
+     * @throws {InternalServerErrorException} - If there is an unexpected error during retrieval
+     */
+    async getPublicUser(uuid: string): Promise<PublicUserDto> {
+        try {
+            const user = await this.userRepository.findOne({
+                select: publicUserFields,
+                where: { uuid }
             });
 
             if (!user) {
                 throw new NotFoundException(`User with ID ${uuid} not found`);
             }
-
-            return user;
+            return plainToInstance(PublicUserDto, user, { excludeExtraneousValues: true });
         }
         catch (error) {
             if (error instanceof NotFoundException) throw error;
@@ -200,35 +252,7 @@ export class UserService {
         }
     }
 
-    // Additional User Management Methods
-    // async updateUser(id: string, updateData: Partial<CreateUserDto>): Promise<User> {
-    //     const user = await this.getUserById(id);
-
-    //     const updateFields: any = { updated_at: new Date() };
-
-    //     if (updateData.first_name) updateFields.first_name = updateData.first_name;
-    //     if (updateData.last_name) updateFields.last_name = updateData.last_name;
-    //     if (updateData.gender) updateFields.gender = updateData.gender;
-    //     if (updateData.avatar) updateFields.avatar = updateData.avatar;
-    //     if (updateData.birthday) updateFields.birthday = updateData.birthday;
-
-    //     await this.userRepository.update(id, updateFields);
-
-    //     return this.getUserById(id);
-    // }
-
-    // async updateUserProfile(id: string, profileData: any) {
-    //     const user = await this.getUserById(id);
-
-    //     const updateFields: any = {
-    //         updated_at: new Date(),
-    //         ...profileData,
-    //     };
-
-    //     await this.usersRepository.update(id, updateFields);
-
-    //     return this.getUserById(id);
-    // }
+    // async getUserDetails(id: number, )
 
     // async deleteUser(id: string, hardDelete = false) {
     //     const user = await this.getUserById(id);
@@ -419,100 +443,6 @@ export class UserService {
     // }
 
     // // Location Management
-    // async addUserLocation(
-    //     userId: string,
-    //     locationData: CreateLocationDto,
-    // ): Promise<Location> {
-    //     const user = await this.getUserById(userId);
-    //     if (!user) {
-    //         throw new NotFoundException(`User with ID ${userId} not found`);
-    //     }
-
-    //     if (locationData.is_primary) {
-    //         await this.locationsRepository.update(
-    //             { user: { id: userId } },
-    //             { is_primary: false, updated_at: new Date() },
-    //         );
-    //     }
-
-    //     const newLocation = this.locationsRepository.create({
-    //         user: { id: userId },
-    //         city: locationData.city,
-    //         district: locationData.district,
-    //         address_line: locationData.address_line,
-    //         street: locationData.address_line,
-    //         ward: locationData.ward,
-    //         type: locationData.type,
-    //         is_primary: locationData.is_primary || false,
-    //         name: locationData.name,
-    //         phone: locationData.phone,
-    //     });
-
-    //     const savedLocation = await this.locationsRepository.save(newLocation);
-    //     return savedLocation;
-    // }
-
-    // async getUserLocations(userId: string): Promise<Location[]> {
-    //     const user = await this.getUserById(userId);
-    //     if (!user) {
-    //         throw new NotFoundException(`User with ID ${userId} not found`);
-    //     }
-
-    //     return this.locationsRepository.find({
-    //         where: { user: { id: userId } },
-    //         order: { is_primary: 'DESC', created_at: 'DESC' },
-    //     });
-    // }
-
-    // async updateUserLocation(
-    //     locationId: number,
-    //     userId: string,
-    //     locationData: UpdateAddressDto,
-    // ) {
-    //     const location = await this.locationsRepository.findOne({
-    //         where: { location_id: locationId, user: { id: userId } },
-    //     });
-
-    //     if (!location) {
-    //         throw new NotFoundException(`Location with ID ${locationId} not found`);
-    //     }
-
-    //     // If setting this as primary, unset other primary locations for this user
-    //     if (locationData.is_primary) {
-    //         await this.locationsRepository.update(
-    //             { user: { id: userId } },
-    //             { is_primary: false, updated_at: new Date() },
-    //         );
-    //     }
-
-    //     await this.locationsRepository.update(locationId, {
-    //         ...locationData,
-    //         updated_at: new Date(),
-    //     });
-
-    //     return this.locationsRepository.findOne({
-    //         where: { location_id: locationId },
-    //     });
-    // }
-
-    // async deleteUserLocation(userId: string, locationId: number) {
-    //     const location = await this.locationsRepository.findOne({
-    //         where: { location_id: locationId, user: { id: userId } },
-    //     });
-
-    //     if (!location) {
-    //         throw new NotFoundException(`Location with ID ${locationId} not found`);
-    //     }
-
-    //     await this.locationsRepository.delete(locationId);
-    //     return { success: true, message: 'Location deleted successfully' };
-    // }
-
-    // async findLocationById(locationId: number) {
-    //     return await this.locationsRepository.findOne({
-    //         where: { location_id: locationId },
-    //     });
-    // }
 
     // // Payment Method Management
     // async addPaymentMethod(
@@ -695,5 +625,25 @@ export class UserService {
     //         }
     //     }
     //     throw new NotFoundException("User not found");
+    // }
+
+
+    /*#########################################################################
+                                   Deprecated                                
+    #########################################################################*/
+    // async updateUser(id: string, updateData: Partial<CreateUserDto>): Promise<User> {
+    //     const user = await this.getUserById(id);
+
+    //     const updateFields: any = { updated_at: new Date() };
+
+    //     if (updateData.first_name) updateFields.first_name = updateData.first_name;
+    //     if (updateData.last_name) updateFields.last_name = updateData.last_name;
+    //     if (updateData.gender) updateFields.gender = updateData.gender;
+    //     if (updateData.avatar) updateFields.avatar = updateData.avatar;
+    //     if (updateData.birthday) updateFields.birthday = updateData.birthday;
+
+    //     await this.userRepository.update(id, updateFields);
+
+    //     return this.getUserById(id);
     // }
 }

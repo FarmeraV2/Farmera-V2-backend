@@ -13,6 +13,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/role.guard';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -49,7 +50,7 @@ import { RolesGuard } from './common/guards/role.guard';
     //   }),
     // }),
 
-    AuthModule, UserModule, MailModule, SmsModule, RedisModule],
+    AuthModule, UserModule, MailModule, SmsModule, RedisModule, AdminModule],
   controllers: [AppController],
   providers: [
     AppService,

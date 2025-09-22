@@ -1,6 +1,16 @@
-import { IsBoolean, IsNotEmpty, IsPhoneNumber, IsString } from "class-validator";
+import { IsBoolean, IsEnum, IsNotEmpty, IsPhoneNumber, IsString } from "class-validator";
+import { LocationType } from "../../enums/location-type.enums";
 
 export class CreateLocationDto {
+    @IsString()
+    @IsNotEmpty()
+    name: string;
+
+    @IsString()
+    @IsNotEmpty()
+    @IsPhoneNumber("VN")
+    phone: string;
+
     @IsString()
     @IsNotEmpty()
     city: string;
@@ -21,23 +31,11 @@ export class CreateLocationDto {
     @IsNotEmpty()
     address_line: string;
 
-    @IsString()
+    @IsEnum(LocationType)
     @IsNotEmpty()
-    type: string; // e.g., 'home', 'work', 'shipping', etc.
+    type: LocationType
 
     @IsBoolean()
     @IsNotEmpty()
     is_primary: boolean;
-
-    @IsString()
-    @IsNotEmpty()
-    user_id: string;
-
-    @IsString()
-    @IsNotEmpty()
-    name: string;
-
-    @IsPhoneNumber("VN")
-    @IsNotEmpty()
-    phone: string
 }

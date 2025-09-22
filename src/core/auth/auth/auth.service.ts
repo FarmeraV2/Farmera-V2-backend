@@ -48,8 +48,8 @@ export class AuthService {
             const user = await this.userService.validateUser(req.password, req.email, req.phone);
 
             if (user) {
-                const { uuid, email, phone, first_name, last_name, role, status, avatar } = user;
-                const payload = { uuid, email, phone, first_name, last_name, role, status, avatar };
+                const { id, uuid, email, phone, first_name, last_name, role, status, avatar } = user;
+                const payload = { id, uuid, email, phone, first_name, last_name, role, status, avatar };
 
                 if (status === UserStatus.BANNED) {
                     throw new UnauthorizedException('Your account is banned');
@@ -130,10 +130,11 @@ export class AuthService {
 
         // generate new tokens
         try {
-            const user = await this.userService.getUserById(userDecoded.uuid);
+            const user = await this.userService.getUserById(userDecoded.id);
 
             if (user) {
                 const payload = {
+                    id: user.id,
                     uuid: user.uuid,
                     email: user.email,
                     first_name: user.first_name,
