@@ -15,6 +15,8 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/role.guard';
 import { AdminModule } from './modules/admin/admin.module';
 import { ProductModule } from './modules/product/product.module';
+import { FarmModule } from './modules/farm/farm.module';
+import { AddressModule } from './modules/address/address.module';
 
 @Module({
   imports: [
@@ -51,7 +53,7 @@ import { ProductModule } from './modules/product/product.module';
     //   }),
     // }),
 
-    AuthModule, UserModule, MailModule, SmsModule, RedisModule, AdminModule, ProductModule],
+    AuthModule, UserModule, MailModule, SmsModule, RedisModule, AdminModule, ProductModule, FarmModule, AddressModule],
   controllers: [AppController],
   providers: [
     AppService,

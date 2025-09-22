@@ -1,0 +1,8 @@
+export enum FarmStatus {
+    UNSPECIFIED = 'UNSPECIFIED',
+    PENDING = 'PENDING',
+    VERIFIED = 'VERIFIED',
+    APPROVED = 'APPROVED',
+    BLOCKED = 'BLOCKED',
+    REJECTED = 'REJECTED',
+}

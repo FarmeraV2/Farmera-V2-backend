@@ -1,11 +1,12 @@
 import { Exclude } from 'class-transformer';
-import { Column, Entity, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn, PrimaryGeneratedColumn, BeforeInsert } from 'typeorm';
+import { Column, Entity, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn, PrimaryGeneratedColumn, BeforeInsert, OneToOne } from 'typeorm';
 import { Gender } from '../enums/gender.enum';
 import { UserRole } from '../enums/role.enum';
 import { UserStatus } from '../enums/user-status.enum';
-import { Location } from './location.entity';
 import { PaymentMethod } from './payment-method.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { Farm } from 'src/modules/farm/entities/farm.entity';
+import { DeliveryAddress } from 'src/modules/address/entities/delivery-address.entity';
 
 @Entity()
 export class User {
@@ -57,13 +58,14 @@ export class User {
     @Column({ enum: UserStatus, default: UserStatus.ACTIVE })
     status: UserStatus;
 
-    @OneToMany(() => Location, (location) => location.user, { cascade: true })
-    @JoinColumn({ name: 'location_id' })
-    locations: Location[];
+    @OneToMany(() => DeliveryAddress, (address) => address.user, { cascade: true })
+    address: DeliveryAddress[];
 
     @OneToMany(() => PaymentMethod, (paymentMethod) => paymentMethod.user, { cascade: true })
-    @JoinColumn({ name: 'payment_method_id' })
     payment_methods: PaymentMethod[];
+
+    @OneToOne(() => Farm, (farm) => farm.owner, { nullable: true })
+    farm?: Farm
 
     @CreateDateColumn({ type: 'timestamptz' })
     created_at: Date;
