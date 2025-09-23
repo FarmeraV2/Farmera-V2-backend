@@ -12,7 +12,7 @@ export class UserController {
 
     @Get('profile')
     async getUserProfile(@User() user: UserInterface, @Query() getDetailDto: GetUserDetailDto) {
-        return await this.userService.getUserById(user.id, getDetailDto.include_locations, getDetailDto.include_payment_methods);
+        return await this.userService.getUserById(user.id, getDetailDto.include_addresses, getDetailDto.include_payment_methods);
     }
 
     @Put('profile')

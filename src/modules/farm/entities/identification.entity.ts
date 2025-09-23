@@ -23,7 +23,7 @@ export class Identification {
     full_name: string;
 
     @Column({ name: 'id_card_image_url', nullable: true })
-    id_card_imageUrl: string;
+    id_card_imageUrl?: string;
 
     @OneToOne(() => Farm, (farm) => farm.identification)
     @JoinColumn({ name: 'farm_id' })

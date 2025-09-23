@@ -5,7 +5,7 @@ export class GetUserDetailDto {
     @IsOptional()
     @IsBoolean()
     @Type(() => Boolean)
-    include_locations: boolean;
+    include_addresses: boolean;
 
     @IsOptional()
     @IsBoolean()

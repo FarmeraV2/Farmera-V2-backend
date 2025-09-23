@@ -17,6 +17,7 @@ import { DeliveryAddress } from './entities/delivery-address.entity';
         ConfigModule,
     ],
     providers: [AddressService, DeliveryAddressService],
-    controllers: [AddressController, DeliveryAddressController]
+    controllers: [AddressController, DeliveryAddressController],
+    exports: [DeliveryAddressService],
 })
 export class AddressModule { }

@@ -1,12 +1,12 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsPhoneNumber, IsString, } from 'class-validator';
+import { IsEmail, IsLatitude, IsLongitude, IsNotEmpty, IsNumber, IsOptional, IsPhoneNumber, IsPositive, IsString, } from 'class-validator';
 
 export class FarmRegistrationDto {
     @IsString()
     @IsNotEmpty()
     farm_name: string;
 
-    @IsOptional()
     @IsString()
+    @IsOptional()
     description?: string;
 
     @IsString()
@@ -22,17 +22,13 @@ export class FarmRegistrationDto {
     @IsOptional()
     tax_number?: string;
 
-    @IsString()
-    @IsNotEmpty()
-    city: string;
+    @IsNumber()
+    @IsPositive()
+    province_code: number;
 
-    @IsString()
-    @IsNotEmpty()
-    district: string;
-
-    @IsString()
-    @IsNotEmpty()
-    ward: string;
+    @IsNumber()
+    @IsPositive()
+    ward_code: number;
 
     @IsString()
     @IsNotEmpty()
@@ -40,5 +36,13 @@ export class FarmRegistrationDto {
 
     @IsString()
     @IsOptional()
-    coordinate?: string;
+    postal_code?: string;
+
+    @IsNumber()
+    @IsLatitude()
+    latitude: number;
+
+    @IsNumber()
+    @IsLongitude()
+    longitude: number;
 }

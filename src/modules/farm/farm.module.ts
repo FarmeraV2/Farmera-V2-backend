@@ -6,14 +6,17 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Farm } from './entities/farm.entity';
 import { HttpModule } from '@nestjs/axios';
+import { AddressModule } from '../address/address.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Farm]),
     ConfigModule,
-    HttpModule
+    HttpModule,
+    AddressModule,
   ],
   controllers: [FarmController],
-  providers: [FarmService, BiometricService]
+  providers: [FarmService, BiometricService],
+  exports: [FarmService],
 })
 export class FarmModule { }

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
@@ -7,6 +7,7 @@ import { PublicUserDto, publicUserFields, UserDto } from '../dtos/user/user.dto'
 import { plainToInstance } from 'class-transformer';
 import { HashService } from 'src/services/hash.service';
 import { UpdateProfileDto } from '../dtos/user/update-profile.dto';
+import { isUUID } from 'class-validator';
 
 @Injectable()
 export class UserService {
@@ -60,8 +61,8 @@ export class UserService {
             return plainToInstance(UserDto, savedUser, { excludeExtraneousValues: true });
         }
         catch (error) {
-            if (error instanceof ConflictException) throw error;
             this.logger.error(error.message);
+            if (error instanceof HttpException) throw error;
             throw new InternalServerErrorException("Failed to create user");
         }
     }
@@ -125,8 +126,8 @@ export class UserService {
             throw new BadRequestException('Invalid email or password');
         }
         catch (error) {
-            if (error instanceof BadRequestException) throw error;
             this.logger.error(error.message);
+            if (error instanceof HttpException) throw error;
             throw new InternalServerErrorException("Failed to validate user");
         }
     }
@@ -172,7 +173,7 @@ export class UserService {
     /**
      * @function getUserById - Retrieves a user by ID with optional related data
      * @param {number} id - The unique identifier of the user
-     * @param {boolean} [location] - Whether to include the user's location relation
+     * @param {boolean} [addresses] - Whether to include the user's addresses relation
      * @param {boolean} [paymentMethod] - Whether to include the user's payment method relation
      *
      * @returns {Promise<UserDto>} - The user data matching the provided ID
@@ -180,10 +181,10 @@ export class UserService {
      * @throws {NotFoundException} - If no user is found with the given ID
      * @throws {InternalServerErrorException} - If an unexpected error occurs while fetching the user
      */
-    async getUserById(id: number, location?: boolean, paymentMethod?: boolean): Promise<UserDto> {
+    async getUserById(id: number, addresses?: boolean, paymentMethod?: boolean): Promise<UserDto> {
         try {
             const relations: string[] = [];
-            if (location) relations.push("locations");
+            if (addresses) relations.push("addresses");
             if (paymentMethod) relations.push("payment_methods");
 
             const user = await this.userRepository.findOne({
@@ -197,8 +198,8 @@ export class UserService {
             return plainToInstance(UserDto, user, { excludeExtraneousValues: true });
         }
         catch (error) {
-            if (error instanceof NotFoundException) throw error;
             this.logger.error(error.message);
+            if (error instanceof HttpException) throw error;
             throw new InternalServerErrorException("Failed to find user by ID");
         }
     }
@@ -234,6 +235,7 @@ export class UserService {
      * @throws {InternalServerErrorException} - If there is an unexpected error during retrieval
      */
     async getPublicUser(uuid: string): Promise<PublicUserDto> {
+        if (!isUUID(uuid)) throw new NotFoundException("User with ID ${uuid} not found");
         try {
             const user = await this.userRepository.findOne({
                 select: publicUserFields,
@@ -246,8 +248,8 @@ export class UserService {
             return plainToInstance(PublicUserDto, user, { excludeExtraneousValues: true });
         }
         catch (error) {
-            if (error instanceof NotFoundException) throw error;
             this.logger.error(error.message);
+            if (error instanceof HttpException) throw error;
             throw new InternalServerErrorException("Failed to find user by uuid");
         }
     }

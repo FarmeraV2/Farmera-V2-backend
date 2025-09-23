@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException, Logger, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger, UnauthorizedException } from '@nestjs/common';
 import { UserService } from 'src/modules/user/user/user.service';
 import { CreateUserDto } from 'src/modules/user/dtos/user/create-user.dto';
 import { UserDto } from 'src/modules/user/dtos/user/user.dto';
@@ -10,6 +10,8 @@ import { Response } from 'express';
 import ms from 'ms';
 import { ForgotPasswordDto, UpdateNewPasswordDto } from '../dtos/forgot-password.dto';
 import { VerificationService } from '../verification/verification.service';
+import { FarmService } from 'src/modules/farm/farm/farm.service';
+import { UserRole } from 'src/modules/user/enums/role.enum';
 
 export const REFRESH_TOKEN_COOKIES_KEY = 'refresh_token';
 
@@ -23,6 +25,7 @@ export class AuthService {
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
         private readonly verificationService: VerificationService,
+        private readonly farmService: FarmService,
     ) { }
 
     async register(registerDto: CreateUserDto): Promise<UserDto> {
@@ -49,7 +52,15 @@ export class AuthService {
 
             if (user) {
                 const { id, uuid, email, phone, first_name, last_name, role, status, avatar } = user;
-                const payload = { id, uuid, email, phone, first_name, last_name, role, status, avatar };
+                const payload: any = { id, uuid, email, phone, first_name, last_name, role, status, avatar };
+
+                if (user.role === UserRole.FARMER) {
+                    const farm = await this.farmService.validateFarmer(user.id);
+                    if (farm && farm.id && farm.uuid) {
+                        payload.farm_id = farm.id;
+                        payload.farm_uuid = farm.uuid;
+                    }
+                }
 
                 if (status === UserStatus.BANNED) {
                     throw new UnauthorizedException('Your account is banned');
@@ -183,8 +194,8 @@ export class AuthService {
                 throw new BadRequestException('Refresh token is invalid or expired');
             }
         } catch (error) {
-            if (error instanceof BadRequestException) throw error;
             this.logger.error(error.message);
+            if (error instanceof HttpException) throw error;
             throw new InternalServerErrorException("Failed to process refresh token");
         }
     }

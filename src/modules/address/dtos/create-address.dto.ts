@@ -1,5 +1,4 @@
-import { IsBoolean, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsPhoneNumber, IsPositive, IsString } from "class-validator";
-import { AddressType } from "../enums/address-type.enums";
+import { IsBoolean, IsLatitude, IsLongitude, IsNotEmpty, IsNumber, IsOptional, IsPhoneNumber, IsPositive, IsString } from "class-validator";
 
 export class CreateAddressDto {
     @IsString()
@@ -38,4 +37,39 @@ export class CreateAddressDto {
     @IsBoolean()
     @IsOptional()
     is_primary?: boolean;
+}
+
+export class CreateFarmAddressDto {
+    @IsString()
+    @IsNotEmpty()
+    name: string;
+
+    @IsString()
+    @IsNotEmpty()
+    @IsPhoneNumber("VN")
+    phone: string;
+
+    @IsNumber()
+    @IsPositive()
+    province_code: number;
+
+    @IsNumber()
+    @IsPositive()
+    ward_code: number;
+
+    @IsString()
+    @IsNotEmpty()
+    street: string;
+
+    @IsString()
+    @IsOptional()
+    postal_code?: string;
+
+    @IsNumber()
+    @IsLatitude()
+    latitude: number;
+
+    @IsNumber()
+    @IsLongitude()
+    longitude: number;
 }

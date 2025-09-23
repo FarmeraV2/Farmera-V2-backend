@@ -2,8 +2,9 @@ import { Injectable, InternalServerErrorException, Logger, NotFoundException } f
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from "typeorm";
 import { DeliveryAddress } from '../entities/delivery-address.entity';
-import { CreateAddressDto } from '../dtos/create-address.dto';
+import { CreateAddressDto, CreateFarmAddressDto } from '../dtos/create-address.dto';
 import { UpdateAddressDto } from '../dtos/update-address.dto';
+import { AddressType } from '../enums/address-type.enums';
 
 @Injectable()
 export class DeliveryAddressService {
@@ -57,15 +58,8 @@ export class DeliveryAddressService {
             }
 
             const newLocation = this.deliveryAddressRepository.create({
-                user: { id },
-                name: locationData.name,
-                phone: locationData.phone,
-                province_code: locationData.province_code,
-                ward_code: locationData.ward_code,
-                street: locationData.address_line,
-                address_line: locationData.address_line,
-                type: locationData.type,
-                is_primary: locationData.is_primary || false,
+                ...locationData,
+                user: { id }
             });
 
             const savedLocation = await this.deliveryAddressRepository.save(newLocation);
@@ -78,9 +72,36 @@ export class DeliveryAddressService {
     }
 
     /**
+     * @function addFarmAddress - Creates a address for a given farm
+     * @param {CreateFarmAddressDto} addressData - DTO containing the new address details
+     *
+     * @returns {Promise<DeliveryAddress>} - Returns the newly created and saved delivery address entity
+     *
+     * @throws {InternalServerErrorException} - If the address creation or saving process fails
+     * 
+     * @WARING This function should **NOT** be called directly from controllers or exposed to end users.
+     * Always wrap this method inside a service-level function that enforces ownership and validation checks.
+     */
+    async addFarmAddress(addressData: CreateFarmAddressDto): Promise<DeliveryAddress> {
+        try {
+            const newAddress = this.deliveryAddressRepository.create({
+                ...addressData,
+                location: { lat: addressData.latitude, lng: addressData.longitude },
+                owner_type: AddressType.FARM
+            });
+            const savedLocation = await this.deliveryAddressRepository.save(newAddress);
+            return savedLocation;
+        }
+        catch (error) {
+            this.logger.error(error.message);
+            throw new InternalServerErrorException("Failed to add new farm address");
+        }
+    }
+
+    /**
      * @function updateUserAddress - Updates an existing location for a specific user
      * @param {number} userId - ID of the user whose location is being updated
-     * @param {number} locationId - ID of the location to be updated
+     * @param {number} addressId - ID of the address to be updated
      * @param {UpdateAddressDto} locationData - Data to update the location with
      *
      * @returns {Promise<DeliveryAddress | null>} - The updated location entity, or null if not found
@@ -88,7 +109,7 @@ export class DeliveryAddressService {
      * @throws {InternalServerErrorException} - Thrown if an unexpected error occurs
      * during the update process.
      */
-    async updateUserAddress(userId: number, locationId: number, locationData: UpdateAddressDto): Promise<DeliveryAddress> {
+    async updateUserAddress(userId: number, addressId: number, locationData: UpdateAddressDto): Promise<DeliveryAddress> {
         try {
             // If setting this as primary, unset other primary locations for this user
             if (locationData.is_primary) {
@@ -98,9 +119,9 @@ export class DeliveryAddressService {
                 );
             }
 
-            await this.deliveryAddressRepository.update({ location_id: locationId, user: { id: userId } }, locationData);
+            await this.deliveryAddressRepository.update({ address_id: addressId, user: { id: userId } }, locationData);
 
-            return this.getAddressById(locationId, userId);
+            return this.getAddressById(addressId, userId);
         }
         catch (error) {
             this.logger.error(error.message);
@@ -108,22 +129,22 @@ export class DeliveryAddressService {
         }
     }
 
-    async deleteUserLocation(userId: number, locationId: number) {
+    async deleteUserLocation(userId: number, addressId: number) {
         const location = await this.deliveryAddressRepository.findOne({
-            where: { location_id: locationId, user: { id: userId } },
+            where: { address_id: addressId, user: { id: userId } },
         });
 
         if (!location) {
-            throw new NotFoundException(`Location with ID ${locationId} not found`);
+            throw new NotFoundException(`Location with ID ${addressId} not found`);
         }
 
-        await this.deliveryAddressRepository.delete(locationId);
+        await this.deliveryAddressRepository.delete({ address_id: addressId });
         return { success: true, message: 'Location deleted successfully' };
     }
 
-    async getAddressById(locationId: number, userId: number): Promise<DeliveryAddress> {
+    async getAddressById(addressId: number, userId: number): Promise<DeliveryAddress> {
         const location = await this.deliveryAddressRepository.findOne({
-            where: { location_id: locationId, user: { id: userId } },
+            where: { address_id: addressId, user: { id: userId } },
         });
         if (!location) {
             throw new NotFoundException("Address not found");

@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
+import { HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from "typeorm";
 import { Category } from '../entities/category.entity';
@@ -59,7 +59,7 @@ export class CategoryService {
         }
         catch (error) {
             this.logger.error(error.message);
-            if (error instanceof NotFoundException) throw error;
+            if (error instanceof HttpException) throw error;
             throw new InternalServerErrorException("Failed to crate sub category");
         }
     }
@@ -87,7 +87,7 @@ export class CategoryService {
         }
         catch (error) {
             this.logger.error(error.message);
-            if (error instanceof NotFoundException) throw error;
+            if (error instanceof HttpException) throw error;
             throw new InternalServerErrorException(`Failed to get category with ID ${categoryId}`)
         }
     }
@@ -115,7 +115,7 @@ export class CategoryService {
         }
         catch (error) {
             this.logger.error(error.message);
-            if (error instanceof NotFoundException) throw error;
+            if (error instanceof HttpException) throw error;
             throw new InternalServerErrorException(`Failed to get subcategory with ID ${id}`)
         }
     }

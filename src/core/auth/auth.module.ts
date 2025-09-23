@@ -9,12 +9,14 @@ import { Verification } from './entities/verification.entity';
 import { MailModule } from '../mail/mail.module';
 import { SmsModule } from '../sms/sms.module';
 import { ConfigModule } from '@nestjs/config';
+import { FarmModule } from 'src/modules/farm/farm.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Verification]),
     ConfigModule,
     UserModule,
+    FarmModule,
     MailModule,
     SmsModule
   ],

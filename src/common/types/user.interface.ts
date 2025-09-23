@@ -10,6 +10,8 @@ export interface UserInterface {
     phone?: string;
     role: UserRole;
     status: UserStatus;
+    farm_id?: number;
+    farm_uuid?: number;
     avatar?: string;
     sub?: string; // JWT subject field
     iat?: number; // JWT issued at timestamp

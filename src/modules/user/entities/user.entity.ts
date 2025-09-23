@@ -1,5 +1,5 @@
 import { Exclude } from 'class-transformer';
-import { Column, Entity, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn, PrimaryGeneratedColumn, BeforeInsert, OneToOne } from 'typeorm';
+import { Column, Entity, OneToMany, CreateDateColumn, UpdateDateColumn, PrimaryGeneratedColumn, BeforeInsert, OneToOne } from 'typeorm';
 import { Gender } from '../enums/gender.enum';
 import { UserRole } from '../enums/role.enum';
 import { UserStatus } from '../enums/user-status.enum';
@@ -59,7 +59,7 @@ export class User {
     status: UserStatus;
 
     @OneToMany(() => DeliveryAddress, (address) => address.user, { cascade: true })
-    address: DeliveryAddress[];
+    addresses: DeliveryAddress[];
 
     @OneToMany(() => PaymentMethod, (paymentMethod) => paymentMethod.user, { cascade: true })
     payment_methods: PaymentMethod[];

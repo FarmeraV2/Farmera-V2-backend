@@ -1,6 +1,6 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import compression from 'compression';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -23,6 +23,7 @@ async function bootstrap() {
   // Global response transform interceptor
   const reflector = app.get(Reflector);
   app.useGlobalInterceptors(new TransformInterceptor(reflector));
+  // app.useGlobalInterceptors(new ClassSerializerInterceptor(reflector)); // exclude fields in entities
 
   app.useGlobalPipes(
     new ValidationPipe({
