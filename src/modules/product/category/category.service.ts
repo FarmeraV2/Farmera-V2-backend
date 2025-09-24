@@ -1,6 +1,6 @@
 import { HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import { Category } from '../entities/category.entity';
 import { Subcategory } from '../entities/sub-category.entity';
 import { CreateCategoryDto } from '../dtos/category/create-category.dto';
@@ -117,6 +117,21 @@ export class CategoryService {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
             throw new InternalServerErrorException(`Failed to get subcategory with ID ${id}`)
+        }
+    }
+
+    async getSubcategoryByIds(id: number[], includeCategory?: boolean): Promise<Subcategory[]> {
+        try {
+            const categories = await this.subcategoriesRepository.find({
+                where: { subcategory_id: In(id) },
+                relations: includeCategory ? ['category'] : undefined,
+            })
+            return categories;
+        }
+        catch (error) {
+            this.logger.error(error.message);
+            if (error instanceof HttpException) throw error;
+            throw new InternalServerErrorException("Failed to get subcategories with IDs");
         }
     }
 

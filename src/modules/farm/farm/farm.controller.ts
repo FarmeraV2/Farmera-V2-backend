@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post, UnauthorizedException, UploadedFiles } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, InternalServerErrorException, Param, Patch, Post, UploadedFiles } from '@nestjs/common';
 import { FarmService } from './farm.service';
 import { UserInterface } from 'src/common/types/user.interface';
 import { User } from 'src/common/decorators/user.decorator';
@@ -7,6 +7,8 @@ import { FarmRegistrationDto } from '../dtos/farm-registration.dto';
 import { Public } from 'src/common/decorators/public.decorator';
 import { UpdateFarmDto } from '../dtos/update-farm.dto';
 import { UpdateFarmAvatarDto, UpdateFarmImagesDto } from '../dtos/update-farm-images.dto';
+import { Roles } from 'src/common/decorators/role.decorator';
+import { UserRole } from 'src/common/enums/role.enum';
 
 @Controller('farm')
 export class FarmController {
@@ -56,21 +58,21 @@ export class FarmController {
     }
 
     @Patch()
+    @Roles([UserRole.FARMER])
     async updateFarm(@Body() updateFarmDto: UpdateFarmDto, @User() user: UserInterface) {
-        if (!user.farm_id || !user.farm_uuid) throw new UnauthorizedException('Unauthorized user');
-        return await this.farmService.updateFarm(user.farm_id, updateFarmDto);
+        return await this.farmService.updateFarm(user.farm_id!, updateFarmDto);
     }
 
     @Patch("avatar")
+    @Roles([UserRole.FARMER])
     async updateFarmAvatar(@Body() updateFarmDto: UpdateFarmAvatarDto, @User() user: UserInterface) {
-        if (!user.farm_id || !user.farm_uuid) throw new UnauthorizedException('Unauthorized user');
-        return await this.farmService.updateFarmAvatar(user.farm_id, updateFarmDto);
+        return await this.farmService.updateFarmAvatar(user.farm_id!, updateFarmDto);
     }
 
     @Patch("images")
+    @Roles([UserRole.FARMER])
     async updateFarmImages(@Body() updateFarmDto: UpdateFarmImagesDto, @User() user: UserInterface) {
-        if (!user.farm_id || !user.farm_uuid) throw new UnauthorizedException('Unauthorized user');
-        return await this.farmService.updateFarmImages(user.farm_id, updateFarmDto);
+        return await this.farmService.updateFarmImages(user.farm_id!, updateFarmDto);
     }
 
     /*#########################################################################

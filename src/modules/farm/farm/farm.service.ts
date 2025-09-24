@@ -178,7 +178,7 @@ export class FarmService {
             //     userId,
             // );
 
-            // identification.id_card_imageUrl = ssn_img_url;
+            // identification.id_card_image_url = ssn_img_url;
             farm.identification = identification;
             farm.status = FarmStatus.VERIFIED;
 
@@ -274,11 +274,19 @@ export class FarmService {
         }
     }
 
+    /**
+     * @function validateFarmer - Validates and retrieves the farm id linked to a given user ID
+     * @param {number} userId - The ID of the user to validate as a farmer
+     *
+     * @returns {Promise<{ id: number, uuid: string } | undefined>} - Returns the farm's ID and UUID if found
+     *
+     * @throws {InternalServerErrorException} - If an unexpected error occurs during the validation process
+     */
     async validateFarmer(userId: number): Promise<{ id: number, uuid: string } | undefined> {
         try {
             const farm = await this.farmRepository.findOne({ select: ["id", "farm_id"], where: { user_id: userId } });
             if (!farm || farm.id <= 0) {
-                throw new NotFoundException("Farm not found");
+                throw new InternalServerErrorException("Something ưent wrong, you're a farmer but your Farm is not found");
             }
             return { id: farm.id, uuid: farm.farm_id };
         }
@@ -418,6 +426,25 @@ export class FarmService {
             if (error instanceof HttpException) throw error;
             throw new InternalServerErrorException("Failed to update farm avatar");
         }
+    }
+
+    /**
+     * @function getId - Retrieves the numeric ID of a farm by its UUID  
+     * @param {string} uuid - The UUID of the farm  
+     * 
+     * @returns {Promise<number | null>} - Returns the farm ID if found, otherwise null
+     * 
+     * @WARNING This function should **NOT** be called directly from controllers or exposed to end users.
+     * Always wrap this method inside a service-level function that enforces ownership and validation checks.
+     */
+    async getId(uuid: string): Promise<number | null> {
+        // todo!("cache");
+        const farm = await this.farmRepository.findOne({
+            select: ["id"],
+            where: { farm_id: uuid }
+        })
+        if (farm) return farm.id;
+        return null;
     }
 
     //   async findFarmsByIds(farmIds: string[]): Promise<Farm[]> {

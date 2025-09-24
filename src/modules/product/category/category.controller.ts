@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { CategoryService } from './category.service';
-import { UserRole } from 'src/modules/user/enums/role.enum';
+import { UserRole } from 'src/common/enums/role.enum';
 import { Roles } from 'src/common/decorators/role.decorator';
 import { CreateCategoryDto } from '../dtos/category/create-category.dto';
 import { CreateSubcategoryDto } from '../dtos/category/create-sub-category.dto';
@@ -17,7 +17,7 @@ export class CategoryController {
         return await this.categoryService.createCategory(newCategory);
     }
 
-    @Roles([UserRole.ADMIN])
+    // @Roles([UserRole.ADMIN])
     @Post("subcategory")
     async createSubCategory(@Body() newSubCategory: CreateSubcategoryDto) {
         return await this.categoryService.createSubcategory(newSubCategory);

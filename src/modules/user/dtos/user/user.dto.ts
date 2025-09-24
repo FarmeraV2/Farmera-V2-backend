@@ -1,9 +1,9 @@
 import { Expose, Type } from "class-transformer";
 import { PaymentMethod } from "../../entities/payment-method.entity";
 import { Gender } from "../../enums/gender.enum";
-import { UserRole } from "../../enums/role.enum";
 import { UserStatus } from "../../enums/user-status.enum";
 import { AddressDto } from "src/modules/address/dtos/address.dto";
+import { UserRole } from "src/common/enums/role.enum";
 
 /**
  * A DTO returning basic information of `User` that is visible to client

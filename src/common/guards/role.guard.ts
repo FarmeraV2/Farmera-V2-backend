@@ -1,7 +1,7 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException, InternalServerErrorException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/role.decorator';
-import { UserRole } from 'src/modules/user/enums/role.enum';
+import { UserRole } from 'src/common/enums/role.enum';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -22,6 +22,9 @@ export class RolesGuard implements CanActivate {
         }
         if (!requiredRoles.includes(user.role)) {
             throw new ForbiddenException('Insufficient role');
+        }
+        if (user.role === UserRole.FARMER) {
+            if (!user.farm_id || !user.farm_uuid) throw new InternalServerErrorException("Something went wrong");
         }
         return true;
     }

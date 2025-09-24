@@ -1,4 +1,4 @@
-import { UserRole } from "src/modules/user/enums/role.enum";
+import { UserRole } from "src/common/enums/role.enum";
 import { UserStatus } from "src/modules/user/enums/user-status.enum";
 
 export interface UserInterface {

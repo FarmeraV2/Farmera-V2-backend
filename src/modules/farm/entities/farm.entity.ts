@@ -17,7 +17,7 @@ export class Farm {
         if (!this.farm_id) this.farm_id = uuidv4();
     }
 
-    @Column()
+    @Column({ unique: true })
     farm_name: string;
 
     @Column({ nullable: true })
@@ -62,7 +62,7 @@ export class Farm {
 
     // stats?: FarmStats
 
-    @Column({ nullable: true })
+    @Column()
     address_id: number;
 
     @OneToOne(() => DeliveryAddress, (address) => address.farm)

@@ -1,12 +1,12 @@
 import { Exclude } from 'class-transformer';
 import { Column, Entity, OneToMany, CreateDateColumn, UpdateDateColumn, PrimaryGeneratedColumn, BeforeInsert, OneToOne } from 'typeorm';
 import { Gender } from '../enums/gender.enum';
-import { UserRole } from '../enums/role.enum';
 import { UserStatus } from '../enums/user-status.enum';
 import { PaymentMethod } from './payment-method.entity';
 import { v4 as uuidv4 } from 'uuid';
 import { Farm } from 'src/modules/farm/entities/farm.entity';
 import { DeliveryAddress } from 'src/modules/address/entities/delivery-address.entity';
+import { UserRole } from 'src/common/enums/role.enum';
 
 @Entity()
 export class User {
@@ -27,7 +27,7 @@ export class User {
     @Column({ unique: true })
     email: string;
 
-    @Column({ unique: true, nullable: true })
+    @Column({ unique: true, nullable: true }) // todo!("remove nullable")
     phone: string;
 
     @Column()

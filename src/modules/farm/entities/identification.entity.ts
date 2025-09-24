@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn, BeforeInsert } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn } from 'typeorm';
 import { Farm } from './farm.entity';
 import { IdentificationMethod, IdentificationStatus } from '../enums/identification.enums';
 
@@ -23,7 +23,7 @@ export class Identification {
     full_name: string;
 
     @Column({ name: 'id_card_image_url', nullable: true })
-    id_card_imageUrl?: string;
+    id_card_image_url?: string;
 
     @OneToOne(() => Farm, (farm) => farm.identification)
     @JoinColumn({ name: 'farm_id' })

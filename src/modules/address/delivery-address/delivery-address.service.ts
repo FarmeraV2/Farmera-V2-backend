@@ -79,7 +79,7 @@ export class DeliveryAddressService {
      *
      * @throws {InternalServerErrorException} - If the address creation or saving process fails
      * 
-     * @WARING This function should **NOT** be called directly from controllers or exposed to end users.
+     * @WARNING This function should **NOT** be called directly from controllers or exposed to end users.
      * Always wrap this method inside a service-level function that enforces ownership and validation checks.
      */
     async addFarmAddress(addressData: CreateFarmAddressDto): Promise<DeliveryAddress> {

@@ -11,5 +11,5 @@ export class CreateCategoryDto {
 
     @IsString()
     @IsOptional()
-    icon_url?: string;
+    image_url?: string;
 }

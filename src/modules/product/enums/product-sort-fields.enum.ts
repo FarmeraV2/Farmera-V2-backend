@@ -1,0 +1,8 @@
+export enum ProductSortField {
+    CREATED = 'CREATED',
+    PRODUCT_NAME = 'PRODUCT_NAME',
+    STATUS = 'STATUS',
+    PRICE = 'PRICE',
+    AVERAGE_RATING = 'AVERAGE_RATING',
+    TOTAL_SOLD = 'TOTAL_SOLD',
+}

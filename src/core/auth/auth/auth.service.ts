@@ -11,7 +11,7 @@ import ms from 'ms';
 import { ForgotPasswordDto, UpdateNewPasswordDto } from '../dtos/forgot-password.dto';
 import { VerificationService } from '../verification/verification.service';
 import { FarmService } from 'src/modules/farm/farm/farm.service';
-import { UserRole } from 'src/modules/user/enums/role.enum';
+import { UserRole } from 'src/common/enums/role.enum';
 
 export const REFRESH_TOKEN_COOKIES_KEY = 'refresh_token';
 
