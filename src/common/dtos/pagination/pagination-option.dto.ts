@@ -2,7 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsEnum, IsInt, IsOptional, Max, Min, } from 'class-validator';
 import { Order } from 'src/common/enums/pagination.enum';
 
-export abstract class PaginationOptions<T> {
+export abstract class PaginationOptions<T = string> {
     // Sort
     @IsEnum(Order)
     @IsOptional()
@@ -21,14 +21,8 @@ export abstract class PaginationOptions<T> {
     @Type(() => Number)
     @IsInt()
     @Min(1)
-    @Max(100)
     @IsOptional()
     readonly limit: number = 10;
-
-    @IsOptional()
-    @IsBoolean()
-    @Transform(({ value }) => value === 'true')
-    readonly all?: boolean;
 
     get skip(): number {
         return ((this.page ?? 1) - 1) * (this.limit ?? 10);

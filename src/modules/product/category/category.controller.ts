@@ -5,7 +5,6 @@ import { Roles } from 'src/common/decorators/role.decorator';
 import { CreateCategoryDto } from '../dtos/category/create-category.dto';
 import { CreateSubcategoryDto } from '../dtos/category/create-sub-category.dto';
 import { Public } from 'src/common/decorators/public.decorator';
-import { SearchCategoryDto } from '../dtos/category/search-category.dto';
 
 @Controller('category')
 export class CategoryController {

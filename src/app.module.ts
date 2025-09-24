@@ -17,6 +17,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { ProductModule } from './modules/product/product.module';
 import { FarmModule } from './modules/farm/farm.module';
 import { AddressModule } from './modules/address/address.module';
+import { ReviewModule } from './modules/review/review.module';
 
 @Module({
   imports: [
@@ -53,7 +54,7 @@ import { AddressModule } from './modules/address/address.module';
     //   }),
     // }),
 
-    AuthModule, UserModule, MailModule, SmsModule, RedisModule, AdminModule, ProductModule, FarmModule, AddressModule],
+    AuthModule, UserModule, MailModule, SmsModule, RedisModule, AdminModule, ProductModule, FarmModule, AddressModule, ReviewModule],
   controllers: [AppController],
   providers: [
     AppService,

@@ -17,7 +17,7 @@ export class DeliveryAddress {
     @Column()
     phone: string
 
-    @ManyToOne(() => Province, (province) => province.delivery_address)
+    @ManyToOne(() => Province)
     @JoinColumn({ name: "province_code" })
     province: Province;
 

@@ -1,7 +1,8 @@
 import { Farm } from 'src/modules/farm/entities/farm.entity';
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, ManyToMany, JoinTable } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, ManyToMany, JoinTable, OneToMany } from 'typeorm';
 import { ProductStatus } from '../enums/product-status.enum';
 import { Subcategory } from './sub-category.entity';
+import { Review } from 'src/modules/review/entities/review.entity';
 
 @Entity()
 export class Product {
@@ -63,6 +64,9 @@ export class Product {
     @ManyToMany(() => Subcategory, (sub) => sub.products, { cascade: true })
     @JoinTable()
     subcategories?: Subcategory[];
+
+    @OneToMany(() => Review, (review) => review.product)
+    reviews?: Review[];
 
     // @OneToMany(() => Process, (process) => process.product)
     // @JoinColumn({ name: 'process_id' })

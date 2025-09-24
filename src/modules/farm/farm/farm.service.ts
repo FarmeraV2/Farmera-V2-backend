@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from "typeorm";
 import { Farm } from '../entities/farm.entity';
@@ -7,9 +7,7 @@ import { BiometricService } from '../biometric/biometric.service';
 import { Identification } from '../entities/identification.entity';
 import { IdentificationMethod, IdentificationStatus } from '../enums/identification.enums';
 import { FarmStatus } from '../enums/farm-status.enum';
-import { SearchFarmDto } from '../dtos/search-farm.dto';
 import { plainToInstance } from 'class-transformer';
-import { PaginationOptions } from 'src/common/dtos/pagination/pagination-option.dto';
 import { FarmRegistrationDto } from '../dtos/farm-registration.dto';
 import { DeliveryAddressService } from 'src/modules/address/delivery-address/delivery-address.service';
 import { CreateFarmAddressDto } from 'src/modules/address/dtos/create-address.dto';

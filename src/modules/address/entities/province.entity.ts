@@ -27,7 +27,4 @@ export class Province {
 
     @OneToMany(() => Ward, (ward) => ward.province)
     ward: Ward
-
-    @OneToMany(() => DeliveryAddress, (address) => address.province)
-    delivery_address: DeliveryAddress
 }

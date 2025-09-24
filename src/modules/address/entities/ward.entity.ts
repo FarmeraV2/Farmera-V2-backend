@@ -28,7 +28,4 @@ export class Ward {
     @ManyToOne(() => Province, (province) => province.ward)
     @JoinColumn({ name: "province_code" })
     province: Province;
-
-    @OneToMany(() => DeliveryAddress, (address) => address.ward)
-    delivery_address: DeliveryAddress
 }

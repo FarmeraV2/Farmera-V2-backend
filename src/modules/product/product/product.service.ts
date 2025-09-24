@@ -190,7 +190,7 @@ export class ProductService {
         // todo!("optimize this fk shit")
         // extract pagination options
         const paginationOptions = plainToInstance(PaginationTransform<ProductSortField>, searchProductsDTo);
-        const { sort_by, order, all } = paginationOptions;
+        const { sort_by, order } = paginationOptions;
         // filter options
         const {
             subcategory_id, is_category, search, min_price, max_price, min_rating, max_rating, min_total_sold, status
@@ -254,10 +254,6 @@ export class ProductService {
             if (sort_by || order) this.applySorting(queryBuilder, sort_by, order);
 
             // apply pagination
-            if (all) {
-                const products = await queryBuilder.getMany();
-                return new PaginationResult(products);
-            }
             const totalItems = await this.applyPagination(queryBuilder, paginationOptions);
             if (totalItems < 0) throw new BadRequestException("Invalid page");
 
@@ -363,7 +359,7 @@ export class ProductService {
         // todo!("optimize more")
         // extract pagination options
         const paginationOptions = plainToInstance(PaginationTransform<ProductSortField>, getProductDto);
-        const { sort_by, order, all } = paginationOptions;
+        const { sort_by, order } = paginationOptions;
         try {
             // create query builder
             const farmId = await this.farmService.getId(uuid);
@@ -383,10 +379,6 @@ export class ProductService {
             if (sort_by || order) this.applySorting(qb, sort_by, order);
 
             // apply pagination
-            if (all) {
-                const products = await qb.getMany();
-                return new PaginationResult(products);
-            }
             const totalItems = await this.applyPagination(qb, paginationOptions);
             if (totalItems < 0) throw new BadRequestException("Invalid page");
 
@@ -420,7 +412,7 @@ export class ProductService {
         try {
             // extract pagination options
             const paginationOptions = plainToInstance(PaginationTransform<ProductSortField>, getProductDto);
-            const { sort_by, order, all } = paginationOptions;
+            const { sort_by, order } = paginationOptions;
 
             const qb = this.productsRepository.createQueryBuilder('product').select(productSelectFields);
 
@@ -444,10 +436,6 @@ export class ProductService {
             if (sort_by || order) this.applySorting(qb, sort_by, order);
 
             // apply pagination
-            if (all) {
-                const products = await qb.getMany();
-                return new PaginationResult(products);
-            }
             const totalItems = await this.applyPagination(qb, paginationOptions);
             if (totalItems < 0) throw new BadRequestException("Invalid page");
 

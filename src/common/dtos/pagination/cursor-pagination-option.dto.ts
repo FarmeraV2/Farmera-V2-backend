@@ -1,23 +1,26 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { Order } from 'src/common/enums/pagination.enum';
 
-export class CursorPagination {
+export abstract class CursorPaginationOptions<T = string> {
     @IsOptional()
-    @IsString()
-    sort_by?: string;
+    abstract sort_by: T;
 
     @IsOptional()
     @IsEnum(Order)
-    order? = 'DESC';
+    readonly order: Order = Order.DESC;
 
-    @IsOptional()
-    @IsNumber()
-    @IsPositive()
     @Type(() => Number)
-    limit? = 10;
+    @IsInt()
+    @Min(1)
+    @IsOptional()
+    readonly limit: number = 10;
 
     @IsOptional()
     @IsString()
-    cursor?: string;
+    readonly cursor?: string;
+}
+
+export class CursorPaginationTransform<T> extends CursorPaginationOptions<T> {
+    sort_by: T;
 }
