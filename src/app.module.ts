@@ -18,6 +18,8 @@ import { ProductModule } from './modules/product/product.module';
 import { FarmModule } from './modules/farm/farm.module';
 import { AddressModule } from './modules/address/address.module';
 import { ReviewModule } from './modules/review/review.module';
+import { PaymentModule } from './modules/payment/payment.module';
+import { OrderModule } from './modules/order/order.module';
 
 @Module({
   imports: [
@@ -54,7 +56,7 @@ import { ReviewModule } from './modules/review/review.module';
     //   }),
     // }),
 
-    AuthModule, UserModule, MailModule, SmsModule, RedisModule, AdminModule, ProductModule, FarmModule, AddressModule, ReviewModule],
+    AuthModule, UserModule, MailModule, SmsModule, RedisModule, AdminModule, ProductModule, FarmModule, AddressModule, ReviewModule, PaymentModule, OrderModule],
   controllers: [AppController],
   providers: [
     AppService,
