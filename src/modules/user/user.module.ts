@@ -14,4 +14,4 @@ import { HashService } from 'src/services/hash.service';
     providers: [UserService, PaymentMethodService, HashService],
     exports: [UserService],
 })
-export class UserModule {}
+export class UserModule { }

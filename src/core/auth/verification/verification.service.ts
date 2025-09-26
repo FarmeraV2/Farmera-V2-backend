@@ -13,12 +13,11 @@ export class VerificationService {
     private readonly logger = new Logger(VerificationService.name);
 
     constructor(
-        @InjectRepository(Verification)
-        private verificationRepository: Repository<Verification>,
+        @InjectRepository(Verification) private verificationRepository: Repository<Verification>,
         private userService: UserService,
         private emailService: MailService,
         private smsService: SmsService,
-    ) {}
+    ) { }
 
     /**
      * @function sendVerificationEmail - Sends a verification email for registration or password reset

@@ -16,4 +16,4 @@ import { FarmModule } from 'src/modules/farm/farm.module';
     controllers: [AuthController, VerificationController],
     providers: [AuthService, VerificationService],
 })
-export class AuthModule {}
+export class AuthModule { }
