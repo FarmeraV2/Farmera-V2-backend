@@ -1,6 +1,6 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from "typeorm";
+import { Repository } from 'typeorm';
 import { Province } from '../entities/province.entity';
 import { Ward } from '../entities/ward.entity';
 import { HttpService } from '@nestjs/axios';
@@ -9,7 +9,6 @@ import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class AddressService {
-
     private readonly logger = new Logger(AddressService.name);
 
     private addressApi: string | undefined;
@@ -19,11 +18,11 @@ export class AddressService {
         @InjectRepository(Ward) private readonly wardRepository: Repository<Ward>,
 
         private readonly httpService: HttpService,
-        private readonly configService: ConfigService
+        private readonly configService: ConfigService,
     ) {
-        const addressApi = configService.get<string>("ADDRESS_API_ENDPOINT");
+        const addressApi = configService.get<string>('ADDRESS_API_ENDPOINT');
         if (!addressApi) {
-            this.logger.warn("External address api endpoint not found, pulling address process will be disable");
+            this.logger.warn('External address api endpoint not found, pulling address process will be disable');
             return;
         }
         this.addressApi = addressApi;
@@ -35,9 +34,8 @@ export class AddressService {
         if (provinceCodes && provinceCodes.length > 0) {
             // for each province, import ward
             await this.importWard(provinceCodes);
-        }
-        else {
-            const result = await this.provinceRepository.find({ select: ["code"] })
+        } else {
+            const result = await this.provinceRepository.find({ select: ['code'] });
             const codes = result.map((p) => p.code);
             await this.importWard(codes);
         }
@@ -50,7 +48,7 @@ export class AddressService {
         }
         // fetch province
         if (!this.addressApi) {
-            this.logger.error("External address api is not configured");
+            this.logger.error('External address api is not configured');
             return;
         }
         try {
@@ -61,10 +59,9 @@ export class AddressService {
             // extract province code
             const result = saved.map((p) => p.code);
             return result;
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
-            return
+            return;
         }
     }
 
@@ -74,7 +71,7 @@ export class AddressService {
             return;
         }
         if (!this.addressApi) {
-            this.logger.error("External address api is not configured");
+            this.logger.error('External address api is not configured');
             return;
         }
 
@@ -82,37 +79,32 @@ export class AddressService {
             for (const provinceCode of provinceCodes) {
                 const response = await firstValueFrom(this.httpService.get(`${this.addressApi}/ward/${provinceCode}`));
 
-                const wards: Ward[] = response.data.map((ward: Ward) =>
-                    this.wardRepository.create({ ...ward, province: { code: provinceCode } })
-                );
+                const wards: Ward[] = response.data.map((ward: Ward) => this.wardRepository.create({ ...ward, province: { code: provinceCode } }));
 
                 await this.wardRepository.save(wards);
             }
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
         }
     }
 
     async getAllProvinces(): Promise<Province[]> {
         try {
-            const provinces = await this.provinceRepository.find()
+            const provinces = await this.provinceRepository.find();
             return provinces;
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException("Failed to get provinces");
+            throw new InternalServerErrorException('Failed to get provinces');
         }
     }
 
     async getWardByProvinceCode(code: number): Promise<Ward[]> {
         try {
-            const wards = await this.wardRepository.find({ where: { province: { code } } })
+            const wards = await this.wardRepository.find({ where: { province: { code } } });
             return wards;
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException("Failed to get wards");
+            throw new InternalServerErrorException('Failed to get wards');
         }
     }
 }

@@ -11,13 +11,9 @@ import { DeliveryAddressController } from './delivery-address/delivery-address.c
 import { DeliveryAddress } from './entities/delivery-address.entity';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Province, Ward, DeliveryAddress]),
-        HttpModule,
-        ConfigModule,
-    ],
+    imports: [TypeOrmModule.forFeature([Province, Ward, DeliveryAddress]), HttpModule, ConfigModule],
     providers: [AddressService, DeliveryAddressService],
     controllers: [AddressController, DeliveryAddressController],
     exports: [DeliveryAddressService],
 })
-export class AddressModule { }
+export class AddressModule {}

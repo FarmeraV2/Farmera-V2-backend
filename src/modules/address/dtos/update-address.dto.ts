@@ -1,12 +1,11 @@
-import { IsOptional, IsString, IsBoolean, IsNotEmpty, IsPhoneNumber, IsEnum, IsNumber, IsPositive } from 'class-validator';
-import { AddressType } from '../enums/address-type.enums';
+import { IsOptional, IsString, IsBoolean, IsNotEmpty, IsPhoneNumber, IsNumber, IsPositive } from 'class-validator';
 
 export class UpdateAddressDto {
     @IsString()
     name: string;
 
     @IsString()
-    @IsPhoneNumber("VN")
+    @IsPhoneNumber('VN')
     @IsNotEmpty()
     phone: string;
 

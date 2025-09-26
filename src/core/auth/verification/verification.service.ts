@@ -18,8 +18,7 @@ export class VerificationService {
         private userService: UserService,
         private emailService: MailService,
         private smsService: SmsService,
-    ) { }
-
+    ) {}
 
     /**
      * @function sendVerificationEmail - Sends a verification email for registration or password reset
@@ -33,12 +32,9 @@ export class VerificationService {
      * @throws {BadRequestException} - If the user is not found during password reset
      * @throws {BadRequestException} - If the maximum number of verification codes (5) has been reached
      */
-    async sendVerificationEmail(
-        sendVerificationEmailDto: SendVerificationEmailDto,
-        forgotPassword: boolean = false,
-    ): Promise<{ result: string }> {
+    async sendVerificationEmail(sendVerificationEmailDto: SendVerificationEmailDto, forgotPassword: boolean = false): Promise<{ result: string }> {
         // find a user with email & validate
-        const foundUser = await this.userService.userExistsBy("email", sendVerificationEmailDto.email);
+        const foundUser = await this.userService.userExistsBy('email', sendVerificationEmailDto.email);
 
         if (!forgotPassword && foundUser) {
             throw new ConflictException('This email is already in use');
@@ -66,18 +62,14 @@ export class VerificationService {
 
             await this.verificationRepository.save(foundVerification);
 
-            setTimeout(async () => {
-                if (!forgotPassword) {
-                    await this.sendEmailCode(
-                        sendVerificationEmailDto.email,
-                        foundVerification.email_code,
-                    );
-                } else {
-                    await this.sendEmailResetCode(
-                        sendVerificationEmailDto.email,
-                        foundVerification.email_code,
-                    );
-                }
+            setTimeout(() => {
+                void (async () => {
+                    if (!forgotPassword) {
+                        await this.sendEmailCode(sendVerificationEmailDto.email, foundVerification.email_code);
+                    } else {
+                        await this.sendEmailResetCode(sendVerificationEmailDto.email, foundVerification.email_code);
+                    }
+                })();
             }, 0);
         }
         // create new verification and send email
@@ -92,18 +84,14 @@ export class VerificationService {
 
             await this.verificationRepository.save(newVerification);
 
-            setTimeout(async () => {
-                if (!forgotPassword) {
-                    await this.sendEmailCode(
-                        sendVerificationEmailDto.email,
-                        newVerification.email_code,
-                    );
-                } else {
-                    await this.sendEmailResetCode(
-                        sendVerificationEmailDto.email,
-                        newVerification.email_code,
-                    );
-                }
+            setTimeout(() => {
+                void (async () => {
+                    if (!forgotPassword) {
+                        await this.sendEmailCode(sendVerificationEmailDto.email, newVerification.email_code);
+                    } else {
+                        await this.sendEmailResetCode(sendVerificationEmailDto.email, newVerification.email_code);
+                    }
+                })();
             }, 0);
         }
 
@@ -130,13 +118,10 @@ export class VerificationService {
         };
     }
 
-    async sendVerificationPhone(
-        sendVerificationPhoneDto: SendVerificationPhoneDto,
-        forgotPassword = false,
-    ) {
+    async sendVerificationPhone(sendVerificationPhoneDto: SendVerificationPhoneDto, forgotPassword = false) {
         const phone = sendVerificationPhoneDto.phone;
 
-        const foundUser = await this.userService.userExistsBy("phone", phone);
+        const foundUser = await this.userService.userExistsBy('phone', phone);
 
         if (!forgotPassword && foundUser) {
             throw new ConflictException('This phone number is already in use');
@@ -163,18 +148,14 @@ export class VerificationService {
 
             await this.verificationRepository.save(foundVerification);
 
-            setTimeout(async () => {
-                if (!forgotPassword) {
-                    await this.sendPhoneCode(
-                        phone,
-                        foundVerification.phone_code,
-                    );
-                } else {
-                    await this.sendPhoneResetCode(
-                        phone,
-                        foundVerification.phone_code,
-                    );
-                }
+            setTimeout(() => {
+                void (async () => {
+                    if (!forgotPassword) {
+                        await this.sendPhoneCode(phone, foundVerification.phone_code);
+                    } else {
+                        await this.sendPhoneResetCode(phone, foundVerification.phone_code);
+                    }
+                })();
             }, 0);
         } else {
             const newVerification = this.verificationRepository.create({
@@ -187,15 +168,14 @@ export class VerificationService {
 
             await this.verificationRepository.save(newVerification);
 
-            setTimeout(async () => {
-                if (!forgotPassword) {
-                    await this.sendPhoneCode(phone, newVerification.phone_code);
-                } else {
-                    await this.sendPhoneResetCode(
-                        phone,
-                        newVerification.phone_code,
-                    );
-                }
+            setTimeout(() => {
+                void (async () => {
+                    if (!forgotPassword) {
+                        await this.sendPhoneCode(phone, newVerification.phone_code);
+                    } else {
+                        await this.sendPhoneResetCode(phone, newVerification.phone_code);
+                    }
+                })();
             }, 0);
         }
 
@@ -205,15 +185,12 @@ export class VerificationService {
     }
 
     async verifyPhone(verifyPhoneDto: VerifyPhoneDto) {
-
         const foundVerification = await this.verificationRepository.findOne({
             where: { phone: verifyPhoneDto.phone },
         });
 
         if (!foundVerification) {
-            throw new BadRequestException(
-                'Verification not found for this phone number',
-            );
+            throw new BadRequestException('Verification not found for this phone number');
         }
 
         if (foundVerification.phone_code !== verifyPhoneDto.verification_code) {
@@ -292,7 +269,7 @@ Farmera Team`;
     private async sendPhoneCode(phoneNumber: string, code: string) {
         try {
             await this.smsService.sendVerificationCode(phoneNumber, code);
-        } catch (error) {
+        } catch {
             throw new BadRequestException('Failed to send SMS verification code');
         }
     }
@@ -300,7 +277,7 @@ Farmera Team`;
     private async sendPhoneResetCode(phoneNumber: string, code: string) {
         try {
             await this.smsService.sendPasswordResetCode(phoneNumber, code);
-        } catch (error) {
+        } catch {
             throw new BadRequestException('Failed to send SMS reset code');
         }
     }

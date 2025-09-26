@@ -1,6 +1,6 @@
 import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from "typeorm";
+import { Repository } from 'typeorm';
 import { Review } from '../entities/review.entity';
 import { CreateReviewDto } from '../dtos/review/create-review.dto';
 import { Reply } from '../entities/reply.entity';
@@ -11,6 +11,7 @@ import { GetReviewsDto } from '../dtos/review/get-review.dto';
 import { ReviewSortField } from '../enums/review-sort-fields.enum';
 import { CursorPaginationResult } from 'src/common/dtos/pagination/cursor-pagination-result.dto';
 import { RatingStatsDto } from '../dtos/review/rating-stats.dto';
+import { Order } from 'src/common/enums/pagination.enum';
 
 @Injectable()
 export class ReviewService {
@@ -20,12 +21,12 @@ export class ReviewService {
         @InjectRepository(Review) private readonly reviewRepository: Repository<Review>,
         @InjectRepository(Reply) private readonly replyRepository: Repository<Reply>,
         // private readonly fileStorageService: AzureBlobService,
-    ) { }
+    ) {}
 
     async createReview(createReviewDto: CreateReviewDto, userId: number): Promise<Review> {
         try {
             // todo!("check if user has purchased the product")
-            const orderDetailId = 0;
+            // const orderDetailId = 0;
 
             const review = this.reviewRepository.create(createReviewDto);
             review.user_id = userId;
@@ -41,7 +42,7 @@ export class ReviewService {
     async createReply(createReplyDto: CreateReplyDto, userId: number): Promise<Reply> {
         try {
             const review = await this.reviewRepository.exists({
-                where: { review_id: createReplyDto.review_id, is_deleted: false }
+                where: { review_id: createReplyDto.review_id, is_deleted: false },
             });
             if (review) {
                 const reply = this.replyRepository.create(createReplyDto);
@@ -49,9 +50,8 @@ export class ReviewService {
                 reply.user_id = userId;
                 return await this.replyRepository.save(reply);
             }
-            throw new NotFoundException("Review not found");
-        }
-        catch (error) {
+            throw new NotFoundException('Review not found');
+        } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
             throw new InternalServerErrorException(`Failed to create reply`);
@@ -65,7 +65,8 @@ export class ReviewService {
         const { rating_filter } = getReviewDto;
 
         // build query
-        const qb = this.reviewRepository.createQueryBuilder('review')
+        const qb = this.reviewRepository
+            .createQueryBuilder('review')
             .where('review.is_deleted = false')
             .leftJoinAndSelect('review.replies', 'reply', 'reply.is_deleted = false')
             .andWhere('review.product_id = :productId', { productId })
@@ -84,7 +85,7 @@ export class ReviewService {
         if (cursor) {
             const decoded = this.decodeCursor(cursor);
             if (sort_by === ReviewSortField.CREATED) {
-                if (order === 'DESC') {
+                if (order === Order.DESC) {
                     qb.andWhere('review.review_id < :decoded', { decoded });
                 } else {
                     qb.andWhere('review.review_id > :decoded', { decoded });
@@ -94,7 +95,7 @@ export class ReviewService {
                 const [ratingStr, review_id] = decoded.split('_');
                 const rating = parseInt(ratingStr);
 
-                if (order === 'DESC') {
+                if (order === Order.DESC) {
                     qb.andWhere('(review.rating < :rating OR (review.rating = :rating AND review.review_id < :review_id))', {
                         rating,
                         review_id,
@@ -125,7 +126,7 @@ export class ReviewService {
             nextCursor = this.encodeCursor(nextCursor);
         }
 
-        return new CursorPaginationResult(reviews, { next_cursor: nextCursor })
+        return new CursorPaginationResult(reviews, { next_cursor: nextCursor });
     }
 
     async deleteReview(reviewId: number, userId: number): Promise<boolean> {
@@ -135,11 +136,10 @@ export class ReviewService {
                 throw new InternalServerErrorException(`Failed to delete review`);
             }
             return true;
-        }
-        catch (err) {
+        } catch (err) {
             this.logger.error(err.message);
             if (err instanceof HttpException) throw err;
-            throw new InternalServerErrorException("Failed to delete review");
+            throw new InternalServerErrorException('Failed to delete review');
         }
     }
 
@@ -150,11 +150,10 @@ export class ReviewService {
                 throw new InternalServerErrorException(`Failed to delete reply`);
             }
             return true;
-        }
-        catch (err) {
+        } catch (err) {
             this.logger.error(err.message);
             if (err instanceof HttpException) throw err;
-            throw new InternalServerErrorException("Failed to delete reply");
+            throw new InternalServerErrorException('Failed to delete reply');
         }
     }
 
@@ -164,18 +163,18 @@ export class ReviewService {
             if (result.affected == 0) {
                 throw new InternalServerErrorException(`Approve failed`);
             }
-            return true
-        }
-        catch (err) {
+            return true;
+        } catch (err) {
             this.logger.error(err.message);
             if (err instanceof HttpException) throw err;
-            throw new InternalServerErrorException("Approve failed");
+            throw new InternalServerErrorException('Approve failed');
         }
     }
 
     // todo!("build a ssis")
     async getReviewOverview(productId: number): Promise<RatingStatsDto> {
-        const ratings = await this.reviewRepository.createQueryBuilder('review')
+        const ratings = await this.reviewRepository
+            .createQueryBuilder('review')
             .select('review.rating', 'rating')
             .addSelect('review.rating', 'rating')
             .addSelect('COUNT(*)', 'count')
@@ -206,7 +205,6 @@ export class ReviewService {
     //             review_id: reviewId,
     //             user_id: userId,
     //         });
-
 
     //         if (!existingReview) {
     //             throw new NotFoundException('Không tìm thấy review');
@@ -283,7 +281,7 @@ export class ReviewService {
     private decodeCursor(cursor: string): string {
         try {
             return Buffer.from(cursor, 'base64').toString('utf8');
-        } catch (err) {
+        } catch {
             throw new BadRequestException('Invalid cursor');
         }
     }

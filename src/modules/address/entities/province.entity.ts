@@ -1,6 +1,5 @@
-import { Column, Entity, OneToMany, PrimaryColumn } from "typeorm";
-import { Ward } from "./ward.entity";
-import { DeliveryAddress } from "./delivery-address.entity";
+import { Column, Entity, OneToMany, PrimaryColumn } from 'typeorm';
+import { Ward } from './ward.entity';
 
 @Entity()
 export class Province {
@@ -26,5 +25,5 @@ export class Province {
     type_en: string;
 
     @OneToMany(() => Ward, (ward) => ward.province)
-    ward: Ward
+    ward: Ward;
 }

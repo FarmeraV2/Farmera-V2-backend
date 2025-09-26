@@ -1,6 +1,6 @@
 import { HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from "typeorm";
+import { In, Repository } from 'typeorm';
 import { Category } from '../entities/category.entity';
 import { Subcategory } from '../entities/sub-category.entity';
 import { CreateCategoryDto } from '../dtos/category/create-category.dto';
@@ -15,12 +15,12 @@ export class CategoryService {
         private readonly categoriesRepository: Repository<Category>,
         @InjectRepository(Subcategory)
         private readonly subcategoriesRepository: Repository<Subcategory>,
-    ) { }
+    ) {}
 
     /**
      * @function createCategory - Creates a new category
      * @param {CreateCategoryDto} createCategoryDto - Data required to create the category
-     * 
+     *
      * @returns {Promise<Category>} - The newly created category entity
      *
      * @throws {InternalServerErrorException} - Thrown if an unexpected error occurs
@@ -56,11 +56,10 @@ export class CategoryService {
                 category: existingSubcategory,
             });
             return this.subcategoriesRepository.save(subcategory);
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException("Failed to crate sub category");
+            throw new InternalServerErrorException('Failed to crate sub category');
         }
     }
 
@@ -78,17 +77,16 @@ export class CategoryService {
         try {
             const category = await this.categoriesRepository.findOne({
                 where: { category_id: categoryId },
-                relations: include_subs ? ["subcategories"] : undefined
+                relations: include_subs ? ['subcategories'] : undefined,
             });
             if (!category) {
                 throw new NotFoundException(`Category with ID ${categoryId} not found`);
             }
             return category;
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException(`Failed to get category with ID ${categoryId}`)
+            throw new InternalServerErrorException(`Failed to get category with ID ${categoryId}`);
         }
     }
 
@@ -112,11 +110,10 @@ export class CategoryService {
                 throw new NotFoundException(`Subcategory with ID ${id} not found`);
             }
             return subcategory;
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException(`Failed to get subcategory with ID ${id}`)
+            throw new InternalServerErrorException(`Failed to get subcategory with ID ${id}`);
         }
     }
 
@@ -125,13 +122,12 @@ export class CategoryService {
             const categories = await this.subcategoriesRepository.find({
                 where: { subcategory_id: In(id) },
                 relations: includeCategory ? ['category'] : undefined,
-            })
+            });
             return categories;
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException("Failed to get subcategories with IDs");
+            throw new InternalServerErrorException('Failed to get subcategories with IDs');
         }
     }
 
@@ -152,7 +148,6 @@ export class CategoryService {
     //         }
     //         return new PaginationResult(categories);
     //     }
-
 
     //     // Use pagination
     //     const queryBuilder = this.categoriesRepository
@@ -276,7 +271,6 @@ export class CategoryService {
 
     //     return new PaginationResult(categories, meta);
     // }
-
 
     // // verified
     // async getSubCategoryTree(category_id: number): Promise<Category> {

@@ -1,5 +1,5 @@
-import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString, Matches } from "class-validator";
-import { PaymentProvider } from "../../enums/payment-provider.enum";
+import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
+import { PaymentProvider } from '../../enums/payment-provider.enum';
 
 export class CreatePaymentDto {
     @IsEnum(PaymentProvider)

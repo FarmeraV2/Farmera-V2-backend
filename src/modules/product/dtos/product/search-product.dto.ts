@@ -5,10 +5,9 @@ import { ProductStatus } from '../../enums/product-status.enum';
 import { ProductSortField } from '../../enums/product-sort-fields.enum';
 
 export class SearchProductsDto extends PaginationOptions<ProductSortField> {
-
     @IsOptional()
     @IsEnum(ProductSortField)
-    sort_by: ProductSortField = ProductSortField.CREATED;;
+    sort_by: ProductSortField = ProductSortField.CREATED;
 
     @IsOptional()
     @IsString()

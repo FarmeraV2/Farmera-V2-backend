@@ -7,7 +7,7 @@ export class SendVerificationEmailDto {
 }
 
 export class SendVerificationPhoneDto {
-    @IsPhoneNumber("VN")
+    @IsPhoneNumber('VN')
     @IsNotEmpty()
     phone: string;
 }
@@ -24,7 +24,7 @@ export class VerifyEmailDto {
 }
 
 export class VerifyPhoneDto {
-    @IsPhoneNumber("VN")
+    @IsPhoneNumber('VN')
     @IsNotEmpty()
     phone: string;
 

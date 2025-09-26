@@ -54,9 +54,7 @@ export interface FptIdrCccdFrontData extends FptIdrBaseCardData {
     doe_prob?: string;
 }
 
-export type FptIdrCardFrontData =
-    | FptIdrCmtOldFrontData
-    | FptIdrCccdFrontData;
+export type FptIdrCardFrontData = FptIdrCmtOldFrontData | FptIdrCccdFrontData;
 export interface FptIdrFrontSuccessResponse {
     errorCode: 0;
     errorMessage: '';

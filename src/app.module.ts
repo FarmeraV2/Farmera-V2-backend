@@ -22,52 +22,64 @@ import { PaymentModule } from './modules/payment/payment.module';
 import { OrderModule } from './modules/order/order.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forRootAsync(typeOrmAsyncConfig),
+    imports: [
+        TypeOrmModule.forRootAsync(typeOrmAsyncConfig),
 
-    // Configuration
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '.env',
-    }),
+        // Configuration
+        ConfigModule.forRoot({
+            isGlobal: true,
+            envFilePath: '.env',
+        }),
 
-    // JWT configuration
-    JwtModule.registerAsync({
-      global: true,
-      inject: [],
-      useFactory: () => ({
-        secret: process.env.JWT_ACCESS_TOKEN_SECRET || 'fallback_secret',
-        signOptions: {
-          expiresIn: process.env.JWT_ACCESS_TOKEN_EXPIRATION || '15m',
+        // JWT configuration
+        JwtModule.registerAsync({
+            global: true,
+            inject: [],
+            useFactory: () => ({
+                secret: process.env.JWT_ACCESS_TOKEN_SECRET || 'fallback_secret',
+                signOptions: {
+                    expiresIn: process.env.JWT_ACCESS_TOKEN_EXPIRATION || '15m',
+                },
+            }),
+        }),
+
+        // Rate limiting
+        // ThrottlerModule.forRootAsync({
+        //   inject: [],
+        //   useFactory: () => ({
+        //     throttlers: [
+        //       {
+        //         ttl: parseInt(process.env.THROTTLE_TTL || '60') * 1000,
+        //         limit: parseInt(process.env.THROTTLE_LIMIT || '10'),
+        //       },
+        //     ],
+        //   }),
+        // }),
+
+        AuthModule,
+        UserModule,
+        MailModule,
+        SmsModule,
+        RedisModule,
+        AdminModule,
+        ProductModule,
+        FarmModule,
+        AddressModule,
+        ReviewModule,
+        PaymentModule,
+        OrderModule,
+    ],
+    controllers: [AppController],
+    providers: [
+        AppService,
+        {
+            provide: APP_GUARD,
+            useClass: JwtAuthGuard,
         },
-      }),
-    }),
-
-    // Rate limiting
-    // ThrottlerModule.forRootAsync({
-    //   inject: [],
-    //   useFactory: () => ({
-    //     throttlers: [
-    //       {
-    //         ttl: parseInt(process.env.THROTTLE_TTL || '60') * 1000,
-    //         limit: parseInt(process.env.THROTTLE_LIMIT || '10'),
-    //       },
-    //     ],
-    //   }),
-    // }),
-
-    AuthModule, UserModule, MailModule, SmsModule, RedisModule, AdminModule, ProductModule, FarmModule, AddressModule, ReviewModule, PaymentModule, OrderModule],
-  controllers: [AppController],
-  providers: [
-    AppService,
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard,
-    },
-  ],
+        {
+            provide: APP_GUARD,
+            useClass: RolesGuard,
+        },
+    ],
 })
-export class AppModule { }
+export class AppModule {}

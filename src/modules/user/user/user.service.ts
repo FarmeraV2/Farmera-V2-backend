@@ -1,4 +1,12 @@
-import { BadRequestException, ConflictException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
+import {
+    BadRequestException,
+    ConflictException,
+    HttpException,
+    Injectable,
+    InternalServerErrorException,
+    Logger,
+    NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
@@ -11,7 +19,6 @@ import { isUUID } from 'class-validator';
 
 @Injectable()
 export class UserService {
-
     private readonly logger = new Logger(UserService.name);
 
     constructor(
@@ -20,13 +27,13 @@ export class UserService {
         // private locationsRepository: Repository<Location>,
         // @InjectRepository(PaymentMethod)
         // private paymentMethodsRepository: Repository<PaymentMethod>,
-        private readonly hashService: HashService
-    ) { }
+        private readonly hashService: HashService,
+    ) {}
 
     /**
      * @function createUser - Creates a new user
      * @param {CreateUserDto} createUserDto - Data required to create a user
-     * 
+     *
      * @returns {Promise<UserDto>} - The created user information, excluding sensitive fields like the password.
      *
      * @throws {ConflictException} - Thrown if:
@@ -37,14 +44,14 @@ export class UserService {
     async createUser(createUserDto: CreateUserDto): Promise<UserDto> {
         try {
             const existingEmail = await this.userRepository.existsBy({
-                email: createUserDto.email
+                email: createUserDto.email,
             });
             if (existingEmail) {
                 throw new ConflictException('This email is already in use');
             }
 
             const existingPhone = await this.userRepository.existsBy({
-                email: createUserDto.email
+                email: createUserDto.email,
             });
             if (existingPhone) {
                 throw new ConflictException('This phone number is already in use');
@@ -59,11 +66,10 @@ export class UserService {
 
             // exclude unnecessary infomations e.g. password
             return plainToInstance(UserDto, savedUser, { excludeExtraneousValues: true });
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException("Failed to create user");
+            throw new InternalServerErrorException('Failed to create user');
         }
     }
 
@@ -78,14 +84,12 @@ export class UserService {
      *  - `true` if a user with the specified email or phone exists.
      *  - `false` if no user matches the provided value.
      */
-    async userExistsBy(option: "email" | "phone" | "id", value: string): Promise<boolean> {
-        if (option === "email") {
+    async userExistsBy(option: 'email' | 'phone' | 'id', value: string): Promise<boolean> {
+        if (option === 'email') {
             return await this.userRepository.existsBy({ email: value });
-        }
-        else if (option === "phone") {
+        } else if (option === 'phone') {
             return await this.userRepository.existsBy({ phone: value });
-        }
-        else {
+        } else {
             return await this.userRepository.existsBy({ id: parseInt(value) });
         }
     }
@@ -115,20 +119,15 @@ export class UserService {
             const user = await this.userRepository.findOne({ where });
 
             // validate password
-            if (
-                user &&
-                user.hashed_pwd &&
-                (await this.hashService.comparePassword(password, user.hashed_pwd))
-            ) {
+            if (user && user.hashed_pwd && (await this.hashService.comparePassword(password, user.hashed_pwd))) {
                 // exclude unnecessary infomations
                 return plainToInstance(UserDto, user, { excludeExtraneousValues: true });
             }
             throw new BadRequestException('Invalid email or password');
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException("Failed to validate user");
+            throw new InternalServerErrorException('Failed to validate user');
         }
     }
 
@@ -139,12 +138,12 @@ export class UserService {
      * @param {string} [phone] - The phone number of the user (optional if email is provided)
      *
      * @returns {Promise<void>} - Resolves when the password is successfully updated
-     * 
+     *
      * @throws {BadRequestException} - If neither email nor phone is provided
      * @throws {InternalServerErrorException} - If the update fails or no rows are affected
      */
     async updateUserPassword(password: string, email?: string, phone?: string): Promise<void> {
-        if (!email && !password) throw new BadRequestException("Email or phone is required");
+        if (!email && !password) throw new BadRequestException('Email or phone is required');
 
         try {
             // hashing
@@ -154,8 +153,7 @@ export class UserService {
             // update
             if (email) {
                 result = (await this.userRepository.update(email, { hashed_pwd })).affected;
-            }
-            else if (phone) {
+            } else if (phone) {
                 result = (await this.userRepository.update(phone, { hashed_pwd })).affected;
             }
 
@@ -163,10 +161,9 @@ export class UserService {
             if (!result || result <= 0) {
                 throw new InternalServerErrorException();
             }
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException("Failed to update password");
+            throw new InternalServerErrorException('Failed to update password');
         }
     }
 
@@ -184,8 +181,8 @@ export class UserService {
     async getUserById(id: number, addresses?: boolean, paymentMethod?: boolean): Promise<UserDto> {
         try {
             const relations: string[] = [];
-            if (addresses) relations.push("addresses");
-            if (paymentMethod) relations.push("payment_methods");
+            if (addresses) relations.push('addresses');
+            if (paymentMethod) relations.push('payment_methods');
 
             const user = await this.userRepository.findOne({
                 where: { id },
@@ -196,11 +193,10 @@ export class UserService {
                 throw new NotFoundException(`User not found`);
             }
             return plainToInstance(UserDto, user, { excludeExtraneousValues: true });
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException("Failed to find user by ID");
+            throw new InternalServerErrorException('Failed to find user by ID');
         }
     }
 
@@ -218,10 +214,9 @@ export class UserService {
             const data = this.userRepository.create(newUserProfile);
             await this.userRepository.update({ id }, data);
             return await this.getUserById(id);
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException("Failed to update user profile");
+            throw new InternalServerErrorException('Failed to update user profile');
         }
     }
 
@@ -235,22 +230,21 @@ export class UserService {
      * @throws {InternalServerErrorException} - If there is an unexpected error during retrieval
      */
     async getPublicUser(uuid: string): Promise<PublicUserDto> {
-        if (!isUUID(uuid)) throw new NotFoundException("User with ID ${uuid} not found");
+        if (!isUUID(uuid)) throw new NotFoundException('User with ID ${uuid} not found');
         try {
             const user = await this.userRepository.findOne({
                 select: publicUserFields,
-                where: { uuid }
+                where: { uuid },
             });
 
             if (!user) {
                 throw new NotFoundException(`User with ID ${uuid} not found`);
             }
             return plainToInstance(PublicUserDto, user, { excludeExtraneousValues: true });
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException("Failed to find user by uuid");
+            throw new InternalServerErrorException('Failed to find user by uuid');
         }
     }
 
@@ -628,7 +622,6 @@ export class UserService {
     //     }
     //     throw new NotFoundException("User not found");
     // }
-
 
     /*#########################################################################
                                    Deprecated                                

@@ -9,14 +9,9 @@ import { HttpModule } from '@nestjs/axios';
 import { AddressModule } from '../address/address.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Farm]),
-    ConfigModule,
-    HttpModule,
-    AddressModule,
-  ],
-  controllers: [FarmController],
-  providers: [FarmService, BiometricService],
-  exports: [FarmService],
+    imports: [TypeOrmModule.forFeature([Farm]), ConfigModule, HttpModule, AddressModule],
+    controllers: [FarmController],
+    providers: [FarmService, BiometricService],
+    exports: [FarmService],
 })
-export class FarmModule { }
+export class FarmModule {}

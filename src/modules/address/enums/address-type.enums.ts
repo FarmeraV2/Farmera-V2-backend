@@ -1,4 +1,4 @@
 export enum AddressType {
-    CUSTOMER = "CUSTOMER",
-    FARM = "FARM",
+    CUSTOMER = 'CUSTOMER',
+    FARM = 'FARM',
 }

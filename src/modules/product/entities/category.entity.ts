@@ -1,5 +1,5 @@
-import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
-import { Subcategory } from "./sub-category.entity";
+import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Subcategory } from './sub-category.entity';
 
 @Entity('category')
 export class Category {
@@ -15,10 +15,10 @@ export class Category {
     @Column({ nullable: true })
     image_url?: string;
 
-    @CreateDateColumn({ type: "timestamptz" })
+    @CreateDateColumn({ type: 'timestamptz' })
     created: Date;
 
-    @UpdateDateColumn({ type: "timestamptz" })
+    @UpdateDateColumn({ type: 'timestamptz' })
     updated: Date;
 
     @OneToMany(() => Subcategory, (sub) => sub.category)

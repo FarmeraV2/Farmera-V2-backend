@@ -1,5 +1,5 @@
-import { Type } from "class-transformer";
-import { ArrayNotEmpty, IsArray, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, Max, Min } from "class-validator";
+import { Type } from 'class-transformer';
+import { ArrayNotEmpty, IsArray, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, Max, Min } from 'class-validator';
 
 export class CreateReviewDto {
     @Type(() => Number)

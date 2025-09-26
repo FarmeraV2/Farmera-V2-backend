@@ -8,7 +8,7 @@ import { GetUserDetailDto } from '../dtos/user/get-user-detail.dto';
 
 @Controller('user')
 export class UserController {
-    constructor(private readonly userService: UserService) { }
+    constructor(private readonly userService: UserService) {}
 
     @Get('profile')
     async getUserProfile(@User() user: UserInterface, @Query() getDetailDto: GetUserDetailDto) {

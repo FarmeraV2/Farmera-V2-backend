@@ -1,4 +1,4 @@
-import { Expose } from "class-transformer";
+import { Expose } from 'class-transformer';
 
 export class CategoryDto {
     @Expose() category_id: number;
@@ -7,6 +7,8 @@ export class CategoryDto {
 }
 
 const dtoProps = Object.keys(new CategoryDto());
-export const categorySelectFields = dtoProps.map((prop) => {
-    return `category.${prop}`;
-}).filter((field): field is string => !!field);
+export const categorySelectFields = dtoProps
+    .map((prop) => {
+        return `category.${prop}`;
+    })
+    .filter((field): field is string => !!field);

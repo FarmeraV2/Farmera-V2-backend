@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, InternalServerErrorException, Param, Patch, Post, UploadedFiles } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post, UploadedFiles } from '@nestjs/common';
 import { FarmService } from './farm.service';
 import { UserInterface } from 'src/common/types/user.interface';
 import { User } from 'src/common/decorators/user.decorator';
@@ -12,8 +12,7 @@ import { UserRole } from 'src/common/enums/role.enum';
 
 @Controller('farm')
 export class FarmController {
-
-    constructor(private readonly farmService: FarmService) { }
+    constructor(private readonly farmService: FarmService) {}
 
     @Post('register')
     async farmRegister(@User() user: UserInterface, @Body() farmRegistration: FarmRegistrationDto): Promise<Farm> {
@@ -22,7 +21,8 @@ export class FarmController {
 
     @Post('verify/:farmId')
     async farmVerify(
-        @UploadedFiles() file: {
+        @UploadedFiles()
+        file: {
             cccd?: Express.Multer.File[];
             biometric_video?: Express.Multer.File[];
         },
@@ -32,12 +32,7 @@ export class FarmController {
         if (!file || !file.cccd?.[0] || !file.biometric_video?.[0]) {
             throw new BadRequestException('Thiếu ảnh CCCD hoặc video sinh trắc học');
         }
-        return await this.farmService.verifyBiometric(
-            file.cccd?.[0],
-            file.biometric_video?.[0],
-            farmId,
-            user.id,
-        );
+        return await this.farmService.verifyBiometric(file.cccd?.[0], file.biometric_video?.[0], farmId, user.id);
     }
 
     @Get('my')
@@ -63,13 +58,13 @@ export class FarmController {
         return await this.farmService.updateFarm(user.farm_id!, updateFarmDto);
     }
 
-    @Patch("avatar")
+    @Patch('avatar')
     @Roles([UserRole.FARMER])
     async updateFarmAvatar(@Body() updateFarmDto: UpdateFarmAvatarDto, @User() user: UserInterface) {
         return await this.farmService.updateFarmAvatar(user.farm_id!, updateFarmDto);
     }
 
-    @Patch("images")
+    @Patch('images')
     @Roles([UserRole.FARMER])
     async updateFarmImages(@Body() updateFarmDto: UpdateFarmImagesDto, @User() user: UserInterface) {
         return await this.farmService.updateFarmImages(user.farm_id!, updateFarmDto);

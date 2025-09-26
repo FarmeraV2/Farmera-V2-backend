@@ -1,5 +1,5 @@
-import { Type } from "class-transformer";
-import { ArrayNotEmpty, IsArray, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString } from "class-validator";
+import { Type } from 'class-transformer';
+import { ArrayNotEmpty, IsArray, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
 
 export class CreateProductDto {
     @IsNotEmpty()

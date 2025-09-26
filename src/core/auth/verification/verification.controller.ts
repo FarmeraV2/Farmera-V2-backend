@@ -4,8 +4,7 @@ import { SendVerificationEmailDto, SendVerificationPhoneDto, VerifyEmailDto, Ver
 
 @Controller('verification')
 export class VerificationController {
-
-    constructor(private readonly verficationService: VerificationService) { }
+    constructor(private readonly verficationService: VerificationService) {}
 
     // @Public()
     @Post('send-verification-email')

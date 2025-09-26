@@ -17,7 +17,6 @@ export const REFRESH_TOKEN_COOKIES_KEY = 'refresh_token';
 
 @Injectable()
 export class AuthService {
-
     private readonly logger = new Logger(AuthService.name);
 
     constructor(
@@ -26,7 +25,7 @@ export class AuthService {
         private readonly configService: ConfigService,
         private readonly verificationService: VerificationService,
         private readonly farmService: FarmService,
-    ) { }
+    ) {}
 
     async register(registerDto: CreateUserDto): Promise<UserDto> {
         return await this.userService.createUser(registerDto);
@@ -34,7 +33,7 @@ export class AuthService {
 
     /**
      * @function login - Authenticates a user and generates JWT access and refresh tokens
-     * @param {LoginDto} req - The login request data 
+     * @param {LoginDto} req - The login request data
      * @param {Response} res - The HTTP response object, used to set the refresh token cookie
      *
      * @returns {Promise<object>} - Returns an object containing:
@@ -66,24 +65,20 @@ export class AuthService {
                     throw new UnauthorizedException('Your account is banned');
                 }
 
-                const accessToken = this.jwtService.sign(payload, {
+                const accessToken = this.jwtService.sign(payload as object, {
                     secret: this.configService.get<string>('JWT_ACCESS_TOKEN_SECRET'),
-                    expiresIn: this.configService.get<string>(
-                        'JWT_ACCESS_TOKEN_EXPIRATION',
-                    ),
+                    expiresIn: this.configService.get<string>('JWT_ACCESS_TOKEN_EXPIRATION'),
                 });
 
-                const refreshToken = await this.createRefreshToken({
-                    ...payload,
+                const refreshToken = this.createRefreshToken({
+                    ...(payload as Record<string, unknown>),
                     sub: 'token refresh',
                     iss: 'from server',
                 });
 
                 // Only set cookies if we're in an HTTP context (res.cookie exists)
                 if (res && typeof res.cookie === 'function') {
-                    const expirationSetting = this.configService.get<string>(
-                        'JWT_REFRESH_TOKEN_EXPIRATION',
-                    );
+                    const expirationSetting = this.configService.get<string>('JWT_REFRESH_TOKEN_EXPIRATION');
 
                     res.cookie(REFRESH_TOKEN_COOKIES_KEY, refreshToken, {
                         httpOnly: false,
@@ -96,10 +91,10 @@ export class AuthService {
                 return {
                     access_token: accessToken,
                     refresh_token: refreshToken,
-                    user: payload
+                    user: payload,
                 };
             }
-            throw new InternalServerErrorException("Failed to login user");
+            throw new InternalServerErrorException('Failed to login user');
         } catch (error) {
             this.logger.error(error.message);
             throw error;
@@ -128,8 +123,7 @@ export class AuthService {
             userDecoded = this.jwtService.verify<UserDto>(refreshToken, {
                 secret: this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
             });
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
             if (error instanceof TokenExpiredError) {
                 throw new UnauthorizedException('Refresh token expired');
@@ -158,12 +152,10 @@ export class AuthService {
 
                 const newAccessToken = this.jwtService.sign(payload, {
                     secret: this.configService.get<string>('JWT_ACCESS_TOKEN_SECRET'),
-                    expiresIn: this.configService.get<string>(
-                        'JWT_ACCESS_TOKEN_EXPIRATION',
-                    ),
+                    expiresIn: this.configService.get<string>('JWT_ACCESS_TOKEN_EXPIRATION'),
                 });
 
-                const newRefreshToken = await this.createRefreshToken({
+                const newRefreshToken = this.createRefreshToken({
                     ...payload,
                     sub: 'token refresh',
                     iss: 'from server',
@@ -173,9 +165,7 @@ export class AuthService {
                 if (res && typeof res.cookie === 'function') {
                     res.clearCookie(REFRESH_TOKEN_COOKIES_KEY);
 
-                    const expirationSetting = this.configService.get<string>(
-                        'JWT_REFRESH_TOKEN_EXPIRATION',
-                    );
+                    const expirationSetting = this.configService.get<string>('JWT_REFRESH_TOKEN_EXPIRATION');
 
                     res.cookie(REFRESH_TOKEN_COOKIES_KEY, newRefreshToken, {
                         httpOnly: false, // Consider setting this to true for refresh tokens if possible
@@ -196,7 +186,7 @@ export class AuthService {
         } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException("Failed to process refresh token");
+            throw new InternalServerErrorException('Failed to process refresh token');
         }
     }
 
@@ -214,8 +204,7 @@ export class AuthService {
 
         if (email) {
             await this.verificationService.sendVerificationEmail({ email }, true);
-        }
-        else if (phone) {
+        } else if (phone) {
             await this.verificationService.sendVerificationPhone({ phone }, true);
         }
 
@@ -238,8 +227,7 @@ export class AuthService {
         let verification: { result: string } | undefined;
         if (email) {
             verification = await this.verificationService.verifyEmail({ email, verification_code: req.code });
-        }
-        else if (phone) {
+        } else if (phone) {
             verification = await this.verificationService.verifyPhone({ phone, verification_code: req.code });
         }
 
@@ -256,12 +244,7 @@ export class AuthService {
     /*#########################################################################
                                     Private                                  
     #########################################################################*/
-    private async createRefreshToken(
-        payload: Record<
-            string,
-            string | number | boolean | object | undefined | null | Array<any>
-        >,
-    ) {
+    private createRefreshToken(payload: Record<string, string | number | boolean | object | undefined | null | Array<any>>) {
         const refreshToken = this.jwtService.sign(payload, {
             secret: this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
             expiresIn: this.configService.get<string>('JWT_REFRESH_TOKEN_EXPIRATION'),

@@ -10,13 +10,10 @@ export class JwtAuthGuard implements CanActivate {
     constructor(
         private reflector: Reflector,
         private jwtService: JwtService,
-    ) { }
+    ) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
-        const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
-            context.getHandler(),
-            context.getClass(),
-        ]);
+        const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [context.getHandler(), context.getClass()]);
 
         if (isPublic) {
             // Skip authentication for public routes
@@ -38,7 +35,7 @@ export class JwtAuthGuard implements CanActivate {
 
             // Attach user payload to request for downstream use
             request['user'] = payload;
-        } catch (error) {
+        } catch {
             throw new UnauthorizedException('Invalid or expired token');
         }
 

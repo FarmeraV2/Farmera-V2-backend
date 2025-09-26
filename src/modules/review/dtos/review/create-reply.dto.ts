@@ -1,5 +1,5 @@
-import { Type } from "class-transformer";
-import { IsNotEmpty, IsNumber, IsPositive, IsString } from "class-validator";
+import { Type } from 'class-transformer';
+import { IsNotEmpty, IsNumber, IsPositive, IsString } from 'class-validator';
 
 export class CreateReplyDto {
     @Type(() => Number)
