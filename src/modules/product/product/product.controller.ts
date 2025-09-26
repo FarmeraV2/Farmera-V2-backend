@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, InternalServerErrorException, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { User } from 'src/common/decorators/user.decorator';
 import { Public } from 'src/common/decorators/public.decorator';
@@ -12,7 +12,7 @@ import { UpdateProductDto } from '../dtos/product/update-product-dto';
 
 @Controller('product')
 export class ProductController {
-    constructor(private readonly productService: ProductService) { }
+    constructor(private readonly productService: ProductService) {}
 
     @Post()
     @Roles([UserRole.FARMER])
@@ -67,7 +67,7 @@ export class ProductController {
 
     @Public()
     @Get(':product_id')
-    async getProduct(@Param('product_id') productId: number, @Query("include_categories") include_categories?: boolean) {
+    async getProduct(@Param('product_id') productId: number, @Query('include_categories') include_categories?: boolean) {
         return await this.productService.getProductById(productId, include_categories);
     }
 

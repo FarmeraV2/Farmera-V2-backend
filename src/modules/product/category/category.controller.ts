@@ -8,7 +8,7 @@ import { Public } from 'src/common/decorators/public.decorator';
 
 @Controller('category')
 export class CategoryController {
-    constructor(private readonly categoryService: CategoryService) { }
+    constructor(private readonly categoryService: CategoryService) {}
 
     @Roles([UserRole.ADMIN])
     @Post()
@@ -17,7 +17,7 @@ export class CategoryController {
     }
 
     // @Roles([UserRole.ADMIN])
-    @Post("subcategory")
+    @Post('subcategory')
     async createSubCategory(@Body() newSubCategory: CreateSubcategoryDto) {
         return await this.categoryService.createSubcategory(newSubCategory);
     }
@@ -35,14 +35,14 @@ export class CategoryController {
     // }
 
     @Public()
-    @Get("/subcategory/:id")
-    async getSubcategory(@Param("id", ParseIntPipe) id: number, @Query("include_category") include?: boolean) {
+    @Get('/subcategory/:id')
+    async getSubcategory(@Param('id', ParseIntPipe) id: number, @Query('include_category') include?: boolean) {
         return await this.categoryService.getSubcategoryById(id, include);
     }
 
     @Public()
-    @Get(":id")
-    async getCategory(@Param("id", ParseIntPipe) id: number, @Query("include_subcategory") include?: boolean) {
+    @Get(':id')
+    async getCategory(@Param('id', ParseIntPipe) id: number, @Query('include_subcategory') include?: boolean) {
         return await this.categoryService.getCategoryById(id, include);
     }
 

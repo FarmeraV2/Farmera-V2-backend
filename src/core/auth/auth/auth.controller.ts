@@ -8,7 +8,7 @@ import { ForgotPasswordDto, UpdateNewPasswordDto } from '../dtos/forgot-password
 
 @Controller('auth')
 export class AuthController {
-    constructor(private readonly authService: AuthService) { }
+    constructor(private readonly authService: AuthService) {}
 
     @Public()
     @Post('register')
@@ -25,7 +25,7 @@ export class AuthController {
     @Public()
     @Get('refresh-token')
     async refreshToken(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-        const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIES_KEY];
+        const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIES_KEY] as string;
         return await this.authService.refreshToken(refreshToken, res);
     }
 

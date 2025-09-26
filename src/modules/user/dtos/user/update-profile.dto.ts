@@ -1,6 +1,5 @@
-import { IsDate, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
-import { Gender } from "../../enums/gender.enum";
-import { Type } from "class-transformer";
+import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { Gender } from '../../enums/gender.enum';
 
 export class UpdateProfileDto {
     @IsOptional()

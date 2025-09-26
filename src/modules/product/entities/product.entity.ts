@@ -1,5 +1,16 @@
 import { Farm } from 'src/modules/farm/entities/farm.entity';
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, ManyToMany, JoinTable, OneToMany } from 'typeorm';
+import {
+    Entity,
+    PrimaryGeneratedColumn,
+    Column,
+    CreateDateColumn,
+    UpdateDateColumn,
+    ManyToOne,
+    JoinColumn,
+    ManyToMany,
+    JoinTable,
+    OneToMany,
+} from 'typeorm';
 import { ProductStatus } from '../enums/product-status.enum';
 import { Subcategory } from './sub-category.entity';
 import { Review } from 'src/modules/review/entities/review.entity';
@@ -21,7 +32,7 @@ export class Product {
     @Column()
     unit: string;
 
-    @Column({ type: "double precision" })
+    @Column({ type: 'double precision' })
     weight_per_unit: number; // in grams
 
     @Column()

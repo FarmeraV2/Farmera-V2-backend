@@ -65,7 +65,7 @@ export class User {
     payment_methods: PaymentMethod[];
 
     @OneToOne(() => Farm, (farm) => farm.owner, { nullable: true })
-    farm?: Farm
+    farm?: Farm;
 
     @CreateDateColumn({ type: 'timestamptz' })
     created_at: Date;

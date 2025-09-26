@@ -1,4 +1,4 @@
-import { Transform } from 'class-transformer';
+import { Type } from 'class-transformer';
 import { IsNotEmpty, IsString, IsOptional, IsInt } from 'class-validator';
 
 export class CreateSubcategoryDto {
@@ -10,7 +10,7 @@ export class CreateSubcategoryDto {
     @IsString()
     description?: string;
 
-    @Transform(({ value }) => parseInt(value))
+    @Type(() => Number)
     @IsInt()
     category_id: number;
 }

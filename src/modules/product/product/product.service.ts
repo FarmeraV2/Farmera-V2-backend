@@ -1,6 +1,14 @@
-import { BadRequestException, ForbiddenException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
+import {
+    BadRequestException,
+    ForbiddenException,
+    HttpException,
+    Injectable,
+    InternalServerErrorException,
+    Logger,
+    NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository, SelectQueryBuilder } from "typeorm";
+import { Not, Repository, SelectQueryBuilder } from 'typeorm';
 import { Product } from '../entities/product.entity';
 import { CreateProductDto } from '../dtos/product/create-product.dto';
 import { ConfigService } from '@nestjs/config';
@@ -48,14 +56,14 @@ export class ProductService {
     }
 
     /**
-     * @function createProduct - Creates and saves a new product for a given farm  
-     * @param {number} farmId - The ID of the farm to which the product belongs  
-     * @param {CreateProductDto} createProductDto - DTO containing product details and optional subcategory IDs  
-     * 
-     * @returns {Promise<Product>} - Returns the newly created product entity  
-     * 
-     * @throws {BadRequestException} - If provided subcategory IDs are invalid  
-     * @throws {InternalServerErrorException} - If the product creation or saving process fails due to an unexpected error  
+     * @function createProduct - Creates and saves a new product for a given farm
+     * @param {number} farmId - The ID of the farm to which the product belongs
+     * @param {CreateProductDto} createProductDto - DTO containing product details and optional subcategory IDs
+     *
+     * @returns {Promise<Product>} - Returns the newly created product entity
+     *
+     * @throws {BadRequestException} - If provided subcategory IDs are invalid
+     * @throws {InternalServerErrorException} - If the product creation or saving process fails due to an unexpected error
      */
     async createProduct(farmId: number, createProductDto: CreateProductDto): Promise<Product> {
         try {
@@ -67,7 +75,7 @@ export class ProductService {
             if (subcategory_ids && subcategory_ids.length > 0) {
                 const subcategories = await this.categoryService.getSubcategoryByIds(subcategory_ids, false);
                 if (subcategories.length !== subcategory_ids.length) {
-                    throw new BadRequestException("Invalid subcategory ids");
+                    throw new BadRequestException('Invalid subcategory ids');
                 }
                 product.subcategories = subcategories;
             }
@@ -81,19 +89,16 @@ export class ProductService {
     }
 
     /**
-     * @function deleteProduct - Soft deletes a product by updating its status to DELETED  
-     * @param {number} productId - The ID of the product to be deleted  
-     * 
-     * @returns {Promise<boolean>} - Returns true if the product was successfully marked as deleted, otherwise false  
-     * 
-     * @throws {InternalServerErrorException} - If the deletion process fails due to an unexpected error  
+     * @function deleteProduct - Soft deletes a product by updating its status to DELETED
+     * @param {number} productId - The ID of the product to be deleted
+     *
+     * @returns {Promise<boolean>} - Returns true if the product was successfully marked as deleted, otherwise false
+     *
+     * @throws {InternalServerErrorException} - If the deletion process fails due to an unexpected error
      */
     async deleteProduct(productId: number): Promise<boolean> {
         try {
-            const deleteResult = await this.productsRepository.update(
-                { product_id: productId },
-                { status: ProductStatus.DELETED },
-            );
+            const deleteResult = await this.productsRepository.update({ product_id: productId }, { status: ProductStatus.DELETED });
             if (deleteResult.affected === 0) {
                 return false;
             }
@@ -101,31 +106,27 @@ export class ProductService {
         } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException("Failed to delete product");
+            throw new InternalServerErrorException('Failed to delete product');
         }
     }
 
     async updateProduct(productId: number, updateProductDto: UpdateProductDto): Promise<Product> {
         try {
             const product = await this.productsRepository.findOne({
-                where: { product_id: productId }
+                where: { product_id: productId },
             });
 
             if (!product) {
                 throw new NotFoundException(`Product ${productId} not found`);
             }
             if (product.status !== ProductStatus.NOT_YET_OPEN && product.status !== ProductStatus.PRE_ORDER) {
-                throw new ForbiddenException("Cannot update the product in its current status")
+                throw new ForbiddenException('Cannot update the product in its current status');
             }
 
-            const deleteImgUrls = product.image_urls?.filter(
-                (value) => !updateProductDto.image_urls?.includes(value),
-            );
-            const deleteVideoUrls = product.video_urls?.filter(
-                (value) => !updateProductDto.video_urls?.includes(value),
-            );
+            // const deleteImgUrls = product.image_urls?.filter((value) => !updateProductDto.image_urls?.includes(value));
+            // const deleteVideoUrls = product.video_urls?.filter((value) => !updateProductDto.video_urls?.includes(value));
 
-            const failedDeletes: string[] = [];
+            // const failedDeletes: string[] = [];
             // todo!("external storage");
             // // delete images
             // if (deleteImgUrls?.length) {
@@ -161,12 +162,8 @@ export class ProductService {
 
             const updateProduct = { ...product, ...updateProductDto };
 
-            updateProduct.image_urls = updateProductDto.image_urls
-                ? updateProductDto.image_urls
-                : null;
-            updateProduct.video_urls = updateProductDto.video_urls
-                ? updateProductDto.video_urls
-                : null;
+            updateProduct.image_urls = updateProductDto.image_urls ? updateProductDto.image_urls : null;
+            updateProduct.video_urls = updateProductDto.video_urls ? updateProductDto.video_urls : null;
 
             return await this.productsRepository.save(updateProduct);
         } catch (err) {
@@ -177,14 +174,14 @@ export class ProductService {
     }
 
     /**
-     * @function searchAndFilterProducts - Searches and filters products based on various criteria  
-     * @param {SearchProductsDto} searchProductsDTo - DTO containing search, filter, sorting, and pagination parameters  
-     * 
-     * @returns {Promise<PaginationResult<ProductDto>>} - Returns a paginated list of products as DTOs,  
+     * @function searchAndFilterProducts - Searches and filters products based on various criteria
+     * @param {SearchProductsDto} searchProductsDTo - DTO containing search, filter, sorting, and pagination parameters
+     *
+     * @returns {Promise<PaginationResult<ProductDto>>} - Returns a paginated list of products as DTOs,
      * or all products if the `all` flag is set
-     * 
-     * @throws {BadRequestException} - If an invalid status is provided or the requested page is out of range  
-     * @throws {InternalServerErrorException} - If the search and filtering process fails due to an unexpected error  
+     *
+     * @throws {BadRequestException} - If an invalid status is provided or the requested page is out of range
+     * @throws {InternalServerErrorException} - If the search and filtering process fails due to an unexpected error
      */
     async searchAndFilterProducts(searchProductsDTo: SearchProductsDto): Promise<PaginationResult<ProductDto>> {
         // todo!("optimize this fk shit")
@@ -192,12 +189,9 @@ export class ProductService {
         const paginationOptions = plainToInstance(PaginationTransform<ProductSortField>, searchProductsDTo);
         const { sort_by, order } = paginationOptions;
         // filter options
-        const {
-            subcategory_id, is_category, search, min_price, max_price, min_rating, max_rating, min_total_sold, status
-        } = searchProductsDTo;
+        const { subcategory_id, is_category, search, min_price, max_price, min_rating, max_rating, min_total_sold, status } = searchProductsDTo;
         try {
-            const queryBuilder =
-                this.productsRepository.createQueryBuilder('product').select(productSelectFields);
+            const queryBuilder = this.productsRepository.createQueryBuilder('product').select(productSelectFields);
 
             // include category in result
             if (searchProductsDTo?.include_categories) {
@@ -209,8 +203,7 @@ export class ProductService {
             // Apply filters
             if (subcategory_id) {
                 if (is_category) {
-                    queryBuilder.leftJoin('subcategory.category', 'category')
-                        .andWhere('category.category_id = :id', { subcategory_id });
+                    queryBuilder.leftJoin('subcategory.category', 'category').andWhere('category.category_id = :id', { subcategory_id });
                 } else {
                     queryBuilder.andWhere('subcategory.subcategory_id = :id', { subcategory_id });
                 }
@@ -229,23 +222,18 @@ export class ProductService {
                 queryBuilder.andWhere('product.average_rating <= :maxRating', { maxRating: max_rating });
             }
             if (min_total_sold) {
-                queryBuilder.andWhere("product.total_sold >= :minTotalSold", { minTotalSold: min_total_sold })
+                queryBuilder.andWhere('product.total_sold >= :minTotalSold', { minTotalSold: min_total_sold });
             }
             if (search) {
                 // todo!("apply pg full text search")
                 queryBuilder.andWhere('("product"."product_name" ILIKE :search)', { search: `%${search.trim()}%` });
             }
 
-            const allowedStatuses = [
-                ProductStatus.PRE_ORDER,
-                ProductStatus.NOT_YET_OPEN,
-                ProductStatus.OPEN_FOR_SALE,
-                ProductStatus.SOLD_OUT,
-            ];
+            const allowedStatuses = [ProductStatus.PRE_ORDER, ProductStatus.NOT_YET_OPEN, ProductStatus.OPEN_FOR_SALE, ProductStatus.SOLD_OUT];
 
             if (status) {
-                if (!allowedStatuses.includes(status)) throw new BadRequestException("Invalid status");
-                queryBuilder.andWhere('product.status = :status', { status: status, });
+                if (!allowedStatuses.includes(status)) throw new BadRequestException('Invalid status');
+                queryBuilder.andWhere('product.status = :status', { status: status });
             } else {
                 queryBuilder.andWhere('product.status IN (:...allowedStatuses)', { allowedStatuses });
             }
@@ -255,7 +243,7 @@ export class ProductService {
 
             // apply pagination
             const totalItems = await this.applyPagination(queryBuilder, paginationOptions);
-            if (totalItems < 0) throw new BadRequestException("Invalid page");
+            if (totalItems < 0) throw new BadRequestException('Invalid page');
 
             // get result
             const products = await queryBuilder.getMany();
@@ -272,20 +260,20 @@ export class ProductService {
     }
 
     /**
-     * @function getProductById - Retrieves a product by its unique ID  
-     * @param {number} productId - The ID of the product to retrieve  
-     * @param {boolean} [includeCategories] - Whether to include the product's subcategories in the result  
-     * 
-     * @returns {Promise<Product>} - Returns the product entity, optionally including its subcategories  
-     * 
-     * @throws {NotFoundException} - If no active (non-deleted) product is found with the given ID  
-     * @throws {InternalServerErrorException} - If the retrieval process fails due to an unexpected error  
+     * @function getProductById - Retrieves a product by its unique ID
+     * @param {number} productId - The ID of the product to retrieve
+     * @param {boolean} [includeCategories] - Whether to include the product's subcategories in the result
+     *
+     * @returns {Promise<Product>} - Returns the product entity, optionally including its subcategories
+     *
+     * @throws {NotFoundException} - If no active (non-deleted) product is found with the given ID
+     * @throws {InternalServerErrorException} - If the retrieval process fails due to an unexpected error
      */
     async getProductById(productId: number, includeCategories?: boolean): Promise<Product> {
         try {
             const product = await this.productsRepository.findOne({
                 where: { product_id: productId, status: Not(ProductStatus.DELETED) },
-                relations: includeCategories ? ["subcategories"] : undefined,
+                relations: includeCategories ? ['subcategories'] : undefined,
             });
 
             if (!product) {
@@ -343,17 +331,16 @@ export class ProductService {
     //     }
     // }
 
-
     /**
-     * @function getProductsByFarmId - Retrieves products belonging to a specific farm by its UUID  
-     * @param {string} uuid - The UUID of the farm  
-     * @param {GetProductByFarmDto} [getProductDto] - Optional DTO containing pagination, sorting, and inclusion parameters  
-     * 
-     * @returns {Promise<PaginationResult<ProductDto>>} - Returns a paginated list of products with metadata,  
-     * or all products if the `all` flag is set  
-     * 
-     * @throws {BadRequestException} - If the requested page exceeds the total number of available pages  
-     * @throws {InternalServerErrorException} - If the retrieval process fails due to an unexpected error  
+     * @function getProductsByFarmId - Retrieves products belonging to a specific farm by its UUID
+     * @param {string} uuid - The UUID of the farm
+     * @param {GetProductByFarmDto} [getProductDto] - Optional DTO containing pagination, sorting, and inclusion parameters
+     *
+     * @returns {Promise<PaginationResult<ProductDto>>} - Returns a paginated list of products with metadata,
+     * or all products if the `all` flag is set
+     *
+     * @throws {BadRequestException} - If the requested page exceeds the total number of available pages
+     * @throws {InternalServerErrorException} - If the retrieval process fails due to an unexpected error
      */
     async getProductsByFarmId(uuid: string, getProductDto?: GetProductByFarmDto): Promise<PaginationResult<ProductDto>> {
         // todo!("optimize more")
@@ -363,7 +350,8 @@ export class ProductService {
         try {
             // create query builder
             const farmId = await this.farmService.getId(uuid);
-            const qb = this.productsRepository.createQueryBuilder('product')
+            const qb = this.productsRepository
+                .createQueryBuilder('product')
                 .select(productSelectFields)
                 .where('product.farm_id = :farmId', { farmId })
                 .andWhere('product.status != :deletedStatus', {
@@ -371,16 +359,14 @@ export class ProductService {
                 });
 
             // include optional fields
-            if (getProductDto?.include_categories)
-                qb.leftJoin('product.subcategories', 'subcategory')
-                    .addSelect(subcategorySelectFields);
+            if (getProductDto?.include_categories) qb.leftJoin('product.subcategories', 'subcategory').addSelect(subcategorySelectFields);
 
             // apply sorting
             if (sort_by || order) this.applySorting(qb, sort_by, order);
 
             // apply pagination
             const totalItems = await this.applyPagination(qb, paginationOptions);
-            if (totalItems < 0) throw new BadRequestException("Invalid page");
+            if (totalItems < 0) throw new BadRequestException('Invalid page');
 
             // get result
             const products = await qb.getMany();
@@ -397,16 +383,16 @@ export class ProductService {
     }
 
     /**
-     * @function getProductsByCategory - Retrieves products filtered by category or subcategory ID  
-     * @param {number} id - The ID of the category or subcategory  
-     * @param {boolean} isCategory - Flag to determine whether the ID refers to a category (true) or subcategory (false)  
-     * @param {GetProductByFarmDto} [getProductDto] - Optional DTO containing pagination, sorting, and inclusion parameters  
-     * 
-     * @returns {Promise<PaginationResult<ProductDto>>} - Returns a paginated list of products with metadata,  
-     * or all products if the `all` flag is set  
-     * 
-     * @throws {BadRequestException} - If the requested page exceeds the total number of available pages  
-     * @throws {InternalServerErrorException} - If the retrieval process fails due to an unexpected error  
+     * @function getProductsByCategory - Retrieves products filtered by category or subcategory ID
+     * @param {number} id - The ID of the category or subcategory
+     * @param {boolean} isCategory - Flag to determine whether the ID refers to a category (true) or subcategory (false)
+     * @param {GetProductByFarmDto} [getProductDto] - Optional DTO containing pagination, sorting, and inclusion parameters
+     *
+     * @returns {Promise<PaginationResult<ProductDto>>} - Returns a paginated list of products with metadata,
+     * or all products if the `all` flag is set
+     *
+     * @throws {BadRequestException} - If the requested page exceeds the total number of available pages
+     * @throws {InternalServerErrorException} - If the retrieval process fails due to an unexpected error
      */
     async getProductsByCategory(id: number, isCategory: boolean, getProductDto?: GetProductByFarmDto): Promise<PaginationResult<ProductDto>> {
         try {
@@ -437,7 +423,7 @@ export class ProductService {
 
             // apply pagination
             const totalItems = await this.applyPagination(qb, paginationOptions);
-            if (totalItems < 0) throw new BadRequestException("Invalid page");
+            if (totalItems < 0) throw new BadRequestException('Invalid page');
 
             // get result
             const products = await qb.getMany();
@@ -458,10 +444,10 @@ export class ProductService {
     #########################################################################*/
 
     /**
-     * @function applySorting - Applies sorting conditions to a product query builder  
-     * @param {SelectQueryBuilder<Product>} qb - The query builder instance for the Product entity  
-     * @param {ProductSortField} sortBy - The field by which products should be sorted  
-     * @param {Order} order - The sorting order (ASC or DESC)  
+     * @function applySorting - Applies sorting conditions to a product query builder
+     * @param {SelectQueryBuilder<Product>} qb - The query builder instance for the Product entity
+     * @param {ProductSortField} sortBy - The field by which products should be sorted
+     * @param {Order} order - The sorting order (ASC or DESC)
      */
     private applySorting(qb: SelectQueryBuilder<Product>, sortBy: ProductSortField, order: Order) {
         switch (sortBy) {
@@ -481,18 +467,19 @@ export class ProductService {
                 qb.orderBy('product.total_sold', order);
                 break;
             case ProductSortField.CREATED:
-                qb.orderBy('product.product_id', order)
+                qb.orderBy('product.product_id', order);
+                break;
             default:
                 qb.orderBy('product.product_id', order);
         }
     }
 
     /**
-     * @function applyPagination - Applies pagination constraints to a product query builder  
-     * @param {SelectQueryBuilder<Product>} qb - The query builder instance for the Product entity  
-     * @param {PaginationOptions} paginationOptions - Object containing pagination parameters (page, limit, skip)  
-     * 
-     * @returns {Promise<number>} - Returns the total number of items before pagination, or -1 if the requested page is invalid  
+     * @function applyPagination - Applies pagination constraints to a product query builder
+     * @param {SelectQueryBuilder<Product>} qb - The query builder instance for the Product entity
+     * @param {PaginationOptions} paginationOptions - Object containing pagination parameters (page, limit, skip)
+     *
+     * @returns {Promise<number>} - Returns the total number of items before pagination, or -1 if the requested page is invalid
      */
     private async applyPagination(qb: SelectQueryBuilder<Product>, paginationOptions: PaginationOptions<ProductSortField>): Promise<number> {
         const totalItems = await qb.getCount();
@@ -505,7 +492,7 @@ export class ProductService {
             return -1;
         }
 
-        qb.skip(paginationOptions.skip).take(paginationOptions.limit)
+        qb.skip(paginationOptions.skip).take(paginationOptions.limit);
         return totalItems;
     }
 

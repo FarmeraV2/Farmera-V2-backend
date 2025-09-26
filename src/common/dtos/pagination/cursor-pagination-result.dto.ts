@@ -1,4 +1,4 @@
-import { CursorPaginationMeta } from "./cursor-pagination-meta.dto";
+import { CursorPaginationMeta } from './cursor-pagination-meta.dto';
 
 export class CursorPaginationResult<T> {
     readonly data: T[];

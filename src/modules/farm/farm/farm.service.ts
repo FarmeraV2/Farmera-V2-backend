@@ -1,6 +1,6 @@
 import { ConflictException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from "typeorm";
+import { DataSource, In, Repository } from 'typeorm';
 import { Farm } from '../entities/farm.entity';
 import { FptIdrCardFrontData, FptIdrCccdFrontData } from '../interfaces/fpt-idr-front.interface';
 import { BiometricService } from '../biometric/biometric.service';
@@ -17,7 +17,6 @@ import { UpdateFarmAvatarDto, UpdateFarmImagesDto } from '../dtos/update-farm-im
 
 @Injectable()
 export class FarmService {
-
     private readonly logger = new Logger(FarmService.name);
 
     constructor(
@@ -29,7 +28,7 @@ export class FarmService {
         private readonly deliveryAddressService: DeliveryAddressService,
         // private readonly fileStorageService: AzureBlobService,
         // private readonly GhnService: GhnService,
-    ) { }
+    ) {}
 
     async farmRegister(registerDto: FarmRegistrationDto, userId: number): Promise<Farm> {
         const isExistingFarm = await this.farmRepository.existsBy({ user_id: userId });
@@ -43,7 +42,6 @@ export class FarmService {
             // const ghn_province_id = await this.GhnService.getIdProvince(
             //     registerDto.city,
             // );
-
             // if (!ghn_province_id) {
             //     throw new NotFoundException(
             //         `Không tìm thấy ID tỉnh GHN cho thành phố ${registerDto.city}`,
@@ -87,16 +85,18 @@ export class FarmService {
             // const savedGhnAddress = await queryRunner.manager.save(ghnAddress);
 
             // create address
-            const address = await this.deliveryAddressService.addFarmAddress(plainToInstance(CreateFarmAddressDto, {
-                name: registerDto.farm_name,
-                ...registerDto,
-            }));
+            const address = await this.deliveryAddressService.addFarmAddress(
+                plainToInstance(CreateFarmAddressDto, {
+                    name: registerDto.farm_name,
+                    ...registerDto,
+                }),
+            );
 
             // create farm
             const farm = this.farmRepository.create({
                 ...registerDto,
                 user_id: userId,
-                address
+                address,
             });
             const savedFarm = await queryRunner.manager.save(farm);
 
@@ -118,12 +118,7 @@ export class FarmService {
         }
     }
 
-    async verifyBiometric(
-        ssnImg: Express.Multer.File,
-        faceVideo: Express.Multer.File,
-        farmId: number,
-        userId: number,
-    ): Promise<Farm> {
+    async verifyBiometric(ssnImg: Express.Multer.File, faceVideo: Express.Multer.File, farmId: number, userId: number): Promise<Farm> {
         let idrData: FptIdrCardFrontData;
 
         const farm = await this.farmRepository.findOne({
@@ -136,17 +131,13 @@ export class FarmService {
         try {
             // validate ssn by calling fpt api
             // this.logger.debug(`[Register] Bước 1: Gọi FPT IDR cho user ${userId}, file ${ssnImg.originalname}`);
-            const idrCardDataArray =
-                await this.biometricsService.callFptIdrApiForFront(ssnImg);
+            const idrCardDataArray = await this.biometricsService.callFptIdrApiForFront(ssnImg);
 
             idrData = idrCardDataArray[0];
             // this.logger.debug(`[Register] FPT IDR thành công cho user ${userId}. Loại thẻ: ${idrData.type}, Loại mới: ${idrData.type_new}`);
 
             // this.logger.log(`[Register] Bước 2: Gọi FPT Liveness cho user ${userId}, ảnh ${ssnImg.originalname}, video ${faceVideo.originalname}`);
-            const livenessResult = await this.biometricsService.callFptLivenessApi(
-                ssnImg,
-                faceVideo,
-            );
+            // const livenessResult = await this.biometricsService.callFptLivenessApi(ssnImg, faceVideo);
             // this.logger.log(
             //     `[Register] FPT Liveness thành công cho user ${userId}. Liveness: ${livenessResult.liveness?.is_live}, Match: ${livenessResult.face_match?.isMatch}`,
             // );
@@ -164,8 +155,7 @@ export class FarmService {
             identification.full_name = idrData.name || 'N/A';
 
             if ('nationality' in idrData) {
-                identification.nationality =
-                    (idrData as FptIdrCccdFrontData).nationality || 'N/A';
+                identification.nationality = (idrData as FptIdrCccdFrontData).nationality || 'N/A';
             } else {
                 identification.nationality = 'N/A';
             }
@@ -186,7 +176,7 @@ export class FarmService {
             if (error instanceof HttpException) {
                 throw error;
             }
-            throw new InternalServerErrorException("Failed to verify biometric");
+            throw new InternalServerErrorException('Failed to verify biometric');
         }
     }
 
@@ -233,11 +223,10 @@ export class FarmService {
                 throw new NotFoundException(`Farm not found`);
             }
             return farm;
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException("Failed to find farm");
+            throw new InternalServerErrorException('Failed to find farm');
         }
     }
 
@@ -264,11 +253,10 @@ export class FarmService {
                 throw new NotFoundException(`Farm not found`);
             }
             return farm;
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException("Failed to find farm");
+            throw new InternalServerErrorException('Failed to find farm');
         }
     }
 
@@ -280,18 +268,17 @@ export class FarmService {
      *
      * @throws {InternalServerErrorException} - If an unexpected error occurs during the validation process
      */
-    async validateFarmer(userId: number): Promise<{ id: number, uuid: string } | undefined> {
+    async validateFarmer(userId: number): Promise<{ id: number; uuid: string } | undefined> {
         try {
-            const farm = await this.farmRepository.findOne({ select: ["id", "farm_id"], where: { user_id: userId } });
+            const farm = await this.farmRepository.findOne({ select: ['id', 'farm_id'], where: { user_id: userId } });
             if (!farm || farm.id <= 0) {
                 throw new InternalServerErrorException("Something ưent wrong, you're a farmer but your Farm is not found");
             }
             return { id: farm.id, uuid: farm.farm_id };
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException("Failed to validate farmer");
+            throw new InternalServerErrorException('Failed to validate farmer');
         }
     }
 
@@ -308,7 +295,7 @@ export class FarmService {
         } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException("Failed to update farm");
+            throw new InternalServerErrorException('Failed to update farm');
         }
     }
 
@@ -322,7 +309,7 @@ export class FarmService {
 
         try {
             const farm = await this.farmRepository.findOne({
-                where: { id: id }
+                where: { id: id },
             });
 
             if (!farm) throw new NotFoundException('Farm not found');
@@ -341,8 +328,7 @@ export class FarmService {
 
             // update certification images
             const currentCertificateImageUrls = farm.certificate_img_urls || [];
-            const incomingCertificateImageUrls =
-                updateFarmDto.certificate_image_urls || [];
+            const incomingCertificateImageUrls = updateFarmDto.certificate_image_urls || [];
 
             for (const existingUrl of currentCertificateImageUrls) {
                 if (!incomingCertificateImageUrls.includes(existingUrl)) {
@@ -384,7 +370,7 @@ export class FarmService {
             await queryRunner.rollbackTransaction();
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException("Failed to update images");
+            throw new InternalServerErrorException('Failed to update images');
         } finally {
             await queryRunner.release();
         }
@@ -393,15 +379,15 @@ export class FarmService {
     async updateFarmAvatar(id: number, updateFarmDto: UpdateFarmAvatarDto): Promise<{ avatar_url: string }> {
         try {
             const farm = await this.farmRepository.findOne({
-                select: ["id", "avatar_url"],
-                where: { id }
+                select: ['id', 'avatar_url'],
+                where: { id },
             });
 
             if (!farm) {
                 throw new NotFoundException('Farm not found');
             }
 
-            const oldAvatarUrlToDelete = farm.avatar_url;
+            // const oldAvatarUrlToDelete = farm.avatar_url;
 
             const result = await this.farmRepository.update(id, { avatar_url: updateFarmDto.avatar_url });
 
@@ -417,30 +403,29 @@ export class FarmService {
             if (result.affected && result.affected > 0) {
                 return { avatar_url: updateFarmDto.avatar_url };
             }
-            throw new InternalServerErrorException("Failed to update farm avatar");
-        }
-        catch (error) {
+            throw new InternalServerErrorException('Failed to update farm avatar');
+        } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException("Failed to update farm avatar");
+            throw new InternalServerErrorException('Failed to update farm avatar');
         }
     }
 
     /**
-     * @function getId - Retrieves the numeric ID of a farm by its UUID  
-     * @param {string} uuid - The UUID of the farm  
-     * 
+     * @function getId - Retrieves the numeric ID of a farm by its UUID
+     * @param {string} uuid - The UUID of the farm
+     *
      * @returns {Promise<number | null>} - Returns the farm ID if found, otherwise null
-     * 
+     *
      * @WARNING This function should **NOT** be called directly from controllers or exposed to end users.
      * Always wrap this method inside a service-level function that enforces ownership and validation checks.
      */
     async getId(uuid: string): Promise<number | null> {
         // todo!("cache");
         const farm = await this.farmRepository.findOne({
-            select: ["id"],
-            where: { farm_id: uuid }
-        })
+            select: ['id'],
+            where: { farm_id: uuid },
+        });
         if (farm) return farm.id;
         return null;
     }

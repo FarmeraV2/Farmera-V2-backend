@@ -9,11 +9,9 @@ import { PaymentMethod } from './entities/payment-method.entity';
 import { HashService } from 'src/services/hash.service';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([User, PaymentMethod])
-    ],
+    imports: [TypeOrmModule.forFeature([User, PaymentMethod])],
     controllers: [UserController, PaymentMethodController],
     providers: [UserService, PaymentMethodService, HashService],
-    exports: [UserService]
+    exports: [UserService],
 })
 export class UserModule { }

@@ -4,18 +4,17 @@ import { Public } from 'src/common/decorators/public.decorator';
 
 @Controller('address')
 export class AddressController {
-
-    constructor(private readonly addressService: AddressService) { }
+    constructor(private readonly addressService: AddressService) {}
 
     @Public()
-    @Get("province")
+    @Get('province')
     async getProvinces() {
         return await this.addressService.getAllProvinces();
     }
 
     @Public()
-    @Get("ward/:province_code")
-    async getWard(@Param("province_code") code: number) {
+    @Get('ward/:province_code')
+    async getWard(@Param('province_code') code: number) {
         return await this.addressService.getWardByProvinceCode(code);
     }
 }

@@ -16,13 +16,8 @@ export class RatingStatsDto {
 
     constructor(counts: Record<number, number>) {
         this.totalCount = Object.values(counts).reduce((sum, val) => sum + val, 0);
-        this.totalRating = Object.entries(counts).reduce(
-            (sum, [rating, count]) => sum + Number(rating) * count,
-            0
-        );
-        this.averageRating = this.totalCount === 0
-            ? 0
-            : parseFloat((this.totalRating / this.totalCount).toFixed(2));
+        this.totalRating = Object.entries(counts).reduce((sum, [rating, count]) => sum + Number(rating) * count, 0);
+        this.averageRating = this.totalCount === 0 ? 0 : parseFloat((this.totalRating / this.totalCount).toFixed(2));
 
         this.ratings = {} as Record<number, RatingBreakdown>;
         for (let i = 1; i <= 5; i++) {

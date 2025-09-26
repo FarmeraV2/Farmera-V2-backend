@@ -3,8 +3,8 @@ import { UserRole } from 'src/common/enums/role.enum';
 
 /**
  * Only specified role can access the routes which marked by this decorator
- * 
+ *
  * Áp role của route
  */
 export const ROLES_KEY = 'roles';
-export const Roles = (role: UserRole[]) => SetMetadata(ROLES_KEY, role); 
+export const Roles = (role: UserRole[]) => SetMetadata(ROLES_KEY, role);

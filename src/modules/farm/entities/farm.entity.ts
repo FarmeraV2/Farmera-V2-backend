@@ -1,8 +1,8 @@
-import { Entity, Column, CreateDateColumn, OneToOne, UpdateDateColumn, OneToMany, JoinColumn, BeforeInsert, PrimaryColumn, PrimaryGeneratedColumn } from "typeorm";
-import { FarmStatus } from "../enums/farm-status.enum";
-import { Identification } from "./identification.entity";
-import { User } from "src/modules/user/entities/user.entity";
-import { DeliveryAddress } from "src/modules/address/entities/delivery-address.entity";
+import { Entity, Column, CreateDateColumn, OneToOne, UpdateDateColumn, JoinColumn, BeforeInsert, PrimaryGeneratedColumn } from 'typeorm';
+import { FarmStatus } from '../enums/farm-status.enum';
+import { Identification } from './identification.entity';
+import { User } from 'src/modules/user/entities/user.entity';
+import { DeliveryAddress } from 'src/modules/address/entities/delivery-address.entity';
 import { v4 as uuidv4 } from 'uuid';
 
 @Entity()
@@ -48,16 +48,16 @@ export class Farm {
     identification: Identification;
 
     @OneToOne(() => User, (user) => user.farm)
-    @JoinColumn({ name: "user_id" })
+    @JoinColumn({ name: 'user_id' })
     owner: User;
 
     @Column()
     user_id: number;
 
-    @CreateDateColumn({ type: "timestamptz" })
+    @CreateDateColumn({ type: 'timestamptz' })
     created: Date;
 
-    @UpdateDateColumn({ type: "timestamptz" })
+    @UpdateDateColumn({ type: 'timestamptz' })
     updated: Date;
 
     // stats?: FarmStats

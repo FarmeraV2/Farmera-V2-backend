@@ -1,4 +1,4 @@
-import { Expose } from "class-transformer";
+import { Expose } from 'class-transformer';
 
 export class SubcategoryDto {
     @Expose() subcategory_id: number;

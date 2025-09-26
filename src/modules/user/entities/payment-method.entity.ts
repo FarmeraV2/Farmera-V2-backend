@@ -2,7 +2,7 @@ import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGenerat
 import { User } from './user.entity';
 import { PaymentProvider } from '../enums/payment-provider.enum';
 
-// todo!("fix this fk shit") 
+// todo!("fix this fk shit")
 
 @Entity({ name: 'payment_methods' })
 export class PaymentMethod {

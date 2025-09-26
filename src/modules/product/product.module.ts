@@ -11,12 +11,8 @@ import { Product } from './entities/product.entity';
 import { FarmModule } from '../farm/farm.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Category, Subcategory, Product]),
-    ConfigModule,
-    FarmModule,
-  ],
-  controllers: [CategoryController, ProductController],
-  providers: [CategoryService, ProductService]
+    imports: [TypeOrmModule.forFeature([Category, Subcategory, Product]), ConfigModule, FarmModule],
+    controllers: [CategoryController, ProductController],
+    providers: [CategoryService, ProductService],
 })
-export class ProductModule { }
+export class ProductModule {}

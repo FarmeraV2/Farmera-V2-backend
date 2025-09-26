@@ -15,17 +15,17 @@ export class DeliveryAddress {
     name: string;
 
     @Column()
-    phone: string
+    phone: string;
 
     @ManyToOne(() => Province)
-    @JoinColumn({ name: "province_code" })
+    @JoinColumn({ name: 'province_code' })
     province: Province;
 
     @Column()
     province_code: number;
 
     @ManyToOne(() => Ward)
-    @JoinColumn({ name: "ward_code" })
+    @JoinColumn({ name: 'ward_code' })
     ward: Ward;
 
     @Column()

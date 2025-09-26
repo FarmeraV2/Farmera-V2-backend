@@ -1,18 +1,25 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FarmController } from './farm.controller';
+import { FarmService } from './farm.service';
 
 describe('FarmController', () => {
-  let controller: FarmController;
+    let controller: FarmController;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [FarmController],
-    }).compile();
+    beforeEach(async () => {
+        const module: TestingModule = await Test.createTestingModule({
+            controllers: [FarmController],
+            providers: [
+                {
+                    provide: FarmService,
+                    useValue: {}
+                }
+            ]
+        }).compile();
 
-    controller = module.get<FarmController>(FarmController);
-  });
+        controller = module.get<FarmController>(FarmController);
+    });
 
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
-  });
+    it('should be defined', () => {
+        expect(controller).toBeDefined();
+    });
 });

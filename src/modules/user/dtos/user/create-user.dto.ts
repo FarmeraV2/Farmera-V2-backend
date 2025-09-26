@@ -1,10 +1,10 @@
-import { IsDate, IsEmail, IsEnum, IsNotEmpty, IsOptional, IsPhoneNumber, IsString, Matches, MaxLength, MinLength, ValidateNested } from "class-validator";
-import { Gender } from "../../enums/gender.enum";
-import { Type } from "class-transformer";
+import { IsDate, IsEmail, IsEnum, IsNotEmpty, IsOptional, IsPhoneNumber, IsString, Matches, MinLength } from 'class-validator';
+import { Gender } from '../../enums/gender.enum';
+import { Type } from 'class-transformer';
 
 /**
  * DTO for registering a new user. Contains the necessary information required for creating a user account
- * 
+ *
  * DTO đăng kí user mới với các trườg cần thiết
  */
 export class CreateUserDto {
@@ -12,7 +12,7 @@ export class CreateUserDto {
     @IsNotEmpty()
     email: string;
 
-    @IsPhoneNumber("VN")
+    @IsPhoneNumber('VN')
     @IsNotEmpty()
     phone: string;
 
@@ -28,8 +28,7 @@ export class CreateUserDto {
     @IsNotEmpty()
     @MinLength(8)
     @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
-        message:
-            'password must contain at least 1 uppercase letter, 1 lowercase letter, 1 number and 1 special character',
+        message: 'password must contain at least 1 uppercase letter, 1 lowercase letter, 1 number and 1 special character',
     })
     password: string;
 

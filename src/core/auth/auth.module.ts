@@ -12,15 +12,8 @@ import { ConfigModule } from '@nestjs/config';
 import { FarmModule } from 'src/modules/farm/farm.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Verification]),
-    ConfigModule,
-    UserModule,
-    FarmModule,
-    MailModule,
-    SmsModule
-  ],
-  controllers: [AuthController, VerificationController],
-  providers: [AuthService, VerificationService],
+    imports: [TypeOrmModule.forFeature([Verification]), ConfigModule, UserModule, FarmModule, MailModule, SmsModule],
+    controllers: [AuthController, VerificationController],
+    providers: [AuthService, VerificationService],
 })
 export class AuthModule { }

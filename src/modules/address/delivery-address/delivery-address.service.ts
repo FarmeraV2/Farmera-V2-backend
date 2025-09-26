@@ -1,6 +1,6 @@
 import { Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from "typeorm";
+import { Repository } from 'typeorm';
 import { DeliveryAddress } from '../entities/delivery-address.entity';
 import { CreateAddressDto, CreateFarmAddressDto } from '../dtos/create-address.dto';
 import { UpdateAddressDto } from '../dtos/update-address.dto';
@@ -8,12 +8,9 @@ import { AddressType } from '../enums/address-type.enums';
 
 @Injectable()
 export class DeliveryAddressService {
-
     private readonly logger = new Logger(DeliveryAddressService.name);
 
-    constructor(
-        @InjectRepository(DeliveryAddress) private readonly deliveryAddressRepository: Repository<DeliveryAddress>,
-    ) { }
+    constructor(@InjectRepository(DeliveryAddress) private readonly deliveryAddressRepository: Repository<DeliveryAddress>) {}
 
     /**
      * @function getUserAddresses - Retrieves all addresses of a specific user
@@ -31,10 +28,9 @@ export class DeliveryAddressService {
                 where: { user: { id } },
                 order: { is_primary: 'DESC', created_at: 'DESC' },
             });
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException("Failed to get user addresses");
+            throw new InternalServerErrorException('Failed to get user addresses');
         }
     }
 
@@ -51,23 +47,19 @@ export class DeliveryAddressService {
     async addUserAddress(id: number, locationData: CreateAddressDto): Promise<DeliveryAddress> {
         try {
             if (locationData.is_primary) {
-                await this.deliveryAddressRepository.update(
-                    { user: { id } },
-                    { is_primary: false },
-                );
+                await this.deliveryAddressRepository.update({ user: { id } }, { is_primary: false });
             }
 
             const newLocation = this.deliveryAddressRepository.create({
                 ...locationData,
-                user: { id }
+                user: { id },
             });
 
             const savedLocation = await this.deliveryAddressRepository.save(newLocation);
             return savedLocation;
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException("Failed to add new user address");
+            throw new InternalServerErrorException('Failed to add new user address');
         }
     }
 
@@ -78,7 +70,7 @@ export class DeliveryAddressService {
      * @returns {Promise<DeliveryAddress>} - Returns the newly created and saved delivery address entity
      *
      * @throws {InternalServerErrorException} - If the address creation or saving process fails
-     * 
+     *
      * @WARNING This function should **NOT** be called directly from controllers or exposed to end users.
      * Always wrap this method inside a service-level function that enforces ownership and validation checks.
      */
@@ -87,14 +79,13 @@ export class DeliveryAddressService {
             const newAddress = this.deliveryAddressRepository.create({
                 ...addressData,
                 location: { lat: addressData.latitude, lng: addressData.longitude },
-                owner_type: AddressType.FARM
+                owner_type: AddressType.FARM,
             });
             const savedLocation = await this.deliveryAddressRepository.save(newAddress);
             return savedLocation;
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException("Failed to add new farm address");
+            throw new InternalServerErrorException('Failed to add new farm address');
         }
     }
 
@@ -113,19 +104,15 @@ export class DeliveryAddressService {
         try {
             // If setting this as primary, unset other primary locations for this user
             if (locationData.is_primary) {
-                await this.deliveryAddressRepository.update(
-                    { user: { id: userId } },
-                    { is_primary: false },
-                );
+                await this.deliveryAddressRepository.update({ user: { id: userId } }, { is_primary: false });
             }
 
             await this.deliveryAddressRepository.update({ address_id: addressId, user: { id: userId } }, locationData);
 
             return this.getAddressById(addressId, userId);
-        }
-        catch (error) {
+        } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException("Failed to update user address");
+            throw new InternalServerErrorException('Failed to update user address');
         }
     }
 
@@ -147,8 +134,8 @@ export class DeliveryAddressService {
             where: { address_id: addressId, user: { id: userId } },
         });
         if (!location) {
-            throw new NotFoundException("Address not found");
+            throw new NotFoundException('Address not found');
         }
-        return location
+        return location;
     }
 }

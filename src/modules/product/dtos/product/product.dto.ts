@@ -1,6 +1,6 @@
-import { Expose, Type } from "class-transformer";
-import { SubcategoryDto } from "../category/subcategory.dto";
-import { ProductStatus } from "../../enums/product-status.enum";
+import { Expose, Type } from 'class-transformer';
+import { SubcategoryDto } from '../category/subcategory.dto';
+import { ProductStatus } from '../../enums/product-status.enum';
 
 export class ProductDto {
     @Expose() product_id: number;
@@ -17,7 +17,9 @@ export class ProductDto {
 }
 
 const dtoProps = Object.keys(new ProductDto());
-export const productSelectFields = dtoProps.map((prop) => {
-    if (prop === 'subcategories') return null;
-    return `product.${prop}`;
-}).filter((field): field is string => !!field);
+export const productSelectFields = dtoProps
+    .map((prop) => {
+        if (prop === 'subcategories') return null;
+        return `product.${prop}`;
+    })
+    .filter((field): field is string => !!field);
