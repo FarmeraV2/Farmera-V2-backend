@@ -1,12 +1,15 @@
 name: PR check
 
 on:
-    pull_request:
-        branches:
-            - dev
     push:
         branches:
-            - devops
+            - master
+            - dev
+
+    pull_request:
+        branches:
+            - master
+            - dev
 
 jobs:
     lint-and-test:
