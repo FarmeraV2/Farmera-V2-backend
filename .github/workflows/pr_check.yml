@@ -21,10 +21,10 @@ jobs:
                 node-version: 24
             
             - name: Install dependencies
-              uses: npm install
+              run: npm install
 
             - name: Run lint
-              uses: npm run lint
+              run: npm run lint
             
             - name: Run tests
-              uses: npm run test
+              run: npm run test
