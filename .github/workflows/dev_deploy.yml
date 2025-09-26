@@ -1,0 +1,26 @@
+name: Deploy Dev
+
+on:
+    workflow_run:
+        workflows: ["PR check"]
+        types:
+        - completed
+    push:
+        branches:
+            - dev
+
+jobs:
+    deploy:
+        runs-on: self-hosted
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v5
+
+            - name: Deploy with Docker Compose
+              run: |
+                git fetch
+                git pull
+                docker compose down
+                docker compose up --build
+                
+
