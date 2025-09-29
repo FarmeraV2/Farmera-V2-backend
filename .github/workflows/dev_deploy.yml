@@ -4,6 +4,7 @@ on:
     push:
         branches:
             - dev
+            - devops
 
     pull_request:
         branches:
@@ -41,11 +42,9 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v5
 
-            - name: Deploy with Docker Compose
+            - name: Create .env
               run: |
-                git fetch
-                git pull
-                docker compose down
-                docker compose up --build
+                touch .env
+                echo "{{secrets.DEVELOPMENT_SECRETS}}" >> .env
                 
 
