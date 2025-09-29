@@ -46,7 +46,8 @@ jobs:
               run: |
                 touch .env
                 echo "${{secrets.DEVELOPMENT_SECRETS}}" >> .env
-                
-            - name: Test printing secret
+
+            - name: Deploy with Docker Compose
               run: |
-                cat .env
+                docker compose down
+                docker compose up --build
