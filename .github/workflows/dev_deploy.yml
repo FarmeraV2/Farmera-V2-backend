@@ -36,16 +36,18 @@ jobs:
     deploy:
         needs: test
         runs-on: self-hosted
+        timeout-minutes: 5
         if: github.event_name == 'push'
         steps:
             - name: Checkout code
               uses: actions/checkout@v5
 
+            - name: Create .env
+              run: |
+                touch .env
+                echo "${{secrets.DEVELOPMENT_SECRETS}}" >> .env
+
             - name: Deploy with Docker Compose
               run: |
-                git fetch
-                git pull
                 docker compose down
-                docker compose up --build
-                
-
+                docker compose up --build -d
