@@ -6,6 +6,7 @@ import { Ward } from '../entities/ward.entity';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
+import * as https from 'https';
 
 @Injectable()
 export class AddressService {
@@ -52,7 +53,9 @@ export class AddressService {
             return;
         }
         try {
-            const response = await firstValueFrom(this.httpService.get(`${this.addressApi}/provider`));
+            const response = await firstValueFrom(this.httpService.get(`${this.addressApi}/provider`, {
+                httpsAgent: new https.Agent({ rejectUnauthorized: false })
+            }));
             const provinces: Province[] = response.data.map((province: Province) => this.provinceRepository.create(province));
             const saved = await this.provinceRepository.save(provinces);
 
@@ -77,7 +80,9 @@ export class AddressService {
 
         try {
             for (const provinceCode of provinceCodes) {
-                const response = await firstValueFrom(this.httpService.get(`${this.addressApi}/ward/${provinceCode}`));
+                const response = await firstValueFrom(this.httpService.get(`${this.addressApi}/ward/${provinceCode}`, {
+                    httpsAgent: new https.Agent({ rejectUnauthorized: false })
+                }));
 
                 const wards: Ward[] = response.data.map((ward: Ward) => this.wardRepository.create({ ...ward, province: { code: provinceCode } }));
 
