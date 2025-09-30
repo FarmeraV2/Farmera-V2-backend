@@ -45,6 +45,7 @@ export class AddressService {
     private async importProvince(): Promise<number[] | undefined> {
         const count = await this.provinceRepository.count();
         if (count > 0) {
+            this.logger.log("Already have province data, pulling will be skipped")
             return;
         }
         // fetch province
@@ -71,6 +72,7 @@ export class AddressService {
     private async importWard(provinceCodes: number[]) {
         const count = await this.wardRepository.count();
         if (count > 0) {
+            this.logger.log("Already have ward data, pulling will be skipped")
             return;
         }
         if (!this.addressApi) {
@@ -105,7 +107,7 @@ export class AddressService {
 
     async getWardByProvinceCode(code: number): Promise<Ward[]> {
         try {
-            const wards = await this.wardRepository.find({ where: { province: { code } } });
+            const wards = await this.wardRepository.find({ where: { province_code: code } });
             return wards;
         } catch (error) {
             this.logger.error(error.message);

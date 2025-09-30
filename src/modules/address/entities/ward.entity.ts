@@ -27,4 +27,7 @@ export class Ward {
     @ManyToOne(() => Province, (province) => province.ward)
     @JoinColumn({ name: 'province_code' })
     province: Province;
+
+    @Column()
+    province_code: number;
 }
