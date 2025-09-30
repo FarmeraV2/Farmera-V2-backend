@@ -27,7 +27,7 @@ describe('OldAddressService', () => {
           useValue: {}
         },
         {
-          provide: getRepositoryToken(HttpService),
+          provide: HttpService,
           useValue: {}
         }
       ],
