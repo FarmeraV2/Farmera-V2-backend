@@ -20,6 +20,7 @@ import { AddressModule } from './modules/address/address.module';
 import { ReviewModule } from './modules/review/review.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { OrderModule } from './modules/order/order.module';
+import { CropManagementModule } from './modules/crop-management/crop-management.module';
 
 @Module({
     imports: [
@@ -68,6 +69,7 @@ import { OrderModule } from './modules/order/order.module';
         ReviewModule,
         PaymentModule,
         OrderModule,
+        CropManagementModule,
     ],
     controllers: [AppController],
     providers: [
