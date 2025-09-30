@@ -5,6 +5,9 @@ import { AddressType } from '../enums/address-type.enums';
 import { User } from 'src/modules/user/entities/user.entity';
 import { Farm } from 'src/modules/farm/entities/farm.entity';
 import { Exclude } from 'class-transformer';
+import { OldProvince } from './old-province.entity';
+import { OldWard } from './old-ward.entity';
+import { OldDistrict } from './old-district.entity';
 
 @Entity()
 export class DeliveryAddress {
@@ -17,19 +20,40 @@ export class DeliveryAddress {
     @Column()
     phone: string;
 
-    @ManyToOne(() => Province)
+    @ManyToOne(() => Province, { nullable: true })
     @JoinColumn({ name: 'province_code' })
-    province: Province;
+    province?: Province;
 
-    @Column()
-    province_code: number;
+    @Column({ nullable: true })
+    province_code?: number;
 
-    @ManyToOne(() => Ward)
+    @ManyToOne(() => Ward, { nullable: true })
     @JoinColumn({ name: 'ward_code' })
-    ward: Ward;
+    ward?: Ward;
+
+    @Column({ nullable: true })
+    ward_code?: number;
+
+    @ManyToOne(() => OldProvince)
+    @JoinColumn({ name: 'old_province_code' })
+    old_province: OldProvince;
 
     @Column()
-    ward_code: number;
+    old_province_code: number;
+
+    @ManyToOne(() => OldDistrict)
+    @JoinColumn({ name: 'old_district_code' })
+    old_district: OldDistrict;
+
+    @Column()
+    old_district_code: number;
+
+    @ManyToOne(() => OldWard)
+    @JoinColumn({ name: 'old_ward_code' })
+    old_ward: OldWard;
+
+    @Column()
+    old_ward_code: number;
 
     @Column()
     street: string;

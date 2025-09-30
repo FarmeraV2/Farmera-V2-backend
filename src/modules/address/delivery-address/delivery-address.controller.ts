@@ -7,7 +7,7 @@ import { CreateAddressDto } from '../dtos/create-address.dto';
 
 @Controller('delivery-address')
 export class DeliveryAddressController {
-    constructor(private readonly deliveryAddressService: DeliveryAddressService) {}
+    constructor(private readonly deliveryAddressService: DeliveryAddressService) { }
 
     @Put(':locationId')
     async updateAddress(@User() user: UserInterface, @Param('locationId') locationId: number, @Body() req: UpdateAddressDto) {
