@@ -19,5 +19,5 @@ export class OldProvince {
     codename: string;
 
     @OneToMany(() => OldDistrict, (district) => district.province, { cascade: true })
-    districts: OldDistrict;
+    districts: OldDistrict[];
 }
