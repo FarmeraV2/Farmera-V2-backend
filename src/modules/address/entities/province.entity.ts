@@ -12,10 +12,10 @@ export class Province {
     @Column()
     full_name: string;
 
-    @Column()
+    @Column({nullable: true})
     name_en: string;
 
-    @Column()
+    @Column({nullable: true})
     full_name_en: string;
 
     @Column()
