@@ -1,6 +1,7 @@
 import { Farm } from 'src/modules/farm/entities/farm.entity';
 import { User } from 'src/modules/user/entities/user.entity';
 import { Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { OrderStatus } from '../enums/order-status.enum';
 
 @Entity()
 export class Order {
@@ -29,10 +30,16 @@ export class Order {
     parent_order_id: number;
 
     @Column()
-    total_amount: number;
+    total_amount: number; // Đơn hàng con Tổng tiền hàng con đã bao gồm phí vận chuyển
 
     @Column()
-    Status: string;
+    sub_total_amount: number; // Tổng tiền hàng chưa bao gồm phí vận chuyển. đơn hàng cha = tổng của các đơn hàng con. Đơn hàng con = tổng tiền hàng chưa bao gồm phí vận chuyển.
+
+    @Column()
+    grand_total: number; // đơn hàng cha: Tổng tiền hàng đã bao gồm phí vận chuyển ( đơn hàng cha = tổng của các đơn hàng con ) đơn hàng con null.
+
+    @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING_CONFIRMATION })
+    status: OrderStatus;
 
     @CreateDateColumn({ type: 'timestamptz' })
     created: Date;

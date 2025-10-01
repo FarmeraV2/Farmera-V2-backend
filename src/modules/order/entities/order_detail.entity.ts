@@ -22,7 +22,7 @@ export class OrderDetail {
     product_id: number;
 
     @Column()
-    quantity: number;
+    ordered_quantity: number;
 
     @Column()
     weight: number;
@@ -31,12 +31,12 @@ export class OrderDetail {
     unit: string;
 
     @Column()
-    price: number;
-
-    @Column()
-    status: string;
+    unit_price: number;
 
     @Column()
     total_price: number;
+
+    @Column()
+    status: string;
 
 }

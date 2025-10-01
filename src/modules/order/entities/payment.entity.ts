@@ -1,5 +1,6 @@
 import { Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Column, OneToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Order } from './order.entity';
+import { PaymentMethod, PaymentStatus } from '../enums/payment-status';
 
 @Entity()
 export class Payment {
@@ -13,20 +14,20 @@ export class Payment {
     @Column({ nullable: true })
     order_id: number;
 
-    @Column()
-    status: string;
+    @Column({type : 'enum', enum: PaymentStatus, default: PaymentStatus.UNPAID})
+    status: PaymentStatus;
+
+    @Column({type : 'enum', enum: PaymentMethod, default: PaymentMethod.COD})
+    method: PaymentMethod;
 
     @Column()
     total_amount: number;
 
-    @Column()
-    method: string;
+    @Column({ nullable: true })
+    qr_code: string; // ảnh qr code thanh toán lưu dưới dạng base64
 
     @Column({ nullable: true })
-    qr_id: string;
-
-    @Column({ nullable: true })
-    qr_image: string;
+    checkout_url: string; // link ảnh thanh toán
 
     @Column({ nullable: true })
     transaction_id: string;
