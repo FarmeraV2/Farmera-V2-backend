@@ -24,5 +24,5 @@ export class OldDistrict {
     province_code: number;
 
     @OneToMany(() => OldWard, (ward) => ward.district, { nullable: true, cascade: true })
-    wards?: OldWard
+    wards?: OldWard[]
 }

@@ -9,6 +9,9 @@ export class AddressDto {
     @Expose() phone: string;
     @Expose() province_code: number;
     @Expose() ward_code: number;
+    @Expose() old_province_code: number;
+    @Expose() old_district_code: number;
+    @Expose() old_ward_code: number;
     @Expose() street: string;
     @Expose() postal_code: string;
     @Expose() type: string;
