@@ -1,5 +1,6 @@
-import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { SeasonDetail } from './season-detail.entity';
+import { Farm } from 'src/modules/farm/entities/farm.entity';
 
 @Entity()
 export class Log {
@@ -32,4 +33,11 @@ export class Log {
 
     @ManyToOne(() => SeasonDetail, (detail) => detail.logs)
     season_detail: SeasonDetail
+
+    @ManyToOne(() => Farm)
+    @JoinColumn({ name: "farm_id" })
+    farm: Farm
+
+    @Column()
+    farm_id: number;
 }

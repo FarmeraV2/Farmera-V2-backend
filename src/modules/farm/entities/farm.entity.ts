@@ -5,6 +5,8 @@ import { User } from 'src/modules/user/entities/user.entity';
 import { DeliveryAddress } from 'src/modules/address/entities/delivery-address.entity';
 import { v4 as uuidv4 } from 'uuid';
 import { Plot } from 'src/modules/crop-management/entities/plot.entity';
+import { Season } from 'src/modules/crop-management/entities/season.entity';
+import { Log } from 'src/modules/crop-management/entities/log.entity';
 
 @Entity()
 export class Farm {
@@ -75,4 +77,8 @@ export class Farm {
 
     @OneToMany(() => Plot, (plot) => plot.farm)
     plots?: Plot[]
+    @OneToMany(() => Season, (season) => season.farm)
+    seasons?: Season[]
+    @OneToMany(() => Log, (log) => log.farm)
+    logs?: Log[]
 }

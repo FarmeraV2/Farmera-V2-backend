@@ -6,12 +6,14 @@ import { Plot } from './entities/plot.entity';
 import { Season } from './entities/season.entity';
 import { SeasonDetail } from './entities/season-detail.entity';
 import { Log } from './entities/log.entity';
+import { SeasonService } from './season/season.service';
+import { SeasonController } from './season/season.controller';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Plot, Season, SeasonDetail, Log])
   ],
-  providers: [PlotService],
-  controllers: [PlotController]
+  providers: [PlotService, SeasonService],
+  controllers: [PlotController, SeasonController]
 })
 export class CropManagementModule { }

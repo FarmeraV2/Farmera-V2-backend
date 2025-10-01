@@ -27,7 +27,8 @@ export class CreatePlotDto {
     @IsDateString()
     start_date: Date;
 
-    @IsString()
     @IsOptional()
+    @IsString()
+    @IsNotEmpty()
     notes?: string;
 }

@@ -10,7 +10,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { typeOrmAsyncConfig } from './config/typeorm.config';
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, RouterModule } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/role.guard';
 import { AdminModule } from './modules/admin/admin.module';
@@ -70,6 +70,12 @@ import { CropManagementModule } from './modules/crop-management/crop-management.
         PaymentModule,
         OrderModule,
         CropManagementModule,
+        RouterModule.register([
+            {
+                path: "crop-management",
+                module: CropManagementModule
+            }
+        ])
     ],
     controllers: [AppController],
     providers: [

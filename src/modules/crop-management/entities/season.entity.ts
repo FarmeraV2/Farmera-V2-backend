@@ -1,7 +1,8 @@
-import { Column, CreateDateColumn, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { SeasonStatus } from '../enums/season-status.enum';
 import { Plot } from './plot.entity';
 import { SeasonDetail } from './season-detail.entity';
+import { Farm } from 'src/modules/farm/entities/farm.entity';
 
 @Entity()
 export class Season {
@@ -17,16 +18,16 @@ export class Season {
     @Column({ type: "timestamptz" })
     expected_end_date: Date;
 
-    @Column({ type: "timestamptz" })
-    actual_end_date: Date;
+    @Column({ type: "timestamptz", nullable: true })
+    actual_end_date?: Date;
 
-    @Column({ enum: SeasonStatus })
+    @Column({ enum: SeasonStatus, default: SeasonStatus.PENDING })
     status: SeasonStatus;
 
     @Column()
     expected_yield: number;
 
-    @Column()
+    @Column({ nullable: true })
     actual_yield: number;
 
     @Column()
@@ -42,8 +43,19 @@ export class Season {
     updated: Date;
 
     @ManyToOne(() => Plot, (plot) => plot.seasons)
+    @JoinColumn({ name: "plot_id" })
     plot: Plot;
+
+    @Column()
+    plot_id: number;
 
     @OneToMany(() => SeasonDetail, (detail) => detail.season)
     season_details: SeasonDetail[];
+
+    @ManyToOne(() => Farm)
+    @JoinColumn({ name: "farm_id" })
+    farm: Farm
+
+    @Column()
+    farm_id: number;
 }
