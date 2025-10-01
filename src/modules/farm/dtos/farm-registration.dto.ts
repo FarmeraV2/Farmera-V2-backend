@@ -24,11 +24,25 @@ export class FarmRegistrationDto {
 
     @IsNumber()
     @IsPositive()
-    province_code: number;
+    @IsOptional()
+    province_code?: number;
 
     @IsNumber()
     @IsPositive()
-    ward_code: number;
+    @IsOptional()
+    ward_code?: number;
+
+    @IsNumber()
+    @IsPositive()
+    old_province_code: number;
+
+    @IsNumber()
+    @IsPositive()
+    old_district_code: number;
+
+    @IsNumber()
+    @IsPositive()
+    old_ward_code: number;
 
     @IsString()
     @IsNotEmpty()
