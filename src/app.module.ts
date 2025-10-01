@@ -28,7 +28,7 @@ import { OrderModule } from './modules/order/order.module';
         // Configuration
         ConfigModule.forRoot({
             isGlobal: true,
-            envFilePath: '.env',
+            envFilePath: ['.env.dev', '.env']
         }),
 
         // JWT configuration
@@ -82,4 +82,4 @@ import { OrderModule } from './modules/order/order.module';
         },
     ],
 })
-export class AppModule {}
+export class AppModule { }
