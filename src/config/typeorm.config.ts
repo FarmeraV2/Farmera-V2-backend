@@ -17,9 +17,9 @@ export const typeOrmAsyncConfig: TypeOrmModuleAsyncOptions = {
         ssl:
             configService.get<string>('NODE_ENV') === 'production'
                 ? {
-                      require: true,
-                      rejectUnauthorized: false,
-                  }
+                    require: true,
+                    rejectUnauthorized: false,
+                }
                 : false,
     }),
 };

@@ -8,6 +8,10 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "migration:create": "npm run typeorm migration:create ./src/migrations/%npm_config_name%",
+    "migration:run": "npm run typeorm -- migration:run -d ./data-source.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d ./data-source.ts",
+    "typeorm": "npx typeorm-ts-node-commonjs",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
@@ -56,6 +60,7 @@
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.10.7",
+    "@types/pg": "^8.15.5",
     "@types/supertest": "^6.0.2",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
