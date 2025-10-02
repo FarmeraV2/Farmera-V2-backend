@@ -40,7 +40,7 @@ export class PayosController {
             },
             signature: req.body?.signature || '',
         };
-        const verifySignatur = await this.payosService.verifySignature(body);
+        const verifySignatur = this.payosService.verifySignature(body);
         if (!verifySignatur) {
             this.logger.warn('Invalid signature in PayOS webhook');
             return { success: false, message: 'Invalid signature' };
@@ -58,15 +58,17 @@ export class PayosController {
 
     @Public()
     @Post('cancel')
-    async handleCancelWebhook(@Req() req: Request): Promise<any> {
+    handleCancelWebhook(@Req() req: Request): any {
         //TODO: Xử lý logic khi nhận được webhook hủy từ PayOS
-        return null;
+        this.logger.log('Cancel webhook received:', req.body);
+        return { success: true, message: 'Cancel webhook received' };
     }
 
     @Public()
     @Post('return')
-    async handleReturnWebhook(@Req() req: Request): Promise<any> {
+    handleReturnWebhook(@Req() req: Request): any {
         //TODO: Xử lý logic khi nhận được webhook hoàn tiền từ PayOS
-        return null;
+        this.logger.log('Return webhook received:', req.body);
+        return { success: true, message: 'Return webhook received' };
     }
 }

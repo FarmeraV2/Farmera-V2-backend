@@ -42,11 +42,11 @@ export class PayosService {
 
 
     //Hàm tính toán chữ ký PayOS để gửi đi khi tạo đơn hàng páyos
-    private async calculatePayOSSignature(
+    private calculatePayOSSignature(
         amount: number,
         description: string,
         orderCode: number,
-    ): Promise<string> {
+    ): string {
         // Ghép data string theo thứ tự alphabet
         const dataString = `amount=${amount}&cancelUrl=${this.webHookCancelUrl}&description=${description}&orderCode=${orderCode}&returnUrl=${this.webHookReturnUrl}`;
         this.logger.debug('Data string để ký:', dataString);
@@ -65,7 +65,7 @@ export class PayosService {
         description: string,
         orderCode: number,
     ): Promise<ResponseOrderPayOSDto> {
-        const signature = await this.calculatePayOSSignature(amount, description, orderCode);
+        const signature = this.calculatePayOSSignature(amount, description, orderCode);
         const headers = {
             'Content-Type': 'application/json',
             'x-client-Id': this.payOsClientId,
@@ -111,7 +111,7 @@ export class PayosService {
     }
 
     // Hàm xác thực chữ ký từ webhook PayOS. nếu trường ko có giá trị thì tự động điền ""
-    async verifySignature(webhook: PayosWebhookDto): Promise<boolean> {
+    verifySignature(webhook: PayosWebhookDto): boolean {
         //Kiểm tra các trường bắt buộc.
         if (!webhook || !webhook.data || !webhook.signature) {
             this.logger.warn('Missing required fields to verify signature');
@@ -140,7 +140,12 @@ export class PayosService {
         this.logger.debug(' Verifying webhook signature:', webhook);
 
         // Sắp xếp dữ liệu theo key alphabet và chuyển thành chuỗi query
-        const sortedDataByKey = this.sortObjDataByKey(webhook.data);
+        //
+        // const sortedDataByKey = this.sortObjDataByKey(webhook.data);
+        const dataAsRecord = { ...webhook.data } as Record<string, unknown>;
+        const sortedDataByKey = this.sortObjDataByKey(dataAsRecord);
+        //
+        
         const dataQueryStr = this.convertObjToQueryStr(sortedDataByKey);
 
         this.logger.debug('Sorted data:', sortedDataByKey);
@@ -159,18 +164,24 @@ export class PayosService {
     }
 
     // Hàm sắp xếp object theo key alphabet để tính chữ ký được Payos trả về 
-    private sortObjDataByKey(object: Record<string, any>): Record<string, any> {
+    //
+    //private sortObjDataByKey(object: Record<string, any>): Record<string, any> {
+    private sortObjDataByKey(object: Record<string, unknown>): Record<string, unknown> {
+    //
+
         const orderedObject = Object.keys(object)
             .sort()
             .reduce((obj, key) => {
                 obj[key] = object[key];
                 return obj;
-            }, {});
+            }, {} as Record<string, unknown>);
         return orderedObject;
     }
 
     // Hàm chuyển object thành chuỗi query string
-    private convertObjToQueryStr(object: Record<string, any>): string {
+    //
+    //private convertObjToQueryStr(object: Record<string, any>): string {
+    private convertObjToQueryStr(object: Record<string, unknown>): string {
         return Object.keys(object)
             .filter((key) => object[key] !== undefined)
             .map((key) => {
@@ -178,11 +189,13 @@ export class PayosService {
 
                 // Sort nested object
                 if (value && Array.isArray(value)) {
-                    value = JSON.stringify(value.map((val) => this.sortObjDataByKey(val)));
+                    //value = JSON.stringify(value.map((val) => this.sortObjDataByKey(val)));
+                    value = JSON.stringify(value.map((val) => this.sortObjDataByKey(val as Record<string, unknown>)));
                 }
 
                 // Set empty string if null
-                if ([null, undefined, "undefined", "null"].includes(value)) {
+                //if ([null, undefined, "undefined", "null"].includes(value)) {
+                if (value === null || value === undefined || value === "undefined" || value === "null") {
                     value = "";
                 }
 
