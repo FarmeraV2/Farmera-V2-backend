@@ -17,7 +17,6 @@ export class VerificationService {
         @InjectRepository(Verification) private verificationRepository: Repository<Verification>,
         private userService: UserService,
         private verifyService: VerifyService,
-        private emailService: EmailService
     ) { }
 
     /**
