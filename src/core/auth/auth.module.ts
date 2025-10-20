@@ -6,14 +6,14 @@ import { VerificationService } from './verification/verification.service';
 import { UserModule } from 'src/modules/user/user.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Verification } from './entities/verification.entity';
-import { MailModule } from '../mail/mail.module';
-import { SmsModule } from '../sms/sms.module';
 import { ConfigModule } from '@nestjs/config';
 import { FarmModule } from 'src/modules/farm/farm.module';
+import { VerifyService } from '../twilio/verify/verify.service';
+import { EmailService } from '../twilio/email/email.service';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([Verification]), ConfigModule, UserModule, FarmModule, MailModule, SmsModule],
+    imports: [TypeOrmModule.forFeature([Verification]), ConfigModule, UserModule, FarmModule],
     controllers: [AuthController, VerificationController],
-    providers: [AuthService, VerificationService],
+    providers: [AuthService, VerificationService, VerifyService, EmailService],
 })
 export class AuthModule { }

@@ -3,8 +3,6 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './core/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
-import { MailModule } from './core/mail/mail.module';
-import { SmsModule } from './core/sms/sms.module';
 import { RedisModule } from './core/redis/redis.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { typeOrmAsyncConfig } from './config/typeorm.config';
@@ -20,6 +18,7 @@ import { AddressModule } from './modules/address/address.module';
 import { ReviewModule } from './modules/review/review.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { OrderModule } from './modules/order/order.module';
+import { TwilioModule } from './core/twilio/twilio.module';
 
 @Module({
     imports: [
@@ -58,8 +57,6 @@ import { OrderModule } from './modules/order/order.module';
 
         AuthModule,
         UserModule,
-        MailModule,
-        SmsModule,
         RedisModule,
         AdminModule,
         ProductModule,
@@ -68,6 +65,7 @@ import { OrderModule } from './modules/order/order.module';
         ReviewModule,
         PaymentModule,
         OrderModule,
+        TwilioModule,
     ],
     controllers: [AppController],
     providers: [

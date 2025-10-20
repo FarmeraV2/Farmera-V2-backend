@@ -12,6 +12,7 @@ import { ForgotPasswordDto, UpdateNewPasswordDto } from '../dtos/forgot-password
 import { VerificationService } from '../verification/verification.service';
 import { FarmService } from 'src/modules/farm/farm/farm.service';
 import { UserRole } from 'src/common/enums/role.enum';
+import { CheckStatus } from 'src/core/twilio/enums/check-status.enum';
 
 export const REFRESH_TOKEN_COOKIES_KEY = 'refresh_token';
 
@@ -25,7 +26,7 @@ export class AuthService {
         private readonly configService: ConfigService,
         private readonly verificationService: VerificationService,
         private readonly farmService: FarmService,
-    ) {}
+    ) { }
 
     async register(registerDto: CreateUserDto): Promise<UserDto> {
         return await this.userService.createUser(registerDto);
@@ -224,14 +225,14 @@ export class AuthService {
         const { email, phone, newPassword } = req;
 
         // verify code
-        let verification: { result: string } | undefined;
+        let verification: CheckStatus = CheckStatus.FAILED;
         if (email) {
             verification = await this.verificationService.verifyEmail({ email, verification_code: req.code });
         } else if (phone) {
             verification = await this.verificationService.verifyPhone({ phone, verification_code: req.code });
         }
 
-        if (!verification) {
+        if (verification !== CheckStatus.APPROVED) {
             throw new BadRequestException('Invalid verification code');
         }
 
