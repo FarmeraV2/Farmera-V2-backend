@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import sgMail from '@sendgrid/mail';
 
@@ -31,7 +31,9 @@ export class EmailService {
         }
         try {
             const response = await sgMail.send(msg);
-
+            if (response[0].statusCode !== 202) {
+                this.logger.error("Failed to send email: ", response[0].body);
+            }
             return true;
         }
         catch (error) {
