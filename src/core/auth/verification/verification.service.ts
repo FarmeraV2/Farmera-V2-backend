@@ -6,7 +6,6 @@ import { SendVerificationEmailDto, SendVerificationPhoneDto, VerifyEmailDto, Ver
 import { Cron } from '@nestjs/schedule';
 import { UserService } from 'src/modules/user/user/user.service';
 import { VerifyService } from 'src/core/twilio/verify/verify.service';
-import { EmailService } from 'src/core/twilio/email/email.service';
 import { CheckStatus } from 'src/core/twilio/enums/check-status.enum';
 
 @Injectable()
