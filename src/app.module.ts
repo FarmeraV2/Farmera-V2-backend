@@ -19,6 +19,8 @@ import { ReviewModule } from './modules/review/review.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { OrderModule } from './modules/order/order.module';
 import { TwilioModule } from './core/twilio/twilio.module';
+import { FirebaseModule } from './core/firebase/firebase.module';
+import { NotificationModule } from './modules/notification/notification.module';
 
 @Module({
     imports: [
@@ -66,6 +68,8 @@ import { TwilioModule } from './core/twilio/twilio.module';
         PaymentModule,
         OrderModule,
         TwilioModule,
+        FirebaseModule,
+        NotificationModule,
     ],
     controllers: [AppController],
     providers: [
