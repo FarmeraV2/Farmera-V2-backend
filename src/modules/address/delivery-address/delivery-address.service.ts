@@ -5,12 +5,13 @@ import { DeliveryAddress } from '../entities/delivery-address.entity';
 import { CreateAddressDto, CreateFarmAddressDto } from '../dtos/create-address.dto';
 import { UpdateAddressDto } from '../dtos/update-address.dto';
 import { AddressType } from '../enums/address-type.enums';
+import { ResponseCode } from 'src/common/constants/response-code.const';
 
 @Injectable()
 export class DeliveryAddressService {
     private readonly logger = new Logger(DeliveryAddressService.name);
 
-    constructor(@InjectRepository(DeliveryAddress) private readonly deliveryAddressRepository: Repository<DeliveryAddress>) {}
+    constructor(@InjectRepository(DeliveryAddress) private readonly deliveryAddressRepository: Repository<DeliveryAddress>) { }
 
     /**
      * @function getUserAddresses - Retrieves all addresses of a specific user
@@ -30,7 +31,10 @@ export class DeliveryAddressService {
             });
         } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException('Failed to get user addresses');
+            throw new InternalServerErrorException({
+                message: 'Failed to get user addresses',
+                code: ResponseCode.FAILED_TO_GET_USER_ADDRESS
+            });
         }
     }
 
@@ -59,7 +63,10 @@ export class DeliveryAddressService {
             return savedLocation;
         } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException('Failed to add new user address');
+            throw new InternalServerErrorException({
+                message: 'Failed to add new user address',
+                code: ResponseCode.FAILED_TO_GET_USER_ADDRESS
+            });
         }
     }
 
@@ -85,7 +92,10 @@ export class DeliveryAddressService {
             return savedLocation;
         } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException('Failed to add new farm address');
+            throw new InternalServerErrorException({
+                message: 'Failed to add new farm address',
+                code: ResponseCode.FAILED_TO_CREATE_FARM_ADDRESS
+            });
         }
     }
 
@@ -112,7 +122,10 @@ export class DeliveryAddressService {
             return this.getAddressById(addressId, userId);
         } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException('Failed to update user address');
+            throw new InternalServerErrorException({
+                message: 'Failed to update user address',
+                code: ResponseCode.FAILED_TO_UPDATE_USER_ADDRESS,
+            });
         }
     }
 
@@ -122,7 +135,10 @@ export class DeliveryAddressService {
         });
 
         if (!location) {
-            throw new NotFoundException(`Location with ID ${addressId} not found`);
+            throw new NotFoundException({
+                message: `Address with ID ${addressId} not found`,
+                code: ResponseCode.ADDRESS_NOT_FOUND,
+            });
         }
 
         await this.deliveryAddressRepository.delete({ address_id: addressId });
@@ -134,7 +150,10 @@ export class DeliveryAddressService {
             where: { address_id: addressId, user: { id: userId } },
         });
         if (!location) {
-            throw new NotFoundException('Address not found');
+            throw new NotFoundException({
+                message: 'Address not found',
+                code: ResponseCode.ADDRESS_NOT_FOUND
+            });
         }
         return location;
     }

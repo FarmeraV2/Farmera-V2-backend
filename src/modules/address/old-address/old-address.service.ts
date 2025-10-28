@@ -7,6 +7,7 @@ import { OldWard } from '../entities/old-ward.entity';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
+import { ResponseCode } from 'src/common/constants/response-code.const';
 
 @Injectable()
 export class OldAddressService {
@@ -59,9 +60,12 @@ export class OldAddressService {
             return await this.oldProvinceRepository.find();
         }
         catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException("Failed to get provinces");
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to get provinces",
+                code: ResponseCode.FAILED_TO_GET_PROVINCES,
+            });
         }
     }
 
@@ -70,9 +74,12 @@ export class OldAddressService {
             return await this.oldDistrictRepository.find({ where: { province_code: code } });
         }
         catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException("Failed to get districts");
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to get districts",
+                code: ResponseCode.FAILED_TO_GET_DISTRICTS
+            });
         }
     }
 
@@ -81,9 +88,12 @@ export class OldAddressService {
             return await this.oldWardRepository.find({ where: { district_code: code } });
         }
         catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException("Failed to get wards");
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to get wards",
+                code: ResponseCode.FAILED_TO_GET_WARDS
+            });
         }
     }
 }

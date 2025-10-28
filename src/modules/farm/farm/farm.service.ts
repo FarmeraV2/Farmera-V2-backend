@@ -14,6 +14,7 @@ import { CreateFarmAddressDto } from 'src/modules/address/dtos/create-address.dt
 import { isUUID } from 'class-validator';
 import { UpdateFarmDto } from '../dtos/update-farm.dto';
 import { UpdateFarmAvatarDto, UpdateFarmImagesDto } from '../dtos/update-farm-images.dto';
+import { ResponseCode } from 'src/common/constants/response-code.const';
 
 @Injectable()
 export class FarmService {
@@ -28,12 +29,15 @@ export class FarmService {
         private readonly deliveryAddressService: DeliveryAddressService,
         // private readonly fileStorageService: AzureBlobService,
         // private readonly GhnService: GhnService,
-    ) {}
+    ) { }
 
     async farmRegister(registerDto: FarmRegistrationDto, userId: number): Promise<Farm> {
         const isExistingFarm = await this.farmRepository.existsBy({ user_id: userId });
         if (isExistingFarm) {
-            throw new ConflictException('Farm already exists');
+            throw new ConflictException({
+                message: 'Farm already exists',
+                code: ResponseCode.FARM_EXISTED,
+            });
         }
 
         // todo!();
@@ -66,11 +70,14 @@ export class FarmService {
             //     );
             // }
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) {
                 throw error;
             }
-            throw new InternalServerErrorException('Failed to register farm');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to register farm',
+                code: ResponseCode.FAILED_TO_REGISTER_FARM
+            });
         }
 
         const queryRunner = this.dataSource.createQueryRunner();
@@ -112,7 +119,10 @@ export class FarmService {
         } catch (dbError) {
             await queryRunner.rollbackTransaction();
             this.logger.error(dbError.message);
-            throw new InternalServerErrorException('Failed to register farm');
+            throw new InternalServerErrorException({
+                message: 'Failed to register farm',
+                code: ResponseCode.FAILED_TO_REGISTER_FARM,
+            });
         } finally {
             await queryRunner.release();
         }
@@ -125,7 +135,10 @@ export class FarmService {
             where: { id: farmId, user_id: userId },
         });
         if (!farm) {
-            throw new NotFoundException('Farm not found');
+            throw new NotFoundException({
+                message: 'Farm not found',
+                code: ResponseCode.FARM_NOT_FOUND,
+            });
         }
 
         try {
@@ -172,11 +185,14 @@ export class FarmService {
 
             return await this.farmRepository.save(farm);
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) {
                 throw error;
             }
-            throw new InternalServerErrorException('Failed to verify biometric');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to verify biometric',
+                code: ResponseCode.FAILED_TO_VERIFY_BIOMETRIC
+            });
         }
     }
 
@@ -194,8 +210,10 @@ export class FarmService {
             relations: ['address'],
         });
         if (!farm) {
-            this.logger.error(`Farm not found`);
-            throw new NotFoundException(`Farm not found`);
+            throw new NotFoundException({
+                message: `Farm not found`,
+                code: ResponseCode.FARM_NOT_FOUND,
+            });
         }
         return farm;
     }
@@ -209,7 +227,10 @@ export class FarmService {
      * @throws {NotFoundException} - If no matching farm is found for the user
      */
     async getFarmByOwner(userId: string): Promise<Farm> {
-        if (!isUUID(userId)) throw new NotFoundException(`Farm not found`);
+        if (!isUUID(userId)) throw new NotFoundException({
+            message: `Farm not found`,
+            code: ResponseCode.FARM_NOT_FOUND,
+        });
         try {
             const farm = await this.farmRepository.findOne({
                 where: {
@@ -219,14 +240,19 @@ export class FarmService {
                 relations: ['address'],
             });
             if (!farm) {
-                this.logger.error(`Farm not found`);
-                throw new NotFoundException(`Farm not found`);
+                throw new NotFoundException({
+                    message: `Farm not found`,
+                    code: ResponseCode.FARM_NOT_FOUND,
+                });
             }
             return farm;
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to find farm');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to find farm',
+                code: ResponseCode.FAILED_TO_GET_FARM,
+            });
         }
     }
 
@@ -239,7 +265,10 @@ export class FarmService {
      * @throws {NotFoundException} - If no farm is found with the given UUID
      */
     async findFarmById(farmId: string): Promise<Farm> {
-        if (!isUUID(farmId)) throw new NotFoundException(`Farm not found`);
+        if (!isUUID(farmId)) throw new NotFoundException({
+            message: `Farm not found`,
+            code: ResponseCode.FARM_NOT_FOUND,
+        });
         try {
             const farm = await this.farmRepository.findOne({
                 where: {
@@ -250,13 +279,19 @@ export class FarmService {
             });
 
             if (!farm) {
-                throw new NotFoundException(`Farm not found`);
+                throw new NotFoundException({
+                    message: `Farm not found`,
+                    code: ResponseCode.FARM_NOT_FOUND,
+                });
             }
             return farm;
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to find farm');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to find farm',
+                code: ResponseCode.FAILED_TO_GET_FARM
+            });
         }
     }
 
@@ -272,13 +307,19 @@ export class FarmService {
         try {
             const farm = await this.farmRepository.findOne({ select: ['id', 'farm_id'], where: { user_id: userId } });
             if (!farm || farm.id <= 0) {
-                throw new InternalServerErrorException("Something ưent wrong, you're a farmer but your Farm is not found");
+                throw new InternalServerErrorException({
+                    message: "Something ưent wrong, you're a farmer but your Farm is not found",
+                    code: ResponseCode.INTERNAL_ERROR
+                });
             }
             return { id: farm.id, uuid: farm.farm_id };
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to validate farmer');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to validate farmer',
+                code: ResponseCode.FAILED_TO_VALIDATE,
+            });
         }
     }
 
@@ -289,13 +330,19 @@ export class FarmService {
 
             const newFarm = await this.farmRepository.findOne({ where: { id } });
             if (!newFarm) {
-                throw new NotFoundException(`Farm not found`);
+                throw new NotFoundException({
+                    message: `Farm not found`,
+                    code: ResponseCode.FARM_NOT_FOUND,
+                });
             }
             return newFarm;
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to update farm');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to update farm',
+                code: ResponseCode.FAILED_TO_UPDATE_FARM,
+            });
         }
     }
 
@@ -312,7 +359,10 @@ export class FarmService {
                 where: { id: id },
             });
 
-            if (!farm) throw new NotFoundException('Farm not found');
+            if (!farm) throw new NotFoundException({
+                message: 'Farm not found',
+                code: ResponseCode.FARM_NOT_FOUND,
+            });
 
             // update profile images
             const currentProfileImageUrls = farm.profile_image_urls || [];
@@ -368,9 +418,12 @@ export class FarmService {
             return newFarm;
         } catch (error) {
             await queryRunner.rollbackTransaction();
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to update images');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to update images',
+                code: ResponseCode.FAILED_TO_UPDATE_FARM,
+            });
         } finally {
             await queryRunner.release();
         }
@@ -384,7 +437,10 @@ export class FarmService {
             });
 
             if (!farm) {
-                throw new NotFoundException('Farm not found');
+                throw new NotFoundException({
+                    message: 'Farm not found',
+                    code: ResponseCode.FARM_NOT_FOUND,
+                });
             }
 
             // const oldAvatarUrlToDelete = farm.avatar_url;
@@ -403,11 +459,17 @@ export class FarmService {
             if (result.affected && result.affected > 0) {
                 return { avatar_url: updateFarmDto.avatar_url };
             }
-            throw new InternalServerErrorException('Failed to update farm avatar');
+            throw new InternalServerErrorException({
+                message: 'Failed to update farm avatar',
+                code: ResponseCode.FAILED_TO_UPDATE_FARM,
+            });
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to update farm avatar');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to update farm avatar',
+                code: ResponseCode.FAILED_TO_UPDATE_FARM
+            });
         }
     }
 

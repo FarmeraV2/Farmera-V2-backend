@@ -26,6 +26,7 @@ import { ProductDto, productSelectFields } from '../dtos/product/product.dto';
 import { subcategorySelectFields } from '../dtos/category/subcategory.dto';
 import { SearchProductsDto } from '../dtos/product/search-product.dto';
 import { UpdateProductDto } from '../dtos/product/update-product-dto';
+import { ResponseCode } from 'src/common/constants/response-code.const';
 
 @Injectable()
 export class ProductService {
@@ -75,16 +76,22 @@ export class ProductService {
             if (subcategory_ids && subcategory_ids.length > 0) {
                 const subcategories = await this.categoryService.getSubcategoryByIds(subcategory_ids, false);
                 if (subcategories.length !== subcategory_ids.length) {
-                    throw new BadRequestException('Invalid subcategory ids');
+                    throw new BadRequestException({
+                        message: 'Invalid subcategory ids',
+                        code: ResponseCode.INVALID_ID
+                    });
                 }
                 product.subcategories = subcategories;
             }
 
             return await this.productsRepository.save(product);
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException(`Failed to create product`);
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: `Failed to create product`,
+                code: ResponseCode.FAILED_TO_CREATE_PRODUCT,
+            });
         }
     }
 
@@ -104,9 +111,12 @@ export class ProductService {
             }
             return true;
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to delete product');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to delete product',
+                code: ResponseCode.FAILED_TO_DELETE_PRODUCT,
+            });
         }
     }
 
@@ -117,10 +127,16 @@ export class ProductService {
             });
 
             if (!product) {
-                throw new NotFoundException(`Product ${productId} not found`);
+                throw new NotFoundException({
+                    message: `Product ${productId} not found`,
+                    code: ResponseCode.PRODUCT_NOT_FOUND,
+                });
             }
             if (product.status !== ProductStatus.NOT_YET_OPEN && product.status !== ProductStatus.PRE_ORDER) {
-                throw new ForbiddenException('Cannot update the product in its current status');
+                throw new ForbiddenException({
+                    message: 'Cannot update the product in its current status',
+                    code: ResponseCode.FAILED_TO_UPDATE_PRODUCT
+                });
             }
 
             // const deleteImgUrls = product.image_urls?.filter((value) => !updateProductDto.image_urls?.includes(value));
@@ -169,7 +185,10 @@ export class ProductService {
         } catch (err) {
             if (err instanceof HttpException) throw err;
             this.logger.error(err.message);
-            throw new InternalServerErrorException('Failed to update product');
+            throw new InternalServerErrorException({
+                message: 'Failed to update product',
+                code: ResponseCode.FAILED_TO_UPDATE_PRODUCT,
+            });
         }
     }
 
@@ -232,7 +251,10 @@ export class ProductService {
             const allowedStatuses = [ProductStatus.PRE_ORDER, ProductStatus.NOT_YET_OPEN, ProductStatus.OPEN_FOR_SALE, ProductStatus.SOLD_OUT];
 
             if (status) {
-                if (!allowedStatuses.includes(status)) throw new BadRequestException('Invalid status');
+                if (!allowedStatuses.includes(status)) throw new BadRequestException({
+                    message: 'Invalid status',
+                    code: ResponseCode.INVALID_STATUS
+                });
                 queryBuilder.andWhere('product.status = :status', { status: status });
             } else {
                 queryBuilder.andWhere('product.status IN (:...allowedStatuses)', { allowedStatuses });
@@ -243,7 +265,10 @@ export class ProductService {
 
             // apply pagination
             const totalItems = await this.applyPagination(queryBuilder, paginationOptions);
-            if (totalItems < 0) throw new BadRequestException('Invalid page');
+            if (totalItems < 0) throw new BadRequestException({
+                message: 'Invalid page',
+                code: ResponseCode.INVALID_PAGE
+            });
 
             // get result
             const products = await queryBuilder.getMany();
@@ -255,7 +280,10 @@ export class ProductService {
         } catch (err) {
             if (err instanceof HttpException) throw err;
             this.logger.error(err.message);
-            throw new InternalServerErrorException('Failed to search products');
+            throw new InternalServerErrorException({
+                message: 'Failed to get products',
+                code: ResponseCode.FAILED_TO_GET_PRODUCT
+            });
         }
     }
 
@@ -277,13 +305,19 @@ export class ProductService {
             });
 
             if (!product) {
-                throw new NotFoundException('Product not found');
+                throw new NotFoundException({
+                    message: 'Product not found',
+                    code: ResponseCode.PRODUCT_NOT_FOUND,
+                });
             }
             return product;
         } catch (err) {
-            this.logger.error(err.message);
             if (err instanceof HttpException) throw err;
-            throw new InternalServerErrorException(`Failed to get product ${productId}`);
+            this.logger.error(err.message);
+            throw new InternalServerErrorException({
+                message: `Failed to get product ${productId}`,
+                code: ResponseCode.FAILED_TO_GET_PRODUCT,
+            });
         }
     }
 
@@ -366,7 +400,10 @@ export class ProductService {
 
             // apply pagination
             const totalItems = await this.applyPagination(qb, paginationOptions);
-            if (totalItems < 0) throw new BadRequestException('Invalid page');
+            if (totalItems < 0) throw new BadRequestException({
+                message: 'Invalid page',
+                code: ResponseCode.INVALID_PAGE
+            });
 
             // get result
             const products = await qb.getMany();
@@ -376,9 +413,12 @@ export class ProductService {
             });
             return new PaginationResult(plainToInstance(ProductDto, products), meta);
         } catch (err) {
-            this.logger.error(err.message);
             if (err instanceof HttpException) throw err;
-            throw new InternalServerErrorException('Failed to get farm products');
+            this.logger.error(err.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to get farm products',
+                code: ResponseCode.FAILED_TO_GET_PRODUCT
+            });
         }
     }
 
@@ -423,7 +463,10 @@ export class ProductService {
 
             // apply pagination
             const totalItems = await this.applyPagination(qb, paginationOptions);
-            if (totalItems < 0) throw new BadRequestException('Invalid page');
+            if (totalItems < 0) throw new BadRequestException({
+                message: 'Invalid page',
+                code: ResponseCode.INVALID_PAGE,
+            });
 
             // get result
             const products = await qb.getMany();
@@ -435,7 +478,10 @@ export class ProductService {
         } catch (err) {
             if (err instanceof HttpException) throw err;
             this.logger.error(err.message);
-            throw new InternalServerErrorException('Failed to get product by categories');
+            throw new InternalServerErrorException({
+                message: 'Failed to get product by categories',
+                code: ResponseCode.FAILED_TO_GET_PRODUCT,
+            });
         }
     }
 

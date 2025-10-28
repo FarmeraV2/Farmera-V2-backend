@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import cookieParser from 'cookie-parser';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
@@ -23,6 +24,8 @@ async function bootstrap() {
     // Global response transform interceptor
     const reflector = app.get(Reflector);
     app.useGlobalInterceptors(new TransformInterceptor(reflector));
+    // Global response exception filter interceptor
+    app.useGlobalFilters(new GlobalExceptionFilter())
     // app.useGlobalInterceptors(new ClassSerializerInterceptor(reflector)); // exclude fields in entities
 
     // versioning
