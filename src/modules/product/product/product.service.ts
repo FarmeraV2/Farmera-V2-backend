@@ -16,7 +16,7 @@ import { FarmService } from 'src/modules/farm/farm/farm.service';
 import { CategoryService } from '../category/category.service';
 import { GetProductByFarmDto } from '../dtos/product/get-by-farm.dto';
 import { plainToInstance } from 'class-transformer';
-import { PaginationOptions, PaginationTransform } from 'src/common/dtos/pagination/pagination-option.dto';
+import { PaginationTransform } from 'src/common/dtos/pagination/pagination-option.dto';
 import { ProductStatus } from '../enums/product-status.enum';
 import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
 import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
@@ -27,6 +27,7 @@ import { subcategorySelectFields } from '../dtos/category/subcategory.dto';
 import { SearchProductsDto } from '../dtos/product/search-product.dto';
 import { UpdateProductDto } from '../dtos/product/update-product-dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
+import { applyPagination } from 'src/common/utils/pagination.util';
 
 @Injectable()
 export class ProductService {
@@ -264,7 +265,7 @@ export class ProductService {
             if (sort_by || order) this.applySorting(queryBuilder, sort_by, order);
 
             // apply pagination
-            const totalItems = await this.applyPagination(queryBuilder, paginationOptions);
+            const totalItems = await applyPagination(queryBuilder, paginationOptions);
             if (totalItems < 0) throw new BadRequestException({
                 message: 'Invalid page',
                 code: ResponseCode.INVALID_PAGE
@@ -399,7 +400,7 @@ export class ProductService {
             if (sort_by || order) this.applySorting(qb, sort_by, order);
 
             // apply pagination
-            const totalItems = await this.applyPagination(qb, paginationOptions);
+            const totalItems = await applyPagination(qb, paginationOptions);
             if (totalItems < 0) throw new BadRequestException({
                 message: 'Invalid page',
                 code: ResponseCode.INVALID_PAGE
@@ -462,7 +463,7 @@ export class ProductService {
             if (sort_by || order) this.applySorting(qb, sort_by, order);
 
             // apply pagination
-            const totalItems = await this.applyPagination(qb, paginationOptions);
+            const totalItems = await applyPagination(qb, paginationOptions);
             if (totalItems < 0) throw new BadRequestException({
                 message: 'Invalid page',
                 code: ResponseCode.INVALID_PAGE,
@@ -518,28 +519,6 @@ export class ProductService {
             default:
                 qb.orderBy('product.product_id', order);
         }
-    }
-
-    /**
-     * @function applyPagination - Applies pagination constraints to a product query builder
-     * @param {SelectQueryBuilder<Product>} qb - The query builder instance for the Product entity
-     * @param {PaginationOptions} paginationOptions - Object containing pagination parameters (page, limit, skip)
-     *
-     * @returns {Promise<number>} - Returns the total number of items before pagination, or -1 if the requested page is invalid
-     */
-    private async applyPagination(qb: SelectQueryBuilder<Product>, paginationOptions: PaginationOptions<ProductSortField>): Promise<number> {
-        const totalItems = await qb.getCount();
-
-        const totalPages = Math.ceil(totalItems / paginationOptions.limit);
-
-        const currentPage = paginationOptions.page;
-
-        if (totalPages > 0 && currentPage > totalPages) {
-            return -1;
-        }
-
-        qb.skip(paginationOptions.skip).take(paginationOptions.limit);
-        return totalItems;
     }
 
     // async updateProductStatus(

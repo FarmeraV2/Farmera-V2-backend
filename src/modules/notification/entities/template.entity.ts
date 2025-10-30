@@ -15,12 +15,21 @@ export class Template {
     @Column()
     content: string;
 
+    @Column({ default: false })
+    is_deleted: boolean;
+
     @CreateDateColumn({ type: "timestamptz" })
-    created: Date
+    created: Date;
 
     @UpdateDateColumn({ type: "timestamptz" })
-    updated: Date
+    updated: Date;
+
+    @Column()
+    created_by: number;
+
+    @Column()
+    updated_by: number;
 
     @OneToMany(() => Notification, (notification) => notification.template)
-    notifications: Notification[]
+    notifications?: Notification[]
 }

@@ -1,4 +1,4 @@
-import { ArgumentsHost, ExceptionFilter, HttpException, HttpStatus } from "@nestjs/common";
+import { ArgumentsHost, BadRequestException, ExceptionFilter, HttpException, HttpStatus } from "@nestjs/common";
 import { Response } from "express";
 import { ResponseCode } from "../constants/response-code.const";
 
@@ -15,6 +15,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
             status = exception.getStatus();
 
             const res = exception.getResponse();
+
+            // exception from validator
+            if (exception instanceof BadRequestException && Array.isArray((res as any).message)) {
+                return response.status(HttpStatus.BAD_REQUEST).json({
+                    statusCode: HttpStatus.BAD_REQUEST,
+                    code: ResponseCode.FAILED_TO_VALIDATE,
+                    message: (res as Record<string, any>).message
+                });
+            }
+
+            // exception from services
             if (typeof res === "object" && res !== null) {
                 const r = res as Record<string, any>;
                 message = r.message || message;

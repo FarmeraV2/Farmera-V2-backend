@@ -7,11 +7,14 @@ export class Channel {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column({ length: 70 })
+    @Column({ length: 70, unique: true })
     name: string;
 
     @Column()
     description: string;
+
+    @Column({ default: false })
+    default: boolean;
 
     @CreateDateColumn()
     created: Date
@@ -19,9 +22,12 @@ export class Channel {
     @UpdateDateColumn()
     updated: Date
 
+    @Column()
+    created_by: number;
+
     @OneToMany(() => PreferenceChannel, (preference) => preference.channel)
-    preference_channels: PreferenceChannel[]
+    preference_channels?: PreferenceChannel[]
 
     @OneToMany(() => Notification, (notification) => notification.channel)
-    notifications: Notification[];
+    notifications?: Notification[];
 }

@@ -1,10 +1,10 @@
 import { User } from "src/modules/user/entities/user.entity";
-import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm"
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryColumn, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm"
 
 @Entity()
 export class NotificationDevice {
-    @PrimaryGeneratedColumn()
-    device_id: number;
+    @PrimaryColumn({ type: "uuid" })
+    device_id: string;
 
     @Column()
     fcm_token: string;
@@ -12,7 +12,7 @@ export class NotificationDevice {
     @Column({ nullable: true })
     phone?: string;
 
-    @Column()
+    @Column({ default: false })
     is_deleted: boolean;
 
     @CreateDateColumn({ type: "timestamptz" })
@@ -21,7 +21,7 @@ export class NotificationDevice {
     @UpdateDateColumn({ type: "timestamptz" })
     updated: Date;
 
-    @OneToOne(() => User)
+    @ManyToOne(() => User)
     @JoinColumn({ name: "user_id" })
     user: User;
 

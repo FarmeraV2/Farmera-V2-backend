@@ -2,6 +2,7 @@ import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, Pri
 import { NotificationReceiver } from "./notification-receiver.entity";
 import { Template } from "./template.entity";
 import { Channel } from "./channel.entity";
+import { NotificationChannelType } from "../enums/notification-channel-type.enum";
 
 @Entity()
 export class Notification {
@@ -14,6 +15,9 @@ export class Notification {
     @Column()
     content: string;
 
+    @Column({ enum: NotificationChannelType })
+    notification_channel_type: NotificationChannelType;
+
     @CreateDateColumn({ type: "timestamptz" })
     created: Date;
 
@@ -23,12 +27,12 @@ export class Notification {
     @OneToMany(() => NotificationReceiver, (receiver) => receiver.notification)
     notification_receiver: NotificationReceiver[];
 
-    @ManyToOne(() => Template)
+    @ManyToOne(() => Template, { nullable: true })
     @JoinColumn({ name: "template_id" })
-    template: Template;
+    template?: Template;
 
-    @Column()
-    template_id: number;
+    @Column({ nullable: true })
+    template_id?: number;
 
     @ManyToOne(() => Channel)
     @JoinColumn({ name: "channel_id" })
