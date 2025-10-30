@@ -10,9 +10,10 @@ import { ConfigModule } from '@nestjs/config';
 import { FarmModule } from 'src/modules/farm/farm.module';
 import { VerifyService } from '../twilio/verify/verify.service';
 import { EmailService } from '../twilio/email/email.service';
+import { NotificationModule } from 'src/modules/notification/notification.module';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([Verification]), ConfigModule, UserModule, FarmModule],
+    imports: [TypeOrmModule.forFeature([Verification]), ConfigModule, UserModule, FarmModule, NotificationModule],
     controllers: [AuthController, VerificationController],
     providers: [AuthService, VerificationService, VerifyService, EmailService],
 })

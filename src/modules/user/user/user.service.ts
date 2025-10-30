@@ -17,7 +17,6 @@ import { HashService } from 'src/services/hash.service';
 import { UpdateProfileDto } from '../dtos/user/update-profile.dto';
 import { isUUID } from 'class-validator';
 import { ResponseCode } from 'src/common/constants/response-code.const';
-import { UserPreferenceService } from 'src/modules/notification/user-preference/user-preference.service';
 import { UserRole } from 'src/common/enums/role.enum';
 
 @Injectable()
@@ -31,7 +30,6 @@ export class UserService {
         // @InjectRepository(PaymentMethod)
         // private paymentMethodsRepository: Repository<PaymentMethod>,
         private readonly hashService: HashService,
-        private readonly notificationPreferenceService: UserPreferenceService,
     ) { }
 
     /**
@@ -74,18 +72,6 @@ export class UserService {
             const newUser = this.userRepository.create({ ...createUserDto, hashed_pwd: hashed });
             if (isAdmin) newUser.role = UserRole.ADMIN;
             const savedUser = await this.userRepository.save(newUser);
-
-            // register notification
-            setTimeout(() => {
-                void (async () => {
-                    try {
-                        const result = await this.notificationPreferenceService.createUserNotificationPreference(savedUser.id);
-                        this.logger.log(`Notification preference is created for user id ${result.user_id}`)
-                    } catch (error) {
-                        this.logger.error("Failed to register user notification preference");
-                    }
-                })();
-            }, 0);
 
             // exclude unnecessary infomations e.g. password
             return plainToInstance(UserDto, savedUser, { excludeExtraneousValues: true });
