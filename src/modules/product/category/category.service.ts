@@ -5,6 +5,7 @@ import { Category } from '../entities/category.entity';
 import { Subcategory } from '../entities/sub-category.entity';
 import { CreateCategoryDto } from '../dtos/category/create-category.dto';
 import { CreateSubcategoryDto } from '../dtos/category/create-sub-category.dto';
+import { ResponseCode } from 'src/common/constants/response-code.const';
 
 @Injectable()
 export class CategoryService {
@@ -15,7 +16,7 @@ export class CategoryService {
         private readonly categoriesRepository: Repository<Category>,
         @InjectRepository(Subcategory)
         private readonly subcategoriesRepository: Repository<Subcategory>,
-    ) {}
+    ) { }
 
     /**
      * @function createCategory - Creates a new category
@@ -32,7 +33,10 @@ export class CategoryService {
             return this.categoriesRepository.save(category);
         } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException(`Failed to create category`);
+            throw new InternalServerErrorException({
+                message: `Failed to create category`,
+                code: ResponseCode.FAILED_TO_CREATE_CATEGORY
+            });
         }
     }
 
@@ -49,7 +53,10 @@ export class CategoryService {
         try {
             const existingSubcategory = await this.categoriesRepository.findOne({ where: { category_id: createSub.category_id } });
             if (!existingSubcategory) {
-                throw new NotFoundException(`Category ${createSub.category_id} not found`);
+                throw new NotFoundException({
+                    message: `Category ${createSub.category_id} not found`,
+                    code: ResponseCode.CATEGORY_NOT_FOUND,
+                });
             }
             const subcategory = this.subcategoriesRepository.create({
                 ...createSub,
@@ -57,9 +64,12 @@ export class CategoryService {
             });
             return this.subcategoriesRepository.save(subcategory);
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to crate sub category');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to crate sub category',
+                code: ResponseCode.FAILED_TO_CREATE_SUBCATEGORY,
+            });
         }
     }
 
@@ -80,13 +90,19 @@ export class CategoryService {
                 relations: include_subs ? ['subcategories'] : undefined,
             });
             if (!category) {
-                throw new NotFoundException(`Category with ID ${categoryId} not found`);
+                throw new NotFoundException({
+                    message: `Category with ID ${categoryId} not found`,
+                    code: ResponseCode.CATEGORY_NOT_FOUND
+                });
             }
             return category;
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException(`Failed to get category with ID ${categoryId}`);
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: `Failed to get category with ID ${categoryId}`,
+                code: ResponseCode.FAILED_TO_GET_CATEGORY
+            });
         }
     }
 
@@ -107,13 +123,19 @@ export class CategoryService {
                 relations: includeCategory ? ['category'] : undefined, // Lấy thông tin category liên quan
             });
             if (!subcategory) {
-                throw new NotFoundException(`Subcategory with ID ${id} not found`);
+                throw new NotFoundException({
+                    message: `Subcategory with ID ${id} not found`,
+                    code: ResponseCode.SUBCATEGORY_NOT_FOUND,
+                });
             }
             return subcategory;
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException(`Failed to get subcategory with ID ${id}`);
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: `Failed to get subcategory with ID ${id}`,
+                code: ResponseCode.FAILED_TO_GET_SUBCATEGORY
+            });
         }
     }
 
@@ -125,9 +147,12 @@ export class CategoryService {
             });
             return categories;
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to get subcategories with IDs');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to get subcategories with IDs',
+                code: ResponseCode.FAILED_TO_GET_SUBCATEGORY
+            });
         }
     }
 

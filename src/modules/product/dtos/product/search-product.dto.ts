@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsNumber, IsEnum, IsBoolean } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsEnum, IsBoolean, IsNotEmpty } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaginationOptions } from 'src/common/dtos/pagination/pagination-option.dto';
 import { ProductStatus } from '../../enums/product-status.enum';
@@ -11,6 +11,7 @@ export class SearchProductsDto extends PaginationOptions<ProductSortField> {
 
     @IsOptional()
     @IsString()
+    @IsNotEmpty()
     search?: string;
 
     @IsOptional()

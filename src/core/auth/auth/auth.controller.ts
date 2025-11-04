@@ -5,14 +5,22 @@ import { CreateUserDto } from 'src/modules/user/dtos/user/create-user.dto';
 import { Public } from 'src/common/decorators/public.decorator';
 import { Request, Response } from 'express';
 import { ForgotPasswordDto, UpdateNewPasswordDto } from '../dtos/forgot-password.dto';
+import { Roles } from 'src/common/decorators/role.decorator';
+import { UserRole } from 'src/common/enums/role.enum';
 
 @Controller('auth')
 export class AuthController {
-    constructor(private readonly authService: AuthService) {}
+    constructor(private readonly authService: AuthService) { }
 
     @Public()
     @Post('register')
     async register(@Body() req: CreateUserDto) {
+        return await this.authService.register(req);
+    }
+
+    @Roles([UserRole.ADMIN])
+    @Post('register')
+    async registerAdmin(@Body() req: CreateUserDto) {
         return await this.authService.register(req);
     }
 

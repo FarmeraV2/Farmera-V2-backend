@@ -16,6 +16,8 @@ import { plainToInstance } from 'class-transformer';
 import { HashService } from 'src/services/hash.service';
 import { UpdateProfileDto } from '../dtos/user/update-profile.dto';
 import { isUUID } from 'class-validator';
+import { ResponseCode } from 'src/common/constants/response-code.const';
+import { UserRole } from 'src/common/enums/role.enum';
 
 @Injectable()
 export class UserService {
@@ -28,7 +30,7 @@ export class UserService {
         // @InjectRepository(PaymentMethod)
         // private paymentMethodsRepository: Repository<PaymentMethod>,
         private readonly hashService: HashService,
-    ) {}
+    ) { }
 
     /**
      * @function createUser - Creates a new user
@@ -41,20 +43,26 @@ export class UserService {
      *  - The phone number is already in use.
      * @throws {InternalServerErrorException} - Thrown if an unexpected error occurs during creation.
      */
-    async createUser(createUserDto: CreateUserDto): Promise<UserDto> {
+    async createUser(createUserDto: CreateUserDto, isAdmin?: boolean): Promise<UserDto> {
         try {
             const existingEmail = await this.userRepository.existsBy({
                 email: createUserDto.email,
             });
             if (existingEmail) {
-                throw new ConflictException('This email is already in use');
+                throw new ConflictException({
+                    message: 'This email is already in use',
+                    code: ResponseCode.EMAIL_CONFLICT
+                });
             }
 
             const existingPhone = await this.userRepository.existsBy({
                 email: createUserDto.email,
             });
             if (existingPhone) {
-                throw new ConflictException('This phone number is already in use');
+                throw new ConflictException({
+                    message: 'This phone number is already in use',
+                    code: ResponseCode.PHONE_CONFLICT
+                });
             }
 
             // hash password
@@ -62,6 +70,7 @@ export class UserService {
             const hashed = await this.hashService.hashPassword(password);
 
             const newUser = this.userRepository.create({ ...createUserDto, hashed_pwd: hashed });
+            if (isAdmin) newUser.role = UserRole.ADMIN;
             const savedUser = await this.userRepository.save(newUser);
 
             // exclude unnecessary infomations e.g. password
@@ -69,7 +78,10 @@ export class UserService {
         } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to create user');
+            throw new InternalServerErrorException({
+                message: "Failed to create user",
+                code: ResponseCode.FAILED_TO_CREATE_USER
+            });
         }
     }
 
@@ -109,7 +121,10 @@ export class UserService {
     async validateUser(password: string, email?: string, phone?: string): Promise<UserDto> {
         try {
             if (!phone && !email) {
-                throw new BadRequestException('Email or phone is required');
+                throw new BadRequestException({
+                    message: 'Email or phone is required',
+                    code: ResponseCode.EMAIL_OR_PHONE_IS_REQUIRED
+                });
             }
 
             const where: any[] = [];
@@ -123,11 +138,17 @@ export class UserService {
                 // exclude unnecessary infomations
                 return plainToInstance(UserDto, user, { excludeExtraneousValues: true });
             }
-            throw new BadRequestException('Invalid email or password');
+            throw new BadRequestException({
+                message: 'Invalid email or password',
+                code: ResponseCode.INVALID_EMAIL_OR_PASSWORD
+            });
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to validate user');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to validate user',
+                code: ResponseCode.FAILED_TO_VALIDATE_USER
+            });
         }
     }
 
@@ -143,7 +164,10 @@ export class UserService {
      * @throws {InternalServerErrorException} - If the update fails or no rows are affected
      */
     async updateUserPassword(password: string, email?: string, phone?: string): Promise<void> {
-        if (!email && !password) throw new BadRequestException('Email or phone is required');
+        if (!email && !password) throw new BadRequestException({
+            message: 'Email or phone is required',
+            code: ResponseCode.EMAIL_OR_PHONE_IS_REQUIRED
+        });
 
         try {
             // hashing
@@ -163,7 +187,10 @@ export class UserService {
             }
         } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException('Failed to update password');
+            throw new InternalServerErrorException({
+                message: 'Failed to update password',
+                ResponseCode: ResponseCode.FAILED_TO_UPDATE_PASSWORD
+            });
         }
     }
 
@@ -190,13 +217,19 @@ export class UserService {
             });
 
             if (!user) {
-                throw new NotFoundException(`User not found`);
+                throw new NotFoundException({
+                    message: `User not found`,
+                    code: ResponseCode.USER_NOT_FOUND
+                });
             }
             return plainToInstance(UserDto, user, { excludeExtraneousValues: true });
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to find user by ID');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to find user by ID',
+                code: ResponseCode.FAILED_TO_FIND_USER,
+            });
         }
     }
 
@@ -216,7 +249,10 @@ export class UserService {
             return await this.getUserById(id);
         } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException('Failed to update user profile');
+            throw new InternalServerErrorException({
+                message: 'Failed to update user profile',
+                code: ResponseCode.FAILED_TO_UPDATE_USER
+            });
         }
     }
 
@@ -230,7 +266,10 @@ export class UserService {
      * @throws {InternalServerErrorException} - If there is an unexpected error during retrieval
      */
     async getPublicUser(uuid: string): Promise<PublicUserDto> {
-        if (!isUUID(uuid)) throw new NotFoundException('User with ID ${uuid} not found');
+        if (!isUUID(uuid)) throw new NotFoundException({
+            message: `User with ID ${uuid} not found`,
+            code: ResponseCode.USER_NOT_FOUND
+        });
         try {
             const user = await this.userRepository.findOne({
                 select: publicUserFields,
@@ -238,13 +277,19 @@ export class UserService {
             });
 
             if (!user) {
-                throw new NotFoundException(`User with ID ${uuid} not found`);
+                throw new NotFoundException({
+                    message: `User with ID ${uuid} not found`,
+                    code: ResponseCode.USER_NOT_FOUND
+                });
             }
             return plainToInstance(PublicUserDto, user, { excludeExtraneousValues: true });
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to find user by uuid');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to find user by uuid',
+                code: ResponseCode.FAILED_TO_FIND_USER
+            });
         }
     }
 
