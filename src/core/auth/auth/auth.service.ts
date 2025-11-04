@@ -13,7 +13,7 @@ import { VerificationService } from '../verification/verification.service';
 import { FarmService } from 'src/modules/farm/farm/farm.service';
 import { UserRole } from 'src/common/enums/role.enum';
 import { CheckStatus } from 'src/core/twilio/enums/check-status.enum';
-import { UserPreferenceService } from 'src/modules/notification/user-preference/user-preference.service';
+import { PreferenceChannelService } from 'src/modules/notification/preference-channel/preference-channel.service';
 
 export const REFRESH_TOKEN_COOKIES_KEY = 'refresh_token';
 
@@ -27,7 +27,7 @@ export class AuthService {
         private readonly configService: ConfigService,
         private readonly verificationService: VerificationService,
         private readonly farmService: FarmService,
-        private readonly notificationPreferenceService: UserPreferenceService,
+        private readonly preferenceChannelService: PreferenceChannelService,
     ) { }
 
     async register(registerDto: CreateUserDto): Promise<UserDto> {
@@ -37,8 +37,10 @@ export class AuthService {
         setTimeout(() => {
             void (async () => {
                 try {
-                    const result = await this.notificationPreferenceService.createUserNotificationPreference(user.id);
-                    this.logger.log(`Notification preference is created for user id ${result.user_id}`)
+                    const result = await this.preferenceChannelService.registerNotificationChannel(user.id);
+                    if (result.length > 0) {
+                        this.logger.log(`Notification preference is created for user id ${user.id}`)
+                    }
                 } catch (error) {
                     this.logger.error("Failed to register user notification preference");
                 }

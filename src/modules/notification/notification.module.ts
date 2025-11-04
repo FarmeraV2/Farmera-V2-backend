@@ -2,10 +2,7 @@ import { Module } from '@nestjs/common';
 import { FcmService } from 'src/core/firebase/fcm/fcm.service';
 import { EmailService } from 'src/core/twilio/email/email.service';
 import { NotificationService } from './notification/notification.service';
-import { UserPreferenceService } from './user-preference/user-preference.service';
-import { UserPreferenceController } from './user-preference/user-preference.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserPreference } from './entities/user-preference.entity';
 import { Channel } from './entities/channel.entity';
 import { NotificationDevice } from './entities/notification-device.entity';
 import { NotificationLog } from './entities/notification-log.entity';
@@ -21,6 +18,7 @@ import { ChannelController } from './channel/channel.controller';
 import { TemplateService } from './template/template.service';
 import { TemplateController } from './template/template.controller';
 import { FirebaseModule } from 'src/core/firebase/firebase.module';
+import { PreferenceChannelService } from './preference-channel/preference-channel.service';
 
 @Module({
   imports: [
@@ -31,7 +29,6 @@ import { FirebaseModule } from 'src/core/firebase/firebase.module';
       }
     ]),
     TypeOrmModule.forFeature([
-      UserPreference,
       Channel,
       NotificationDevice,
       NotificationLog,
@@ -41,8 +38,8 @@ import { FirebaseModule } from 'src/core/firebase/firebase.module';
       PreferenceChannel
     ],
     )],
-  providers: [FcmService, EmailService, NotificationService, UserPreferenceService, NotificationDeviceService, ChannelService, TemplateService, FirebaseModule],
-  controllers: [UserPreferenceController, NotificationDeviceController, ChannelController, TemplateController],
-  exports: [UserPreferenceService]
+  providers: [FcmService, EmailService, NotificationService, NotificationDeviceService, ChannelService, TemplateService, FirebaseModule, PreferenceChannelService],
+  controllers: [NotificationDeviceController, ChannelController, TemplateController],
+  exports: [PreferenceChannelService]
 })
 export class NotificationModule { }

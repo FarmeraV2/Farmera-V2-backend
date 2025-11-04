@@ -1,7 +1,7 @@
-import { Column, Entity, JoinColumn, ManyToMany, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm"
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm"
 import { NotificationChannelType } from "../enums/notification-channel-type.enum";
-import { UserPreference } from "./user-preference.entity";
 import { Channel } from "./channel.entity";
+import { User } from "src/modules/user/entities/user.entity";
 
 @Entity()
 export class PreferenceChannel {
@@ -14,9 +14,12 @@ export class PreferenceChannel {
     @Column({ default: true })
     active: boolean;
 
-    @ManyToOne(() => UserPreference, (preference) => preference.preference_channels)
-    @JoinColumn({ name: "user_preference_id" })
-    user_preference: UserPreference;
+    @ManyToOne(() => User)
+    @JoinColumn({ name: "user_id" })
+    user: User;
+
+    @Column()
+    user_id: number;
 
     @Column()
     user_preference_id: number;
