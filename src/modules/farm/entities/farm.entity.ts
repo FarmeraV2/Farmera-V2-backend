@@ -1,9 +1,12 @@
-import { Entity, Column, CreateDateColumn, OneToOne, UpdateDateColumn, JoinColumn, BeforeInsert, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, CreateDateColumn, OneToOne, UpdateDateColumn, JoinColumn, BeforeInsert, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
 import { FarmStatus } from '../enums/farm-status.enum';
 import { Identification } from './identification.entity';
 import { User } from 'src/modules/user/entities/user.entity';
 import { DeliveryAddress } from 'src/modules/address/entities/delivery-address.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { Plot } from 'src/modules/crop-management/entities/plot.entity';
+import { Season } from 'src/modules/crop-management/entities/season.entity';
+import { Log } from 'src/modules/crop-management/entities/log.entity';
 
 @Entity()
 export class Farm {
@@ -71,4 +74,11 @@ export class Farm {
 
     // @OneToMany(() => Product, (product) => product.farm, { cascade: true })
     // products: Product[];
+
+    @OneToMany(() => Plot, (plot) => plot.farm)
+    plots?: Plot[]
+    @OneToMany(() => Season, (season) => season.farm)
+    seasons?: Season[]
+    @OneToMany(() => Log, (log) => log.farm)
+    logs?: Log[]
 }
