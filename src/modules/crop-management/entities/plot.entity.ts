@@ -14,7 +14,7 @@ export class Plot {
     @Column()
     crop_name: string;
 
-    @Column({ enum: CropType })
+    @Column({ type: 'enum', enumName: 'crop_type', enum: CropType })
     crop_type: CropType
 
     @Column({ nullable: true })

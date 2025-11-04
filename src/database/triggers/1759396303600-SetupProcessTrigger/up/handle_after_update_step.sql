@@ -1,6 +1,6 @@
 CREATE OR REPLACE FUNCTION handle_after_update_step_fn()
 RETURNS TRIGGER AS $$
-DECLARE cur_step_type step_type_enum;
+DECLARE cur_step_type step_type;
 BEGIN
 	SELECT "type" INTO cur_step_type
 	FROM step 

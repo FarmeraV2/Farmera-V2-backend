@@ -1,6 +1,6 @@
 CREATE OR REPLACE FUNCTION validate_add_season_fn()
 RETURNS TRIGGER AS $$
-DECLARE cur_crop_type crop_type_enum;
+DECLARE cur_crop_type crop_type;
 DECLARE season_id INT;
 BEGIN
 

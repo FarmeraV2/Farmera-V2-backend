@@ -10,7 +10,7 @@ export class SeasonDetail {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column({ enum: StepStatus })
+    @Column({ type: 'enum', enumName: 'step_status', enum: StepStatus })
     step_status: StepStatus;
 
     @Column({ enum: StepEvaluation })

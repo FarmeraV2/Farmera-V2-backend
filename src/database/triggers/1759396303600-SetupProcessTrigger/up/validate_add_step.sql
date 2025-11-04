@@ -2,9 +2,9 @@ CREATE OR REPLACE FUNCTION validate_add_step_fn()
 RETURNS TRIGGER AS $$
 DECLARE prev_step_order INT;
 DECLARE cur_step_order INT;
-DECLARE plot_crop_type crop_type_enum;
-DECLARE step_crop_type crop_type_enum;
-DECLARE prev_step_status season_detail_step_status_enum;
+DECLARE plot_crop_type crop_type;
+DECLARE step_crop_type crop_type;
+DECLARE prev_step_status step_status;
 BEGIN
 	SELECT crop_type INTO plot_crop_type
 	FROM plot JOIN season ON plot.id = season.plot_id
