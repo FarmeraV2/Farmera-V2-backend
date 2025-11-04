@@ -7,6 +7,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import * as https from 'https';
+import { ResponseCode } from 'src/common/constants/response-code.const';
 
 @Injectable()
 export class AddressService {
@@ -101,7 +102,10 @@ export class AddressService {
             return provinces;
         } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException('Failed to get provinces');
+            throw new InternalServerErrorException({
+                message: 'Failed to get provinces',
+                code: ResponseCode.FAILED_TO_GET_PROVINCES,
+            });
         }
     }
 
@@ -111,7 +115,10 @@ export class AddressService {
             return wards;
         } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException('Failed to get wards');
+            throw new InternalServerErrorException({
+                message: 'Failed to get wards',
+                code: ResponseCode.FAILED_TO_GET_WARDS
+            });
         }
     }
 }

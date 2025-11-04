@@ -4,13 +4,14 @@ import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { UserInterface } from '../types/user.interface';
+import { ResponseCode } from '../constants/response-code.const';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
     constructor(
         private reflector: Reflector,
         private jwtService: JwtService,
-    ) {}
+    ) { }
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [context.getHandler(), context.getClass()]);
@@ -25,7 +26,10 @@ export class JwtAuthGuard implements CanActivate {
 
         // Standard JWT authentication for other endpoints
         if (!token) {
-            throw new UnauthorizedException('Token not found');
+            throw new UnauthorizedException({
+                message: 'Token not found',
+                code: ResponseCode.TOKEN_NOT_FOUND,
+            });
         }
 
         try {
@@ -36,7 +40,10 @@ export class JwtAuthGuard implements CanActivate {
             // Attach user payload to request for downstream use
             request['user'] = payload;
         } catch {
-            throw new UnauthorizedException('Invalid or expired token');
+            throw new UnauthorizedException({
+                message: 'Invalid or expired token',
+                code: ResponseCode.TOKEN_INVALID_OR_EXPIRED,
+            });
         }
 
         return true;
