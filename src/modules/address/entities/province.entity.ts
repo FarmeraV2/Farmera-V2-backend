@@ -18,6 +18,6 @@ export class Province {
     @Column()
     phone_code: number;
 
-    @OneToMany(() => Ward, (ward) => ward.province)
-    wards: Ward;
+    @OneToMany(() => Ward, (ward) => ward.province, { cascade: true })
+    wards: Ward[];
 }

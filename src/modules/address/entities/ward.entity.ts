@@ -15,10 +15,10 @@ export class Ward {
     @Column()
     division_type: string;
 
-    @ManyToOne(() => Province, (province) => province.wards)
+    @ManyToOne(() => Province, (province) => province.wards, { nullable: true })
     @JoinColumn({ name: 'province_code' })
-    province: Province;
+    province?: Province;
 
-    @Column()
-    province_code: number;
+    @Column({ nullable: true })
+    province_code?: number;
 }
