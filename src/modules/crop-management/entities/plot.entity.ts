@@ -23,11 +23,14 @@ export class Plot {
     @Column({ type: "jsonb" })
     location: { lat: number; lng: number }
 
-    @Column({ type: "timestamptz" })
-    start_date: Date;
-
     @Column({ nullable: true })
     notes?: string;
+
+    @Column()
+    image_url: string;
+
+    @Column()
+    is_deleted: boolean;
 
     @CreateDateColumn({ type: "timestamptz" })
     created: Date

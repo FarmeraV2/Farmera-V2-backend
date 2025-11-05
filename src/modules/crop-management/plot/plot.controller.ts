@@ -5,6 +5,7 @@ import { Roles } from 'src/common/decorators/role.decorator';
 import { UserRole } from 'src/common/enums/role.enum';
 import { User } from 'src/common/decorators/user.decorator';
 import { UserInterface } from 'src/common/types/user.interface';
+import { GetPlotDto } from '../dtos/plot/get-plot.dto';
 
 @Controller('plot')
 @Roles([UserRole.FARMER])
@@ -22,8 +23,8 @@ export class PlotController {
     }
 
     @Get()
-    async getPlots(@User() user: UserInterface) {
-        return await this.plotService.getPlots(user.farm_id!);
+    async getPlots(@User() user: UserInterface, getPlotsDto: GetPlotDto) {
+        return await this.plotService.getPlots(user.farm_id!, getPlotsDto);
     }
 
     @Delete(":plotId")

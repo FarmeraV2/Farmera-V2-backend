@@ -8,25 +8,6 @@ export class CreatePlotDto {
     @IsNotEmpty()
     plot_name: string;
 
-    @IsString()
-    @IsNotEmpty()
-    crop_name: string;
-
-    @IsEnum(CropType)
-    crop_type: CropType;
-
-    @IsNumber()
-    @IsOptional()
-    area?: number;
-
-    @ValidateNested()
-    @IsNotEmpty()
-    @Type(() => LocationDto)
-    location: LocationDto;
-
-    @IsDateString()
-    start_date: Date;
-
     @IsOptional()
     @IsString()
     @IsNotEmpty()
