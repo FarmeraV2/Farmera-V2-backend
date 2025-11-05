@@ -10,21 +10,12 @@ export class Ward {
     name: string;
 
     @Column()
-    type: string;
+    codename: string;
 
     @Column()
-    full_name: string;
+    division_type: string;
 
-    @Column()
-    name_en: string;
-
-    @Column()
-    full_name_en: string;
-
-    @Column()
-    type_en: string;
-
-    @ManyToOne(() => Province, (province) => province.ward)
+    @ManyToOne(() => Province, (province) => province.wards)
     @JoinColumn({ name: 'province_code' })
     province: Province;
 
