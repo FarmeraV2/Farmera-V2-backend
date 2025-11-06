@@ -1,4 +1,4 @@
-import { Entity, JoinColumn, PrimaryGeneratedColumn, Column, OneToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, JoinColumn, PrimaryGeneratedColumn, Column, OneToOne, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
 import { Order } from './order.entity';
 import { PaymentMethod, PaymentStatus } from '../enums/payment-status';
 
@@ -7,12 +7,8 @@ export class Payment {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @OneToOne(() => Order, { nullable: true })
-    @JoinColumn({ name: 'order' })
+    @OneToOne(() => Order, (order) => order.payment)
     order: Order;
-
-    @Column({ nullable: true })
-    order_id: number;
 
     @Column({type : 'enum', enum: PaymentStatus, default: PaymentStatus.UNPAID})
     status: PaymentStatus;

@@ -1,7 +1,10 @@
 import { Farm } from 'src/modules/farm/entities/farm.entity';
 import { User } from 'src/modules/user/entities/user.entity';
-import { Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne, OneToMany } from 'typeorm';
 import { OrderStatus } from '../enums/order-status.enum';
+import { Payment } from './payment.entity';
+import { Delivery } from './delivery.entity';
+import { OrderDetail } from './order_detail.entity';
 
 @Entity()
 export class Order {
@@ -21,22 +24,12 @@ export class Order {
 
     @Column({ nullable: true })
     store_id: number;
-
-    @ManyToOne(() => Order, { nullable: true })
-    @JoinColumn({ name: 'parent_order' })
-    parent_order: Order;
-
-    @Column({ nullable: true })
-    parent_order_id: number;
-
+    
     @Column()
-    total_amount: number; // Đơn hàng con Tổng tiền hàng con đã bao gồm phí vận chuyển
-
+    shipping_fee: number;
+    
     @Column()
-    sub_total_amount: number; // Tổng tiền hàng chưa bao gồm phí vận chuyển. đơn hàng cha = tổng của các đơn hàng con. Đơn hàng con = tổng tiền hàng chưa bao gồm phí vận chuyển.
-
-    @Column()
-    grand_total: number; // đơn hàng cha: Tổng tiền hàng đã bao gồm phí vận chuyển ( đơn hàng cha = tổng của các đơn hàng con ) đơn hàng con null.
+    total_amount: number; // Tổng tiền của đơn hàng
 
     @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING_CONFIRMATION })
     status: OrderStatus;
@@ -46,5 +39,18 @@ export class Order {
 
     @UpdateDateColumn({ type: 'timestamptz' })
     updated: Date;
+    
+    @ManyToOne(() => Payment)
+    @JoinColumn({ name: 'payment_id' })
+    payment: Payment;
+
+    @Column({ nullable: true })
+    payment_id: number;
+    
+    @OneToOne(() => Delivery, (delivery) => delivery.order, { nullable: true })
+    delivery?: Delivery;
+    
+    @OneToMany(() => OrderDetail, (orderDetail) => orderDetail.order, { cascade: true })
+    order_details: OrderDetail[];
 
 }
