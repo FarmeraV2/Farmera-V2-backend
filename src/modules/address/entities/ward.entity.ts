@@ -9,10 +9,10 @@ export class Ward {
     @Column()
     name: string;
 
-    @Column()
+    @Column({default: ''})
     codename: string;
 
-    @Column()
+    @Column({default: ''})
     division_type: string;
 
     @ManyToOne(() => Province, (province) => province.wards, { nullable: true })

@@ -9,13 +9,13 @@ export class OldProvince {
     @Column()
     name: string;
 
-    @Column()
+    @Column({nullable: true})
     phone_code: number;
 
-    @Column()
+    @Column({default: ''})
     division_type: string;
 
-    @Column()
+    @Column({default: ''})
     codename: string;
 
     @OneToMany(() => OldDistrict, (district) => district.province, { cascade: true })

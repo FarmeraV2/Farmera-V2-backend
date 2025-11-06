@@ -10,10 +10,10 @@ export class OldDistrict {
     @Column()
     name: string;
 
-    @Column()
+    @Column({default: ''})
     codename: string;
 
-    @Column()
+    @Column({default: ''})
     division_type: string
 
     @ManyToOne(() => OldProvince, (province) => province.districts)
