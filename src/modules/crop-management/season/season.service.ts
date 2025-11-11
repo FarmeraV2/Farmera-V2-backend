@@ -15,6 +15,9 @@ import { StepService } from '../step/step.service';
 import { addStepDto } from '../dtos/season/add-step.dto';
 import { StepDto } from '../dtos/step/step.dto';
 import { GetStepDto } from '../dtos/step/get-step.dto';
+import { LogService } from '../log/log.service';
+import { Log } from '../entities/log.entity';
+import { AddLogDto } from '../dtos/log/add-log.dto';
 
 @Injectable()
 export class SeasonService {
@@ -24,6 +27,7 @@ export class SeasonService {
     constructor(
         @InjectRepository(Season) private readonly seasonRepository: Repository<Season>,
         private readonly stepService: StepService,
+        private readonly logService: LogService,
     ) { }
 
     async createSeason(farmId: number, createSeasonDto: CreateSeasonDto): Promise<Season> {
@@ -43,7 +47,6 @@ export class SeasonService {
         }
     }
 
-    // todo!("handle when the season is finished")
     async updateSeason(farmId: number, seasonId: number, updateSeasonDto: UpdateSeasonDto): Promise<Season> {
         try {
             const { name, notes } = updateSeasonDto;
@@ -116,6 +119,14 @@ export class SeasonService {
 
     async getSteps(seasonId: number, getStepDto: GetStepDto): Promise<PaginationResult<StepDto>> {
         return await this.stepService.getSteps(seasonId, getStepDto);
+    }
+
+    async getLogs(seasonId: number, stepId: number): Promise<Log[]> {
+        return await this.logService.getLogs(seasonId, stepId);
+    }
+
+    async addLog(seasonId: number, stepId: number, farmId: number, addLogDto: AddLogDto): Promise<Log> {
+        return await this.logService.addLog(seasonId, stepId, farmId, addLogDto);
     }
 
     // todo!("handle cron job to update status every day")

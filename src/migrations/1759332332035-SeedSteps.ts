@@ -29,7 +29,7 @@ export class SeedSteps1759332332035 implements MigrationInterface {
                 (11, 'Chuẩn bị hạt', 'Chọn hạt giống, ngâm/ủ trước khi trồng', 'LONG_TERM', 10, true, false, 1, 'PREPARE'),
                 (12, 'Chuẩn bị đất', 'Làm đất, xử lý cỏ, bón lót trước khi trồng', 'LONG_TERM', 20, true, false, 1, 'PREPARE'),
                 (13, 'Trồng cây', 'Trồng cây con hoặc cây giống vào luống', 'LONG_TERM', 30, true, false, 1, 'PLANTING'),
-                (14, 'Chăm sóc định kỳ', 'Chăm sóc định kỳ', 'LONG_TERM', 40, false, true, 1, 'CARE'),
+                (14, 'Chăm sóc định kỳ', 'Chăm sóc định kỳ', 'LONG_TERM', 40, false, true, 5, 'CARE'),
                 (15, 'Thu hoạch', 'Thu hoạch sản phẩm khi cây đạt độ chín', 'LONG_TERM', 50, false, true, 1, 'HARVEST'),
                 (16, 'Đóng gói & xuất bán', 'Rửa, phân loại, đóng gói sản phẩm', 'LONG_TERM', 60, false, true, 1, 'POST_HARVEST');
         `);

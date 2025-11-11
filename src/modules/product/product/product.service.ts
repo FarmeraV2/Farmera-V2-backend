@@ -266,10 +266,6 @@ export class ProductService {
 
             // apply pagination
             const totalItems = await applyPagination(queryBuilder, paginationOptions);
-            if (totalItems < 0) throw new BadRequestException({
-                message: 'Invalid page',
-                code: ResponseCode.INVALID_PAGE
-            });
 
             // get result
             const products = await queryBuilder.getMany();
@@ -401,10 +397,6 @@ export class ProductService {
 
             // apply pagination
             const totalItems = await applyPagination(qb, paginationOptions);
-            if (totalItems < 0) throw new BadRequestException({
-                message: 'Invalid page',
-                code: ResponseCode.INVALID_PAGE
-            });
 
             // get result
             const products = await qb.getMany();
@@ -464,10 +456,6 @@ export class ProductService {
 
             // apply pagination
             const totalItems = await applyPagination(qb, paginationOptions);
-            if (totalItems < 0) throw new BadRequestException({
-                message: 'Invalid page',
-                code: ResponseCode.INVALID_PAGE,
-            });
 
             // get result
             const products = await qb.getMany();

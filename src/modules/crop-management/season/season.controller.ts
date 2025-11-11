@@ -10,6 +10,7 @@ import { PaginationOptions } from 'src/common/dtos/pagination/pagination-option.
 import { Public } from 'src/common/decorators/public.decorator';
 import { addStepDto } from '../dtos/season/add-step.dto';
 import { GetStepDto } from '../dtos/step/get-step.dto';
+import { AddLogDto } from '../dtos/log/add-log.dto';
 
 @Controller('season')
 @Roles([UserRole.FARMER])
@@ -42,5 +43,16 @@ export class SeasonController {
     @Get(":seasonId/step")
     async getSteps(@Param("seasonId") seasonId: number, @Query() getStepDto: GetStepDto) {
         return await this.seasonService.getSteps(seasonId, getStepDto);
+    }
+
+    @Public()
+    @Get(":seasonId/step/:stepId/log")
+    async getLogs(@Param("searsonId") seasonId: number, @Param("stepId") stepId: number) {
+        return await this.seasonService.getLogs(seasonId, stepId);
+    }
+
+    @Post(":seasonId/step/:stepId/log")
+    async addLog(@User() user: UserInterface, @Param("seasonId") seasonId: number, @Param("stepId") stepId: number, @Body() addLogDto: AddLogDto) {
+        return await this.seasonService.addLog(seasonId, stepId, user.farm_id!, addLogDto);
     }
 }

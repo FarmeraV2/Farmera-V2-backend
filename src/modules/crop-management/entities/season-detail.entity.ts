@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryColumn, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { StepStatus } from '../enums/step-status.enum';
 import { StepEvaluation } from '../enums/step-evaluation';
 import { Season } from './season.entity';
@@ -7,8 +7,11 @@ import { Log } from './log.entity';
 
 @Entity()
 export class SeasonDetail {
-    @PrimaryGeneratedColumn()
-    id: number;
+    @PrimaryColumn()
+    season_id: number;
+
+    @PrimaryColumn()
+    step_id: number;
 
     @Column({ type: 'enum', enumName: 'step_status', enum: StepStatus, default: StepStatus.PENDING })
     step_status: StepStatus;
@@ -26,15 +29,9 @@ export class SeasonDetail {
     @JoinColumn({ name: "season_id" })
     season: Season;
 
-    @Column()
-    season_id: number;
-
     @ManyToOne(() => Step, (step) => step.season_details)
     @JoinColumn({ name: "step_id" })
     step: Step;
-
-    @Column()
-    step_id: number;
 
     @OneToMany(() => Log, (log) => log.season_detail)
     logs?: Log[];

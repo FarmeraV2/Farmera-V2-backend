@@ -83,10 +83,6 @@ export class PlotService {
             }
 
             const totalItems = await applyPagination(queryBuilder, paginationOptions);
-            if (totalItems < 0) throw new BadRequestException({
-                message: 'Invalid page',
-                code: ResponseCode.INVALID_PAGE
-            });
 
             const plots = await queryBuilder.getMany();
             const meta = new PaginationMeta({

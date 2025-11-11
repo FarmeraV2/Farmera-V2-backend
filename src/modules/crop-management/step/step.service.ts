@@ -31,7 +31,7 @@ export class StepService {
     async addStep(seasonId: number, addStepDto: addStepDto): Promise<StepDto> {
         try {
             const result = await this.seasonDetailRepository.insert({ ...addStepDto, season_id: seasonId });
-            const id = result.identifiers[0]?.id;
+            const { season_id, step_id } = result.identifiers[0];
             const queryBuilder = this.seasonDetailRepository.createQueryBuilder("season_detail")
                 .addSelect([
                     "step.id",
@@ -42,8 +42,8 @@ export class StepService {
                     "step.type"
                 ])
                 .leftJoin("season_detail.step", "step")
-                .where("season_detail.id = :id", { id })
-                .orderBy("season_detail.id")
+                .where("season_detail.season_id = :season_id", { season_id })
+                .andWhere("season_detail.step_id = :step_id", { step_id })
 
             const res = await queryBuilder.getOne();
             if (!res) {
@@ -65,7 +65,6 @@ export class StepService {
             );
         }
         catch (error) {
-            console.log(error);
             if (error instanceof QueryFailedError) {
                 TriggerException.throwStepException(error);
             }
@@ -82,7 +81,6 @@ export class StepService {
         try {
             const queryBuilder = this.seasonDetailRepository.createQueryBuilder("season_detail")
                 .addSelect([
-                    "step.id",
                     "step.name",
                     "step.description",
                     "step.notes",
@@ -91,14 +89,9 @@ export class StepService {
                 ])
                 .leftJoin("season_detail.step", "step")
                 .where("season_detail.season_id = :seasonId", { seasonId })
-                .orderBy("season_detail.id")
+                .orderBy("season_detail.created")
 
             const totalItems = await applyPagination(queryBuilder, paginationOptions);
-
-            if (totalItems < 0) throw new BadRequestException({
-                message: 'Invalid page',
-                code: ResponseCode.INVALID_PAGE
-            });
 
             const result = await queryBuilder.getMany();
             const steps = plainToInstance(
@@ -150,11 +143,6 @@ export class StepService {
             this.applyFilter(queryBuilder, listStepDto);
 
             const totalItems = await applyPagination(queryBuilder, paginationOptions);
-            if (totalItems < 0) throw new BadRequestException({
-                message: 'Invalid page',
-                code: ResponseCode.INVALID_PAGE
-            });
-
             const steps = await queryBuilder.getMany();
 
             return new PaginationResult(steps, new PaginationMeta({
@@ -181,10 +169,6 @@ export class StepService {
             this.applyFilter(queryBuilder, listStepDto);
 
             const totalItems = await applyPagination(queryBuilder, paginationOptions);
-            if (totalItems < 0) throw new BadRequestException({
-                message: 'Invalid page',
-                code: ResponseCode.INVALID_PAGE
-            });
 
             const result = await queryBuilder.getMany();
             const steps = plainToInstance(PublicStepDto, result, { excludeExtraneousValues: true });

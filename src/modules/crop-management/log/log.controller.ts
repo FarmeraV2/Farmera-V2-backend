@@ -1,19 +1,17 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get, Post, Query } from '@nestjs/common';
 import { LogService } from './log.service';
 import { Roles } from 'src/common/decorators/role.decorator';
 import { UserRole } from 'src/common/enums/role.enum';
+import { ListLogDto } from '../dtos/log/list-log.dto';
 
 @Controller('log')
-@Roles([UserRole.FARMER])
+@Roles([UserRole.ADMIN])
 export class LogController {
 
     constructor(private readonly logService: LogService) { }
 
-    @Post()
-    async addLog() {
-
-    }
-
     @Get()
-    async getLogs() { }
+    async getLogs(@Query() listLogDto: ListLogDto) {
+        return await this.logService.listLogs(listLogDto);
+    }
 }

@@ -34,7 +34,6 @@ export class TriggerException {
     }
 
     static throwSeasonException(error: QueryFailedError) {
-        console.log(error);
         const pgError = (error as any).driverError;
         switch (pgError.code) {
             case 'SS000':
@@ -46,6 +45,28 @@ export class TriggerException {
                 throw new BadRequestException({
                     message: error.message,
                     code: ResponseCode.INVALID_SEASON_FOR_CROP_TYPE
+                })
+            default:
+                this.logger.error("Query error: ", error.message);
+                throw new InternalServerErrorException({
+                    message: "Internal error",
+                    code: ResponseCode.INTERNAL_ERROR,
+                })
+        }
+    }
+
+    static throwLogException(error: QueryFailedError) {
+        const pgError = (error as any).driverError;
+        switch (pgError.code) {
+            case 'LG001':
+                throw new BadRequestException({
+                    message: error.message,
+                    code: ResponseCode.STEP_ALREADY_DONE
+                })
+            case 'LG002':
+                throw new BadRequestException({
+                    message: error.message,
+                    code: ResponseCode.NOT_ENOUGH_LOG
                 })
             default:
                 this.logger.error("Query error: ", error.message);

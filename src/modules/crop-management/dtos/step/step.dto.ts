@@ -5,11 +5,10 @@ import { StepType } from "../../enums/step-type.enum";
 import { StepEvaluation } from "../../enums/step-evaluation";
 
 export class StepDto {
-    @Expose() id: number;
-    @Expose() step_status: StepStatus;
-    @Expose() step_evaluation?: StepEvaluation
     @Expose() season_id: number;
     @Expose() step_id: number;
+    @Expose() step_status: StepStatus;
+    @Expose() step_evaluation?: StepEvaluation
     @Expose() step_name: string;
     @Expose() step_description: string;
     @Expose() step_notes?: string;
@@ -20,7 +19,6 @@ export class StepDto {
 }
 
 export class PublicStepDto {
-    @Expose() id: number;
     @Expose() name: string;
     @Expose() description: string;
     @Expose() for_crop_type: CropType;
