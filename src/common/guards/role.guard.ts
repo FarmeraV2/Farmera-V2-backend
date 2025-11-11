@@ -4,12 +4,19 @@ import { ROLES_KEY } from '../decorators/role.decorator';
 import { UserRole } from 'src/common/enums/role.enum';
 import { UserInterface } from '../types/user.interface';
 import { ResponseCode } from '../constants/response-code.const';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
     constructor(private reflector: Reflector) { }
 
     canActivate(context: ExecutionContext): boolean {
+        const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [context.getHandler(), context.getClass()]);
+        if (isPublic) {
+            // Skip authentication for public routes
+            return true;
+        }
+
         const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [context.getHandler(), context.getClass()]);
         if (!requiredRoles) {
             return true;

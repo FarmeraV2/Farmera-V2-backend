@@ -36,3 +36,9 @@ export class UpdateSeasonDto {
     @IsNotEmpty()
     notes?: string;
 }
+
+export class UpdateFinishSeasonDto {
+    @IsInt()
+    @IsPositive()
+    actual_yield: number;
+}

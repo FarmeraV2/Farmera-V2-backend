@@ -8,28 +8,32 @@ DECLARE prev_step_status step_status;
 BEGIN
 	SELECT crop_type INTO plot_crop_type
 	FROM plot JOIN season ON plot.id = season.plot_id
-	WHERE season.id = NEW.season_id AND plot.farm_id = NEW.farm_id;
+	WHERE season.id = NEW.season_id;
 
 	SELECT for_crop_type, "order" INTO step_crop_type, cur_step_order
 	FROM step
 	WHERE step.id = NEW.step_id;
 
 	IF (step_crop_type != plot_crop_type) THEN
-		RAISE EXCEPTION 'Invalid step for %', plot_crop_type;
+		RAISE EXCEPTION 'Invalid step for %', plot_crop_type
+		USING ERRCODE = 'ST001';
 	END IF;
 
 	SELECT MAX("order"), step_status INTO prev_step_order, prev_step_status
 	FROM season_detail 
 		JOIN step ON season_detail.step_id = step.id
 	WHERE season_id = NEW.season_id AND ("order" % 10 = 0)
-	GROUP BY step_status;
+	GROUP BY step_status
+	LIMIT 1;
 
 	IF (prev_step_status != 'DONE') THEN
-		RAISE EXCEPTION 'Previous step is in process';
+		RAISE EXCEPTION 'Previous step is in process'
+		USING ERRCODE = 'ST002';
 	END IF;
 
 	IF (prev_step_order IS NOT NULL) AND (prev_step_order >= cur_step_order OR cur_step_order > prev_step_order + 10) THEN
-		RAISE EXCEPTION 'The current step''s order must greater than previous step''s and less than or equal previous step''s order + 1';
+		RAISE EXCEPTION 'The current step''s order must greater than previous step''s and less than or equal previous step''s order + 1'
+		USING ERRCODE = 'ST003';
 	END IF;
 
 	RETURN NEW;

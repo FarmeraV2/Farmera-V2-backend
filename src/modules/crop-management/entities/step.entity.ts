@@ -1,11 +1,11 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryColumn, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { SeasonDetail } from './season-detail.entity';
 import { StepType } from '../enums/step-type.enum';
 import { CropType } from '../enums/crop-type.enum';
 
 @Entity()
 export class Step {
-    @PrimaryColumn()
+    @PrimaryGeneratedColumn()
     id: number;
 
     @Column()
@@ -15,7 +15,7 @@ export class Step {
     description: string;
 
     @Column({ nullable: true })
-    notes: string;
+    notes?: string;
 
     @Column({ type: 'enum', enumName: 'crop_type', enum: CropType })
     for_crop_type: CropType;
@@ -23,7 +23,7 @@ export class Step {
     @Column()
     order: number;
 
-    @Column()
+    @Column({ default: false })
     repeated: boolean;
 
     @Column({ default: false })
@@ -47,6 +47,9 @@ export class Step {
     @ManyToOne(() => Step, (step) => step.children, { nullable: true })
     @JoinColumn({ name: "parent_id" })
     parent?: Step;
+
+    @Column({ nullable: true })
+    parent_id?: number;
 
     @OneToMany(() => Step, (step) => step.parent)
     children?: Step[];

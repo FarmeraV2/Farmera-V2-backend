@@ -29,7 +29,7 @@ export class Plot {
     @Column()
     image_url: string;
 
-    @Column()
+    @Column({ default: false })
     is_deleted: boolean;
 
     @CreateDateColumn({ type: "timestamptz" })

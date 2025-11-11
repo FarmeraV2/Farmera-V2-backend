@@ -1,7 +1,8 @@
 import { PaginationOptions } from "src/common/dtos/pagination/pagination-option.dto";
 import { PlotSortFields } from "../../enums/plot-sort-fields.enum";
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { CropType } from "../../enums/crop-type.enum";
+import { Type } from "class-transformer";
 
 export class GetPlotDto extends PaginationOptions<PlotSortFields> {
     @IsOptional()
@@ -16,4 +17,9 @@ export class GetPlotDto extends PaginationOptions<PlotSortFields> {
     @IsOptional()
     @IsEnum(CropType)
     crop_type?: CropType;
+
+    @IsOptional()
+    @IsBoolean()
+    @Type(() => Boolean)
+    is_deleted?: boolean = false;
 }

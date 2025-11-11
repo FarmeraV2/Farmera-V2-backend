@@ -1,17 +1,18 @@
 import { Repository } from 'typeorm';
 import { Plot } from '../entities/plot.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { BadRequestException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { CreatePlotDto } from '../dtos/plot/create-plot.dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { GetPlotDto } from '../dtos/plot/get-plot.dto';
 import { plainToInstance } from 'class-transformer';
 import { PaginationTransform } from 'src/common/dtos/pagination/pagination-option.dto';
 import { PlotSortFields } from '../enums/plot-sort-fields.enum';
-import { PlotDto, plotSelectFields } from '../dtos/plot/plot.dto';
+import { PlotDetailDto, PlotDto, plotSelectFields } from '../dtos/plot/plot.dto';
 import { applyPagination } from 'src/common/utils/pagination.util';
 import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
 import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
+import { UpdatePlotDto } from '../dtos/plot/update-plot.dto';
 
 @Injectable()
 export class PlotService {
@@ -36,9 +37,13 @@ export class PlotService {
         }
     }
 
-    async updatePlot(farmId: number, plotId: number, updatePlot: CreatePlotDto): Promise<Plot> {
+    async updatePlot(farmId: number, plotId: number, updatePlot: UpdatePlotDto): Promise<Plot> {
         try {
             const plot = await this.plotRepository.findOne({ where: { id: plotId, farm_id: farmId } });
+            if (!plot) throw new NotFoundException({
+                message: "Plot not found",
+                code: ResponseCode.PLOT_NOT_FOUND,
+            })
             return await this.plotRepository.save({ ...plot, ...updatePlot });
         }
         catch (error) {
@@ -57,7 +62,8 @@ export class PlotService {
         // filter
         const { crop_type } = getPlotsDto;
         try {
-            const queryBuilder = this.plotRepository.createQueryBuilder("plot").select(plotSelectFields).where("plot.farm_id = :id", { id: farmId });
+            const queryBuilder = this.plotRepository.createQueryBuilder("plot").select(plotSelectFields).
+                where("plot.farm_id = :id", { id: farmId });
 
             if (crop_type) {
                 queryBuilder.andWhere("plot.crop_type = :type", { type: crop_type })
@@ -111,6 +117,27 @@ export class PlotService {
             throw new InternalServerErrorException({
                 message: "Failed to delete plot",
                 code: ResponseCode.FAILED_TO_DELETE_PLOT,
+            });
+        }
+    }
+
+    async getPlotDetail(plotId: number): Promise<PlotDetailDto> {
+        try {
+            const result = await this.plotRepository.findOne({
+                where: { id: plotId, is_deleted: false }
+            });
+            if (!result) throw new NotFoundException({
+                message: "Plot not found",
+                code: ResponseCode.PLOT_NOT_FOUND,
+            })
+            return plainToInstance(PlotDetailDto, result, { excludeExtraneousValues: true });
+        }
+        catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to get plot detail",
+                code: ResponseCode.FAILED_TO_GET_PLOT_DETAIL,
             });
         }
     }
