@@ -21,6 +21,9 @@ export class Order {
     @ManyToOne(() => Farm, { nullable: true })
     @JoinColumn({ name: 'farm' })
     farm: Farm;
+    
+    @Column({ nullable: true })
+    farm_id: string;
 
     @Column({ nullable: true })
     store_id: number;

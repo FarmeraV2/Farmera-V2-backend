@@ -1,6 +1,6 @@
 import { Entity, JoinColumn, PrimaryGeneratedColumn, Column, OneToOne, UpdateDateColumn, CreateDateColumn } from 'typeorm';
 import { Order } from './order.entity';
-import { DeliveryPaymentType, DeliveryRequiredNote, DeliveryStatus } from '../enums/delivery-status';
+import { DeliveryPaymentType, DeliveryRequiredNote, DeliveryStatus } from '../enums/delivery-status.enum';
 
 @Entity()
 export class Delivery {
