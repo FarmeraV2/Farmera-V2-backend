@@ -1,5 +1,7 @@
 import { ObjectLiteral, SelectQueryBuilder } from 'typeorm';
 import { PaginationOptions } from '../dtos/pagination/pagination-option.dto';
+import { BadRequestException } from '@nestjs/common';
+import { ResponseCode } from '../constants/response-code.const';
 
 /**
  * @function applyPagination - Applies pagination constraints to a product query builder
@@ -16,7 +18,10 @@ export async function applyPagination<Entity extends ObjectLiteral>(qb: SelectQu
     const currentPage = paginationOptions.page;
 
     if (totalPages > 0 && currentPage > totalPages) {
-        return -1;
+        throw new BadRequestException({
+            message: 'Invalid page',
+            code: ResponseCode.INVALID_PAGE
+        });
     }
 
     qb.skip(paginationOptions.skip).take(paginationOptions.limit);

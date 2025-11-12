@@ -39,7 +39,9 @@ export class AuthService {
                 try {
                     const result = await this.preferenceChannelService.registerNotificationChannel(user.id);
                     if (result.length > 0) {
-                        this.logger.log(`Notification preference is created for user id ${user.id}`)
+                        this.logger.log(`Notification preference is registered for user id ${user.id}`)
+                    } else {
+                        this.logger.error("Register notification preference return 0 result");
                     }
                 } catch (error) {
                     this.logger.error("Failed to register user notification preference");

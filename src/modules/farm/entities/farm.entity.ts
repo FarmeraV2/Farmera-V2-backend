@@ -65,10 +65,10 @@ export class Farm {
 
     // stats?: FarmStats
 
-    @Column()
+    @Column({ nullable: true })
     address_id: number;
 
-    @OneToOne(() => DeliveryAddress, (address) => address.farm)
+    @OneToOne(() => DeliveryAddress, (address) => address.farm, { nullable: true })
     @JoinColumn({ name: 'address_id' })
     address: DeliveryAddress;
 

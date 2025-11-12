@@ -1,12 +1,12 @@
 CREATE OR REPLACE FUNCTION validate_add_season_fn()
 RETURNS TRIGGER AS $$
-DECLARE cur_crop_type crop_type_enum;
+DECLARE cur_crop_type crop_type;
 DECLARE season_id INT;
 BEGIN
-
     IF (NEW.start_date < CURRENT_DATE) THEN
         RAISE EXCEPTION 'Start date (%) cannot be earlier than today (%)',
-            NEW.start_date, CURRENT_DATE;
+            NEW.start_date, CURRENT_DATE
+			USING ERRCODE = 'SS000';
     END IF;
 
 	SELECT crop_type, season.id INTO cur_crop_type, season_id
@@ -14,7 +14,8 @@ BEGIN
 	WHERE plot.id = NEW.plot_id;
 
 	IF (cur_crop_type = 'SHORT_TERM' AND season_id IS NOT NULL) THEN
-		RAISE EXCEPTION 'Short term crops can not have more than 1 season';
+		RAISE EXCEPTION 'Short term crops can not have more than 1 season'
+		USING ERRCODE = 'SS001';
 	END IF;
 
 	RETURN NEW;

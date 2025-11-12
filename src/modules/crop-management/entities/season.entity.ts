@@ -21,7 +21,7 @@ export class Season {
     @Column({ type: "timestamptz", nullable: true })
     actual_end_date?: Date;
 
-    @Column({ enum: SeasonStatus, default: SeasonStatus.PENDING })
+    @Column({ type: 'enum', enumName: 'season_status', enum: SeasonStatus, default: SeasonStatus.PENDING })
     status: SeasonStatus;
 
     @Column()

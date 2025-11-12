@@ -14,7 +14,7 @@ export class Plot {
     @Column()
     crop_name: string;
 
-    @Column({ enum: CropType })
+    @Column({ type: 'enum', enumName: 'crop_type', enum: CropType })
     crop_type: CropType
 
     @Column({ nullable: true })
@@ -23,11 +23,14 @@ export class Plot {
     @Column({ type: "jsonb" })
     location: { lat: number; lng: number }
 
-    @Column({ type: "timestamptz" })
-    start_date: Date;
-
     @Column({ nullable: true })
     notes?: string;
+
+    @Column()
+    image_url: string;
+
+    @Column({ default: false })
+    is_deleted: boolean;
 
     @CreateDateColumn({ type: "timestamptz" })
     created: Date

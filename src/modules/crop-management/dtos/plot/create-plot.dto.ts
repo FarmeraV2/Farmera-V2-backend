@@ -1,6 +1,6 @@
-import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, ValidateNested } from "class-validator";
+import { IsEnum, IsNotEmpty, IsNumber, IsObject, IsOptional, IsPositive, IsString, ValidateNested } from "class-validator";
 import { CropType } from "../../enums/crop-type.enum";
-import { LocationDto } from "src/common/dtos/location/location.dto";
+import { LocationRequestDto } from "src/common/dtos/location/location.dto";
 import { Type } from "class-transformer";
 
 export class CreatePlotDto {
@@ -15,20 +15,22 @@ export class CreatePlotDto {
     @IsEnum(CropType)
     crop_type: CropType;
 
-    @IsNumber()
     @IsOptional()
+    @IsNumber()
+    @IsPositive()
     area?: number;
 
+    @IsObject()
+    @Type(() => LocationRequestDto)
     @ValidateNested()
-    @IsNotEmpty()
-    @Type(() => LocationDto)
-    location: LocationDto;
-
-    @IsDateString()
-    start_date: Date;
+    location: LocationRequestDto;
 
     @IsOptional()
     @IsString()
     @IsNotEmpty()
     notes?: string;
+
+    @IsString()
+    @IsNotEmpty()
+    image_url: string;
 }

@@ -31,68 +31,29 @@ export class AddressService {
     }
 
     async onApplicationBootstrap() {
-        // import province
-        const provinceCodes = await this.importProvince();
-        if (provinceCodes && provinceCodes.length > 0) {
-            // for each province, import ward
-            await this.importWard(provinceCodes);
-        } else {
-            const result = await this.provinceRepository.find({ select: ['code'] });
-            const codes = result.map((p) => p.code);
-            await this.importWard(codes);
-        }
+        await this.importAddresses();
     }
 
-    private async importProvince(): Promise<number[] | undefined> {
+    private async importAddresses() {
         const count = await this.provinceRepository.count();
         if (count > 0) {
-            this.logger.log("Already have province data, pulling will be skipped")
+            this.logger.log("Already have old address data, pulling will be skipped")
             return;
         }
-        // fetch province
         if (!this.addressApi) {
-            this.logger.error('External address api is not configured');
+            this.logger.error('External old address api is not configured');
             return;
         }
         try {
-            const response = await firstValueFrom(this.httpService.get(`${this.addressApi}/provider`, {
+            const response = await firstValueFrom(this.httpService.get(`${this.addressApi}?depth=2`, {
                 httpsAgent: new https.Agent({ rejectUnauthorized: false })
             }));
             const provinces: Province[] = response.data.map((province: Province) => this.provinceRepository.create(province));
-            const saved = await this.provinceRepository.save(provinces);
-
-            // extract province code
-            const result = saved.map((p) => p.code);
-            return result;
-        } catch (error) {
+            await this.provinceRepository.save(provinces);
+        }
+        catch (error) {
             this.logger.error(error.message);
             return;
-        }
-    }
-
-    private async importWard(provinceCodes: number[]) {
-        const count = await this.wardRepository.count();
-        if (count > 0) {
-            this.logger.log("Already have ward data, pulling will be skipped")
-            return;
-        }
-        if (!this.addressApi) {
-            this.logger.error('External address api is not configured');
-            return;
-        }
-
-        try {
-            for (const provinceCode of provinceCodes) {
-                const response = await firstValueFrom(this.httpService.get(`${this.addressApi}/ward/${provinceCode}`, {
-                    httpsAgent: new https.Agent({ rejectUnauthorized: false })
-                }));
-
-                const wards: Ward[] = response.data.map((ward: Ward) => this.wardRepository.create({ ...ward, province: { code: provinceCode } }));
-
-                await this.wardRepository.save(wards);
-            }
-        } catch (error) {
-            this.logger.error(error.message);
         }
     }
 

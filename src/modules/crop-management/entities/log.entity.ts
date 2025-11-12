@@ -1,6 +1,7 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { SeasonDetail } from './season-detail.entity';
 import { Farm } from 'src/modules/farm/entities/farm.entity';
+import { LogType } from '../enums/log-type.enum';
 
 @Entity()
 export class Log {
@@ -13,6 +14,9 @@ export class Log {
     @Column()
     description: string;
 
+    @Column({ type: "enum", enum: LogType, enumName: "log_type", default: LogType.PROGRESS })
+    type: LogType;
+
     @Column('text', { array: true })
     image_urls: string[];
 
@@ -22,8 +26,8 @@ export class Log {
     @Column({ type: "jsonb" })
     location: { lat: number, lng: number }
 
-    @Column()
-    transaction_hash: string;
+    @Column({ nullable: true })
+    transaction_hash?: string;
 
     @Column({ nullable: true })
     notes?: string;
@@ -32,7 +36,17 @@ export class Log {
     created: Date;
 
     @ManyToOne(() => SeasonDetail, (detail) => detail.logs)
+    @JoinColumn([
+        { name: "season_id", referencedColumnName: "season_id" },
+        { name: "step_id", referencedColumnName: "step_id" }
+    ])
     season_detail: SeasonDetail
+
+    @Column()
+    season_id: number;
+
+    @Column()
+    step_id: number;
 
     @ManyToOne(() => Farm)
     @JoinColumn({ name: "farm_id" })
