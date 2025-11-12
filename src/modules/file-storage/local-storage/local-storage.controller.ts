@@ -3,8 +3,8 @@ import { LocalStorageService } from './local-storage.service';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { UploadFileDto } from '../dtos/upload-file.dto';
 import { Response } from "express";
-import path from 'path';
 import { lookup } from 'mime-types';
+import { getFileExtension } from '../utils/file.util';
 
 @Controller('local-storage')
 export class LocalStorageController {
@@ -40,7 +40,7 @@ export class LocalStorageController {
         const filePath = Array.isArray(url) ? url.join('/') : url;
         const fileBuffer = await this.localStorageService.getFile(filePath);
 
-        const ext = path.extname(filePath).toLowerCase();
+        const ext = getFileExtension(filePath);
         const contentType = lookup(ext) || 'application/octet-stream';
 
         res.setHeader('Content-Type', contentType);

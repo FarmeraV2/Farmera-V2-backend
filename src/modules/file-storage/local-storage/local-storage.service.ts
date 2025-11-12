@@ -2,11 +2,11 @@ import { HttpException, Injectable, InternalServerErrorException, Logger, NotFou
 import { ConfigService } from "@nestjs/config";
 import { existsSync, mkdirSync } from "fs";
 import path from "path";
-import { v4 as uuidv4 } from 'uuid';
 import { MediaGroupType } from "../enums/media-group-type.enum";
 import { SavedFileResult } from "../interfaces/save-file-result.interface";
 import * as fs from 'fs/promises';
 import { ResponseCode } from "src/common/constants/response-code.const";
+import { generateFileName } from "../utils/file.util";
 
 const SUB_URL = "api/local-storage";
 
@@ -30,14 +30,6 @@ export class LocalStorageService {
         if (!existsSync(this.baseUploadPath)) {
             mkdirSync(this.baseUploadPath, { recursive: true });
         }
-    }
-
-    private generateUniqueFilename(originalName: string): string {
-        const uniqueSuffix = uuidv4();
-        const fileExtension = path.extname(originalName);
-        const baseFilename = path.basename(originalName, fileExtension);
-        const sanitizedBaseFilename = baseFilename.replace(/[^a-zA-Z0-9_-]/g, '_');
-        return `${sanitizedBaseFilename}-${uniqueSuffix}${fileExtension}`;
     }
 
     private getAbsolutePathFromUrl(url: string): string | null {
@@ -77,7 +69,7 @@ export class LocalStorageService {
                 await this.deleteByIdentifiers(successfullyMovedFilesPaths);
             }
 
-            const finalFilename = this.generateUniqueFilename(tempFile.originalname);
+            const finalFilename = generateFileName(tempFile);
             const finalAbsolutePath = path.join(absoluteDestinationDir, finalFilename);
 
             try {
