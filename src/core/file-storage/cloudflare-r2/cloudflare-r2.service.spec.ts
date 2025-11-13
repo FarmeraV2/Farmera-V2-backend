@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AzureBlobService } from './azure-blob.service';
+import { CloudflareR2Service } from './cloudflare-r2.service';
 
-describe('AzureBlobService', () => {
-  let service: AzureBlobService;
+describe('CloudflareR2Service', () => {
+  let service: CloudflareR2Service;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AzureBlobService],
+      providers: [CloudflareR2Service],
     }).compile();
 
-    service = module.get<AzureBlobService>(AzureBlobService);
+    service = module.get<CloudflareR2Service>(CloudflareR2Service);
   });
 
   it('should be defined', () => {
