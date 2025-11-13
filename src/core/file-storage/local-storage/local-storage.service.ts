@@ -58,7 +58,7 @@ export class LocalStorageService {
                 this.logger.error(`Error creating dir ${absoluteDestinationDir}: ${error.message}`);
                 throw new InternalServerErrorException({
                     message: "Failed to save file",
-                    code: ResponseCode.FAILED_TO_SAVE_FILE
+                    code: ResponseCode.FAILED_TO_UPLOAD_FILE
                 });
             }
         }
@@ -95,7 +95,7 @@ export class LocalStorageService {
 
                 throw new InternalServerErrorException({
                     message: "Failed to save file",
-                    code: ResponseCode.FAILED_TO_SAVE_FILE
+                    code: ResponseCode.FAILED_TO_UPLOAD_FILE
                 });
             }
         }
