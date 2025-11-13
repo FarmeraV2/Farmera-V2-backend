@@ -22,7 +22,7 @@ import { CropManagementModule } from './modules/crop-management/crop-management.
 import { TwilioModule } from './core/twilio/twilio.module';
 import { FirebaseModule } from './core/firebase/firebase.module';
 import { NotificationModule } from './modules/notification/notification.module';
-import { FileStorageModule } from './modules/file-storage/file-storage.module';
+import { FileStorageModule } from './core/file-storage/file-storage.module';
 
 @Module({
     imports: [
