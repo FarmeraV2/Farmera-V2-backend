@@ -3,11 +3,13 @@ import {
     StorageSharedKeyCredential,
     BlobSASPermissions,
 } from '@azure/storage-blob';
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MediaGroupType } from '../enums/media-group-type.enum';
 import { generateFileName } from '../utils/file.util';
 import { ResponseCode } from 'src/common/constants/response-code.const';
+import { SIGNED_URL_EXP } from 'src/common/constants/constants';
+import { StoragePermission } from '../enums/storage-permission.enum';
 
 @Injectable()
 export class AzureBlobService {
@@ -179,14 +181,10 @@ export class AzureBlobService {
         return `${prefix}-${groupType.toLowerCase()}`;
     }
 
-    private parseAzureUrl(
-        url: string,
-    ): { containerName: string; blobName: string } | null {
+    private parseAzureUrl(url: string): { containerName: string; blobName: string } | null {
         try {
             const urlObj = new URL(url);
-            const pathParts = urlObj.pathname
-                .split('/')
-                .filter((part) => part.length > 0);
+            const pathParts = urlObj.pathname.split('/').filter((part) => part.length > 0);
 
             if (pathParts.length < 2) {
                 return null;
@@ -236,39 +234,42 @@ export class AzureBlobService {
     }
 
     // Generate SAS token for secure file access
-    async generateSasUrl(fileUrl: string, expiresInHours: number = 24): Promise<string> {
+    async generateSasUrl(fileUrl: string, permission: StoragePermission): Promise<string> {
         if (!this.blobServiceClient) {
             throw new InternalServerErrorException({
                 message: "Azure Storage is disabled",
                 code: ResponseCode.STORAGE_IS_DISABLED
             })
         }
+        const urlParts = this.parseAzureUrl(fileUrl);
+        if (!urlParts) {
+            throw new BadRequestException({
+                message: "Invalid Azure blob URL",
+                code: ResponseCode.FAILED_TO_GET_SIGNED_URL
+            })
+        }
 
         try {
-            const urlParts = this.parseAzureUrl(fileUrl);
-            if (!urlParts) {
-                throw new Error('Invalid Azure blob URL');
-            }
-
             const { containerName, blobName } = urlParts;
-            const containerClient =
-                this.blobServiceClient.getContainerClient(containerName);
+            const containerClient = this.blobServiceClient.getContainerClient(containerName);
             const blobClient = containerClient.getBlockBlobClient(blobName);
 
             // Generate SAS token for read access
             const sasOptions = {
-                permissions: BlobSASPermissions.parse('r'), // read permission
-                expiresOn: new Date(Date.now() + expiresInHours * 60 * 60 * 1000),
+                permissions: BlobSASPermissions.parse(
+                    permission === StoragePermission.READ ? 'r' : 'w'
+                ),
+                expiresOn: new Date(Date.now() + SIGNED_URL_EXP * 1000),
             };
 
             const sasUrl = await blobClient.generateSasUrl(sasOptions);
             return sasUrl;
         } catch (error) {
-            this.logger.error(
-                `Failed to generate SAS URL: ${error.message}`,
-                error.stack,
-            );
-            throw new Error(`Failed to generate SAS URL: ${error.message}`);
+            this.logger.error(`Failed to generate SAS url: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: "Failed to generate SAS url",
+                code: ResponseCode.FAILED_TO_GET_SIGNED_URL
+            })
         }
     }
 }
