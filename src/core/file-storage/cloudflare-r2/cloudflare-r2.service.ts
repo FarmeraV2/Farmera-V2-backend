@@ -32,7 +32,7 @@ export class CloudflareR2Service {
         })
     }
 
-    async getGetSignedUrl(key: string) {
+    async getGetSignedUrl(key: string): Promise<string> {
         if (!this.r2) {
             throw new InternalServerErrorException({
                 message: "R2 Storage is disabled",
@@ -55,7 +55,7 @@ export class CloudflareR2Service {
         }
     }
 
-    async getPutSignedUrl(key: string) {
+    async getPutSignedUrl(key: string): Promise<string> {
         if (!this.r2) {
             throw new InternalServerErrorException({
                 message: "R2 Storage is disabled",
