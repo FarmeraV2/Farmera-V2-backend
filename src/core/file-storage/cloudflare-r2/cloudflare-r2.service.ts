@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { S3 } from 'aws-sdk';
 import { SIGNED_URL_EXP } from 'src/common/constants/constants';
 import { ResponseCode } from 'src/common/constants/response-code.const';
+import { StoragePermission } from '../enums/storage-permission.enum';
 
 @Injectable()
 export class CloudflareR2Service {
@@ -32,7 +33,7 @@ export class CloudflareR2Service {
         })
     }
 
-    async getGetSignedUrl(key: string): Promise<string> {
+    async getSignedUrl(key: string, permission: StoragePermission): Promise<string> {
         if (!this.r2) {
             throw new InternalServerErrorException({
                 message: "R2 Storage is disabled",
@@ -40,11 +41,14 @@ export class CloudflareR2Service {
             })
         }
         try {
-            return await this.r2.getSignedUrlPromise("getObject", {
-                Bucket: this.bucketName,
-                Key: key,
-                Expires: SIGNED_URL_EXP,
-            });
+            return await this.r2.getSignedUrlPromise(
+                permission === StoragePermission.READ ? "getObject" : "putObject",
+                {
+                    Bucket: this.bucketName,
+                    Key: key,
+                    Expires: SIGNED_URL_EXP,
+                }
+            );
         }
         catch (error) {
             this.logger.error("Failed to get signed url: ", error.message);
@@ -54,28 +58,4 @@ export class CloudflareR2Service {
             })
         }
     }
-
-    async getPutSignedUrl(key: string): Promise<string> {
-        if (!this.r2) {
-            throw new InternalServerErrorException({
-                message: "R2 Storage is disabled",
-                code: ResponseCode.STORAGE_IS_DISABLED
-            })
-        }
-        try {
-            return await this.r2.getSignedUrlPromise("putObject", {
-                Bucket: this.bucketName,
-                Key: key,
-                Expires: SIGNED_URL_EXP,
-            });
-        }
-        catch (error) {
-            this.logger.error("Failed to get signed url: ", error.message);
-            throw new InternalServerErrorException({
-                message: "Failed to get signed url",
-                code: ResponseCode.FAILED_TO_GET_SIGNED_URL,
-            })
-        }
-    }
-
 }
