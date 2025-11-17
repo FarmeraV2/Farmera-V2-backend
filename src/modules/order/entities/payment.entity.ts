@@ -7,9 +7,6 @@ export class Payment {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @OneToOne(() => Order, (order) => order.payment)
-    order: Order;
-
     @Column({type : 'enum', enum: PaymentStatus, default: PaymentStatus.UNPAID})
     status: PaymentStatus;
 
@@ -19,11 +16,11 @@ export class Payment {
     @Column()
     total_amount: number;
 
-    @Column({ nullable: true })
-    qr_code: string; // ảnh qr code thanh toán lưu dưới dạng base64
+    @Column({ type: 'text', nullable: true })
+    qr_code: string | null; // ảnh qr code thanh toán lưu dưới dạng base64
 
-    @Column({ nullable: true })
-    checkout_url: string; // link ảnh thanh toán
+    @Column({ type: 'text', nullable: true })
+    checkout_url: string | null; // link ảnh thanh toán
 
     @Column({ nullable: true })
     transaction_id: string;
