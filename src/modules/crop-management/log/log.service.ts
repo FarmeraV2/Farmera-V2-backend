@@ -1,6 +1,6 @@
 import { HttpException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { QueryFailedError, Repository } from 'typeorm';
+import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { Log } from '../entities/log.entity';
 import { GetStepDto } from '../dtos/step/get-step.dto';
 import { AddLogDto } from '../dtos/log/add-log.dto';
@@ -13,6 +13,7 @@ import { PaginationTransform } from 'src/common/dtos/pagination/pagination-optio
 import { LogDto } from '../dtos/log/log.dto';
 import { applyPagination } from 'src/common/utils/pagination.util';
 import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
+import { BlockchainService } from 'src/services/blockchain.service';
 
 @Injectable()
 export class LogService {
@@ -21,21 +22,33 @@ export class LogService {
 
     constructor(
         @InjectRepository(Log) private readonly logRepository: Repository<Log>,
+        private readonly dataSource: DataSource,
+        private readonly blockchainService: BlockchainService,
     ) { }
 
     async addLog(seasonId: number, stepId: number, farmId: number, addLogDto: AddLogDto): Promise<Log> {
         try {
-            const newLog = this.logRepository.create({
-                ...addLogDto,
-                farm_id: farmId,
-                season_id: seasonId,
-                step_id: stepId,
-            })
-            const result = await this.logRepository.save(newLog);
+            let savedLog: Log;
 
-            // todo!("upload to blockchain")
+            await this.dataSource.transaction(async (transactionalEntityManager) => {
+                const newLog = this.logRepository.create({
+                    ...addLogDto,
+                    farm_id: farmId,
+                    season_id: seasonId,
+                    step_id: stepId,
+                });
 
-            return result;
+                savedLog = await transactionalEntityManager.save(newLog);
+
+                const trasaction = await this.blockchainService.addLog(savedLog);
+
+                await transactionalEntityManager.update(
+                    Log,
+                    { id: savedLog.id },
+                    { transaction_hash: trasaction.transactionHash })
+            });
+
+            return savedLog!;
         }
         catch (error) {
             if (error instanceof QueryFailedError) {
@@ -45,6 +58,21 @@ export class LogService {
             throw new InternalServerErrorException({
                 message: "Failed to add log",
                 code: ResponseCode.FAILED_TO_ADD_LOG
+            })
+        }
+    }
+
+    async getLog(logId: number) {
+        try {
+            return await this.logRepository.find({
+                where: { id: logId }
+            })
+        }
+        catch (error) {
+            this.logger.error("Failed to get log: ", error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to add log",
+                code: ResponseCode.FAILED_TO_GET_LOG
             })
         }
     }
@@ -62,7 +90,7 @@ export class LogService {
             this.logger.error("Failed to get logs: ", error.message);
             throw new InternalServerErrorException({
                 message: "Failed to add log",
-                code: ResponseCode.FAILED_TO_GET_LOGS
+                code: ResponseCode.FAILED_TO_GET_LOG
             })
         }
     }
@@ -99,7 +127,7 @@ export class LogService {
             this.logger.error("Failed to get logs: ", error.message);
             throw new InternalServerErrorException({
                 message: "Failed to add log",
-                code: ResponseCode.FAILED_TO_GET_LOGS
+                code: ResponseCode.FAILED_TO_GET_LOG
             })
         }
     }

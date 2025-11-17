@@ -13,12 +13,13 @@ import { StepController } from './step/step.controller';
 import { LogService } from './log/log.service';
 import { LogController } from './log/log.controller';
 import { Step } from './entities/step.entity';
+import { BlockchainService } from 'src/services/blockchain.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Plot, Season, SeasonDetail, Step, Log])
   ],
-  providers: [PlotService, SeasonService, StepService, LogService],
+  providers: [PlotService, SeasonService, StepService, LogService, BlockchainService],
   controllers: [PlotController, SeasonController, StepController, LogController]
 })
 export class CropManagementModule { }

@@ -1,0 +1,171 @@
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { plainToInstance } from "class-transformer";
+import { createHash } from "crypto";
+import { contractAbi } from "src/contracts/ProcessTracking";
+import { HashedLog } from "src/modules/crop-management/dtos/log/hashed-log.dto";
+import { SeasonDetailDto } from "src/modules/crop-management/dtos/step/season-detail.dto";
+import { Log } from "src/modules/crop-management/entities/log.entity";
+import { SeasonDetail } from "src/modules/crop-management/entities/season-detail.entity";
+import Web3 from "web3";
+
+export interface TransactionLog {
+    address: string;
+    topics: string[];
+    data: string;
+    blockHash: string;
+    blockNumber: bigint;
+    transactionHash: string;
+    transactionIndex: bigint;
+    logIndex: bigint;
+    removed: boolean;
+    returnValues?: Record<string, any>;
+    event?: string;
+    signature?: string;
+    raw?: {
+        data: string;
+        topics: string[];
+    };
+}
+
+export interface TransactionReceipt {
+    type: bigint;
+    status: bigint;
+    cumulativeGasUsed: bigint;
+    gasUsed: bigint;
+    effectiveGasPrice: bigint;
+    from: string;
+    to: string;
+    transactionHash: string;
+    transactionIndex: bigint;
+    blockHash: string;
+    blockNumber: bigint;
+    logsBloom: string;
+    logs: TransactionLog[];
+    events?: Record<string, TransactionLog>;
+}
+
+
+@Injectable()
+export class BlockchainService {
+
+    private readonly logger = new Logger(BlockchainService.name);
+    private readonly web3: Web3;
+    private readonly contract: any;
+
+    constructor(private readonly configService: ConfigService) {
+        const rpcUrl = this.configService.get<string>('RPC_URL');
+        const walletKey = this.configService.get<string>('WALLET_PRIVATE_KEY');
+        const contractAddress = this.configService.get<string>('CONTRACT_ADDRESS');
+
+        if (!rpcUrl || !walletKey || !contractAddress) {
+            this.logger.warn("Blockchain service configuration is missing, this service is disabled");
+            return;
+        }
+
+        this.web3 = new Web3(rpcUrl);
+        const account = this.web3.eth.accounts.privateKeyToAccount(walletKey);
+        this.web3.eth.accounts.wallet.add(account);
+        this.web3.eth.defaultAccount = account.address;
+
+        const abi = contractAbi;
+
+        this.contract = new this.web3.eth.Contract(abi, contractAddress);
+    }
+
+    async addLog(log: Log): Promise<TransactionReceipt> {
+        try {
+            const data = plainToInstance(HashedLog, log, { excludeExtraneousValues: true });
+            const hashedData = createHash('sha256').update(JSON.stringify(data)).digest('hex');
+
+            // todo!("handle gas spent");
+
+            return await this.contract.methods
+                .addLog(log.season_id, log.step_id, log.id, hashedData)
+                .send({ from: this.web3.eth.defaultAccount });
+
+        } catch (error) {
+            this.logger.error(error.message);
+            this.logger.error("Error name: ", error.cause.errorName);
+            throw new Error(error.message);
+        }
+    }
+
+    async addStep(step: SeasonDetail): Promise<TransactionReceipt> {
+        try {
+            const data = plainToInstance(SeasonDetailDto, step, { excludeExtraneousValues: true });
+            const hashedData = createHash('sha256').update(JSON.stringify(data)).digest('hex');
+
+            return await this.contract.methods
+                .add(step.season_id, step.step_id, hashedData)
+                .send({ from: this.web3.eth.defaultAccount });
+
+        } catch (error) {
+            this.logger.error(error.message);
+            this.logger.error("Error name: ", error.cause.errorName);
+            throw new Error(error.message);
+        }
+    }
+
+    async getHashedLog(logId: number): Promise<string> {
+        try {
+            return await this.contract.methods
+                .getLog(logId)
+                .call();
+
+        } catch (error) {
+            this.logger.error(error.message);
+            this.logger.error("Error name: ", error.cause.errorName);
+            throw new Error(error.message);
+        }
+    }
+
+    async getHashedLogs(seasonId: number, stepId: number): Promise<{ ids: number[], hashes: string[] }> {
+        try {
+            const result = await this.contract.methods
+                .getLogs(seasonId, stepId)
+                .call();
+
+            return {
+                ids: result[0].map((id: bigint | string) => Number(id)),
+                hashes: result[1],
+            }
+
+        } catch (error) {
+            this.logger.error(error.message);
+            this.logger.error("Error name: ", error.cause.errorName);
+            throw new Error(error.message);
+        }
+    }
+
+    async getStep(seasonId: number, stepId: number): Promise<string> {
+        try {
+            return await this.contract.methods
+                .getStep(seasonId, stepId)
+                .call();
+
+        } catch (error) {
+            this.logger.error(error.message);
+            this.logger.error("Error name: ", error.cause.errorName);
+            throw new Error(error.message);
+        }
+    }
+
+    async getSteps(seasonId: number): Promise<{ ids: number[], hashes: string[] }> {
+        try {
+            const result = await this.contract.methods
+                .getSteps(seasonId)
+                .call();
+
+            return {
+                ids: result[0].map((id: bigint | string) => Number(id)),
+                hashes: result[1],
+            }
+
+        } catch (error) {
+            this.logger.error(error.message);
+            this.logger.error("Error name: ", error.cause.errorName);
+            throw new Error(error.message);
+        }
+    }
+}
