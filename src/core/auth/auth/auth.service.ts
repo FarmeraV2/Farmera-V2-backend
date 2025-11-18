@@ -7,7 +7,7 @@ import { UserStatus } from 'src/modules/user/enums/user-status.enum';
 import { JsonWebTokenError, JwtService, TokenExpiredError } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
-import ms from 'ms';
+import ms, { StringValue } from 'ms';
 import { ForgotPasswordDto, UpdateNewPasswordDto } from '../dtos/forgot-password.dto';
 import { VerificationService } from '../verification/verification.service';
 import { FarmService } from 'src/modules/farm/farm/farm.service';
@@ -86,10 +86,7 @@ export class AuthService {
                     throw new UnauthorizedException('Your account is banned');
                 }
 
-                const accessToken = this.jwtService.sign(payload as object, {
-                    secret: this.configService.get<string>('JWT_ACCESS_TOKEN_SECRET'),
-                    expiresIn: this.configService.get<string>('JWT_ACCESS_TOKEN_EXPIRATION'),
-                });
+                const accessToken = this.jwtService.sign(payload);
 
                 const refreshToken = this.createRefreshToken({
                     ...(payload as Record<string, unknown>),
@@ -171,10 +168,7 @@ export class AuthService {
                     avatar: user.avatar,
                 };
 
-                const newAccessToken = this.jwtService.sign(payload, {
-                    secret: this.configService.get<string>('JWT_ACCESS_TOKEN_SECRET'),
-                    expiresIn: this.configService.get<string>('JWT_ACCESS_TOKEN_EXPIRATION'),
-                });
+                const newAccessToken = this.jwtService.sign(payload);
 
                 const newRefreshToken = this.createRefreshToken({
                     ...payload,
@@ -267,8 +261,7 @@ export class AuthService {
     #########################################################################*/
     private createRefreshToken(payload: Record<string, string | number | boolean | object | undefined | null | Array<any>>) {
         const refreshToken = this.jwtService.sign(payload, {
-            secret: this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
-            expiresIn: this.configService.get<string>('JWT_REFRESH_TOKEN_EXPIRATION'),
+            expiresIn: this.configService.get<StringValue>('JWT_REFRESH_TOKEN_EXPIRATION'),
         });
 
         return refreshToken;

@@ -6,7 +6,7 @@ import { UserModule } from './modules/user/user.module';
 import { RedisModule } from './core/redis/redis.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { typeOrmAsyncConfig } from './config/typeorm.config';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { APP_GUARD, RouterModule } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -23,6 +23,7 @@ import { TwilioModule } from './core/twilio/twilio.module';
 import { FirebaseModule } from './core/firebase/firebase.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { FileStorageModule } from './core/file-storage/file-storage.module';
+import { StringValue } from 'ms';
 
 @Module({
     imports: [
@@ -37,11 +38,11 @@ import { FileStorageModule } from './core/file-storage/file-storage.module';
         // JWT configuration
         JwtModule.registerAsync({
             global: true,
-            inject: [],
-            useFactory: () => ({
-                secret: process.env.JWT_ACCESS_TOKEN_SECRET || 'fallback_secret',
+            inject: [ConfigService],
+            useFactory: async (configService: ConfigService) => ({
+                secret: configService.get<string>("JWT_ACCESS_TOKEN_SECRET") || 'fallback_secret',
                 signOptions: {
-                    expiresIn: process.env.JWT_ACCESS_TOKEN_EXPIRATION || '15m',
+                    expiresIn: configService.get<StringValue>("JWT_ACCESS_TOKEN_EXPIRATION") || '15m',
                 },
             }),
         }),
