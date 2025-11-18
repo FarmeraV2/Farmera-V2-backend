@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository, SelectQueryBuilder } from 'typeorm';
 import { Step } from '../entities/step.entity';
@@ -17,6 +17,8 @@ import { CreateStepDto } from '../dtos/step/create-step.dto';
 import { ListStepDto } from '../dtos/step/list-step.dto';
 import { StepSortFields } from '../enums/step-sort-fields.enum';
 import { Order } from 'src/common/enums/pagination.enum';
+import { BlockchainService } from 'src/services/blockchain.service';
+import { SeasonDetailDto } from '../dtos/step/season-detail.dto';
 
 @Injectable()
 export class StepService {
@@ -25,7 +27,8 @@ export class StepService {
 
     constructor(
         @InjectRepository(SeasonDetail) private readonly seasonDetailRepository: Repository<SeasonDetail>,
-        @InjectRepository(Step) private readonly stepRepository: Repository<Step>
+        @InjectRepository(Step) private readonly stepRepository: Repository<Step>,
+        private readonly blockchainService: BlockchainService,
     ) { }
 
     async addStep(seasonId: number, addStepDto: addStepDto): Promise<StepDto> {
@@ -184,6 +187,77 @@ export class StepService {
             throw new InternalServerErrorException({
                 message: "Failed to get steps",
                 code: ResponseCode.FAILED_TO_GET_STEPS
+            })
+        }
+    }
+
+    async getStep(seasonId: number, stepId: number): Promise<SeasonDetail> {
+        try {
+            const result = await this.seasonDetailRepository.findOne({
+                where: { season_id: seasonId, step_id: stepId }
+            });
+            if (!result) {
+                throw new NotFoundException({
+                    message: "Failed to get step",
+                    code: ResponseCode.FAILED_TO_GET_STEP
+                })
+            }
+            return result;
+        }
+        catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error("Failed to get step: ", error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to get step",
+                code: ResponseCode.FAILED_TO_GET_STEP
+            })
+        }
+    }
+
+    async verifyStep(seasonId: number, stepId: number): Promise<boolean> {
+        try {
+            const step = await this.seasonDetailRepository.findOne({ where: { season_id: seasonId, step_id: stepId } })
+            if (!step) {
+                throw new NotFoundException({
+                    message: "Step not found",
+                    code: ResponseCode.STEP_NOT_FOUND,
+                })
+            }
+            if (!step.transaction_hash) {
+                throw new BadRequestException({
+                    message: "Step is not uploaded to blockchain",
+                    code: ResponseCode.STEP_IS_NOT_UPLOADED,
+                })
+            }
+            const hashedData = this.blockchainService.hashData(SeasonDetailDto, step);
+
+            const blockchainHash = await this.blockchainService.getStep(seasonId, stepId);
+            return hashedData === blockchainHash;
+        }
+        catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error("Failed to verify step: ", error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to verify step",
+                code: ResponseCode.PREVIOUS_VERIFY_STEP
+            })
+        }
+    }
+
+    async updateTransactionHash(seasonId: number, stepId: number, transactionHash: string): Promise<boolean> {
+        try {
+            const result = await this.seasonDetailRepository.update(
+                { season_id: seasonId, step_id: stepId },
+                { transaction_hash: transactionHash })
+            if (result && result.affected && result.affected > 0) {
+                return true;
+            }
+            throw new InternalServerErrorException()
+        }
+        catch (error) {
+            throw new InternalServerErrorException({
+                message: "Failed to update step transaction hash",
+                code: ResponseCode.FAILED_TO_UPDATE_STEP
             })
         }
     }

@@ -54,4 +54,7 @@ export class Log {
 
     @Column()
     farm_id: number;
+
+    //
+    verified: boolean = false;
 }

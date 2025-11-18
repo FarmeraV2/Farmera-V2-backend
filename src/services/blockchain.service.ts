@@ -75,8 +75,7 @@ export class BlockchainService {
 
     async addLog(log: Log): Promise<TransactionReceipt> {
         try {
-            const data = plainToInstance(HashedLog, log, { excludeExtraneousValues: true });
-            const hashedData = createHash('sha256').update(JSON.stringify(data)).digest('hex');
+            const hashedData = this.hashData(HashedLog, log);
 
             // todo!("handle gas spent");
 
@@ -93,11 +92,10 @@ export class BlockchainService {
 
     async addStep(step: SeasonDetail): Promise<TransactionReceipt> {
         try {
-            const data = plainToInstance(SeasonDetailDto, step, { excludeExtraneousValues: true });
-            const hashedData = createHash('sha256').update(JSON.stringify(data)).digest('hex');
+            const hashedData = this.hashData(SeasonDetailDto, step);
 
             return await this.contract.methods
-                .add(step.season_id, step.step_id, hashedData)
+                .addStep(step.season_id, step.step_id, hashedData)
                 .send({ from: this.web3.eth.defaultAccount });
 
         } catch (error) {
@@ -120,20 +118,22 @@ export class BlockchainService {
         }
     }
 
-    async getHashedLogs(seasonId: number, stepId: number): Promise<{ ids: number[], hashes: string[] }> {
+    async getHashedLogs(seasonId: number, stepId: number): Promise<{ id: number, hash: string }[]> {
         try {
             const result = await this.contract.methods
                 .getLogs(seasonId, stepId)
                 .call();
 
-            return {
-                ids: result[0].map((id: bigint | string) => Number(id)),
-                hashes: result[1],
-            }
+            const ids = result[0].map((id: bigint | string) => Number(id));
+            const hashes = result[1];
+
+            return ids.map((id: number, index: number) => ({
+                id,
+                hash: hashes[index],
+            }));
 
         } catch (error) {
             this.logger.error(error.message);
-            this.logger.error("Error name: ", error.cause.errorName);
             throw new Error(error.message);
         }
     }
@@ -167,5 +167,12 @@ export class BlockchainService {
             this.logger.error("Error name: ", error.cause.errorName);
             throw new Error(error.message);
         }
+    }
+
+    hashData<T>(cls: new () => T, data: unknown): string {
+        const instance = plainToInstance(cls, data, { excludeExtraneousValues: true });
+        return createHash('sha256')
+            .update(JSON.stringify(instance))
+            .digest('hex');
     }
 }

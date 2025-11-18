@@ -46,8 +46,14 @@ export class SeasonController {
     }
 
     @Public()
+    @Get(":seasonId/step/:stepId/verify")
+    async verifyStep(@Param("seasonId") seasonId: number, @Param("stepId") stepId: number) {
+        return await this.seasonService.verifyStep(seasonId, stepId);
+    }
+
+    @Public()
     @Get(":seasonId/step/:stepId/log")
-    async getLogs(@Param("searsonId") seasonId: number, @Param("stepId") stepId: number) {
+    async getLogs(@Param("seasonId") seasonId: number, @Param("stepId") stepId: number) {
         return await this.seasonService.getLogs(seasonId, stepId);
     }
 

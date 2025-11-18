@@ -25,6 +25,9 @@ export class SeasonDetail {
     @UpdateDateColumn({ type: "timestamptz" })
     updated: Date;
 
+    @Column({ nullable: true })
+    transaction_hash?: string;
+
     @ManyToOne(() => Season, (season) => season.season_details)
     @JoinColumn({ name: "season_id" })
     season: Season;
