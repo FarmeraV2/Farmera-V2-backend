@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, IsUUID, ValidateNested } from 'class-validator';
+import { IsArray, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString, ValidateNested } from 'class-validator';
 import { PaymentMethod } from '../enums/payment.enum';
 
 export class CreateOrderItemDto {
@@ -17,8 +17,9 @@ export class CreateOrderItemDto {
 }
 
 export class CreateSingleOrderDto {
-    @IsUUID()
-    farm_id: string;
+    @IsInt()
+    @IsPositive()
+    farm_id: number;
 
     @IsArray()
     @ValidateNested({ each: true })

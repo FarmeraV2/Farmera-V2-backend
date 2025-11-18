@@ -66,7 +66,7 @@ export class Product {
     qr_code?: string;
 
     @ManyToOne(() => Farm)
-    @JoinColumn({ name: 'farm_id' })
+    @JoinColumn({ name: 'id' })
     farm: Farm;
 
     @Column()

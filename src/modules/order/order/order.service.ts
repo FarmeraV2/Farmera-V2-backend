@@ -206,7 +206,7 @@ export class OrderService {
                     const product = await this.productRepository.findOne({
                         where: { 
                             product_id: item.product_id,
-                            farm: { farm_id: farm_id }
+                            farm_id: farm_id
                         },
                         relations: ['farm']
                     });
@@ -245,7 +245,7 @@ export class OrderService {
                 // Tạo Order
                 const order = queryRunner.manager.create(Order, {
                     cus_id: userId,
-                    farm_id: farm_id,
+                    store_id: farm_id,
                     shipping_fee: shipping_fee,
                     total_amount: finalOrderAmount,
                     status: OrderStatus.PENDING_CONFIRMATION,
@@ -376,4 +376,78 @@ export class OrderService {
         // Có thể tích hợp với API vận chuyển (GHN, GHTK, etc.)
         return 30000; // Default shipping fee
     }
+    
+    async getOrdersForFarmer(farmerId: number, queryDto: GetMyOrdersDto): Promise<{ data: Order[]; meta: PaginationMeta }> {
+        const {
+            status,
+            sort_by = OrderSortField.CREATED,
+            order = 'DESC',
+            page = 1,
+            limit = 10,
+            start_date,
+            end_date,
+        } = queryDto;
+        const whereConditions: FindOptionsWhere<Order> = {
+            store_id: farmerId,
+        };
+        
+        if (status) {
+            whereConditions['status'] = status;
+        }
+        
+        if (start_date && end_date) {
+            whereConditions.created = Between(
+                new Date(`${start_date}T00:00:00.000Z`),
+                new Date(`${end_date}T23:59:59.999Z`)
+            );
+        } else if (start_date) {
+            whereConditions.created = Between(
+                new Date(`${start_date}T00:00:00.000Z`),
+                new Date()
+            );
+        }
+        
+        const orderBy: Record<string, 'ASC' | 'DESC'> = {};
+        switch (sort_by) {
+            case OrderSortField.CREATED:
+                orderBy['created'] = order;
+                break;
+            case OrderSortField.UPDATED:
+                orderBy['updated'] = order;
+                break;
+            case OrderSortField.TOTAL_AMOUNT:
+                orderBy['total_amount'] = order;
+                break;
+            case OrderSortField.STATUS:
+                orderBy['status'] = order;
+                break;
+            default:
+                orderBy['created'] = 'DESC';
+        }
+        
+        const skip: number = (page - 1) * limit;
+    
+        const [orders, totalItems]: [Order[], number] = await this.orderRepository.findAndCount({
+            where: whereConditions,
+            relations:[
+                'order_details',
+                'order_details.product',
+                'order_details.product.farm',
+                'payment',
+                'delivery',
+                'farm'
+            ],
+            order: orderBy,
+            skip: skip,
+            take: limit,
+        });
+        
+        const meta: PaginationMeta = new PaginationMeta({
+            paginationOptions: queryDto,
+            totalItems,
+        });
+        
+        return { data: orders, meta };
+    }
+
 }
