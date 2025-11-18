@@ -22,6 +22,7 @@ import { CropManagementModule } from './modules/crop-management/crop-management.
 import { TwilioModule } from './core/twilio/twilio.module';
 import { FirebaseModule } from './core/firebase/firebase.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { FileStorageModule } from './core/file-storage/file-storage.module';
 
 @Module({
     imports: [
@@ -78,6 +79,7 @@ import { NotificationModule } from './modules/notification/notification.module';
                 module: CropManagementModule
             }
         ]),
+        FileStorageModule,
     ],
     controllers: [AppController],
     providers: [
