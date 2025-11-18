@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Query } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { LogService } from './log.service';
 import { Roles } from 'src/common/decorators/role.decorator';
 import { UserRole } from 'src/common/enums/role.enum';
@@ -13,5 +13,10 @@ export class LogController {
     @Get()
     async getLogs(@Query() listLogDto: ListLogDto) {
         return await this.logService.listLogs(listLogDto);
+    }
+
+    @Get(":id")
+    async getLog(@Param("id") id: number) {
+        return await this.logService.getLog(id);
     }
 }

@@ -1,8 +1,7 @@
-import { HttpException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { QueryFailedError, Repository } from 'typeorm';
+import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { Log } from '../entities/log.entity';
-import { GetStepDto } from '../dtos/step/get-step.dto';
 import { AddLogDto } from '../dtos/log/add-log.dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { TriggerException } from 'src/database/utils/trigger.exception';
@@ -13,6 +12,11 @@ import { PaginationTransform } from 'src/common/dtos/pagination/pagination-optio
 import { LogDto } from '../dtos/log/log.dto';
 import { applyPagination } from 'src/common/utils/pagination.util';
 import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
+import { BlockchainService } from 'src/services/blockchain.service';
+import { HashedLog } from '../dtos/log/hashed-log.dto';
+import { LogType } from '../enums/log-type.enum';
+import { StepService } from '../step/step.service';
+import { SeasonDetail } from '../entities/season-detail.entity';
 
 @Injectable()
 export class LogService {
@@ -21,21 +25,48 @@ export class LogService {
 
     constructor(
         @InjectRepository(Log) private readonly logRepository: Repository<Log>,
+        private readonly dataSource: DataSource,
+        private readonly blockchainService: BlockchainService,
+        private readonly stepService: StepService,
     ) { }
 
     async addLog(seasonId: number, stepId: number, farmId: number, addLogDto: AddLogDto): Promise<Log> {
         try {
-            const newLog = this.logRepository.create({
-                ...addLogDto,
-                farm_id: farmId,
-                season_id: seasonId,
-                step_id: stepId,
-            })
-            const result = await this.logRepository.save(newLog);
+            let savedLog: Log | undefined;
 
-            // todo!("upload to blockchain")
+            await this.dataSource.transaction(async (transactionalEntityManager) => {
+                const newLog = this.logRepository.create({
+                    ...addLogDto,
+                    farm_id: farmId,
+                    season_id: seasonId,
+                    step_id: stepId,
+                });
 
-            return result;
+                savedLog = await transactionalEntityManager.save(newLog);
+
+                const trasaction = await this.blockchainService.addLog(savedLog);
+
+                await transactionalEntityManager.update(
+                    Log,
+                    { id: savedLog.id },
+                    { transaction_hash: trasaction.transactionHash })
+
+                savedLog.transaction_hash = trasaction.transactionHash;
+                savedLog.verified = trasaction.transactionHash ? true : false;
+            });
+
+            if (!savedLog) {
+                throw new InternalServerErrorException();
+            }
+
+            // upload step to blockchain if this is the last step
+            if (savedLog.type === LogType.DONE) {
+                const step = await this.stepService.getStep(seasonId, stepId);
+                const transaction = await this.blockchainService.addStep(step);
+                await this.stepService.updateTransactionHash(step.season_id, step.step_id, transaction.transactionHash);
+            }
+
+            return savedLog;
         }
         catch (error) {
             if (error instanceof QueryFailedError) {
@@ -49,20 +80,45 @@ export class LogService {
         }
     }
 
-    async getLogs(seasonId: number, stepId: number): Promise<Log[]> {
+    async getLog(logId: number) {
         try {
             return await this.logRepository.find({
+                where: { id: logId }
+            })
+        }
+        catch (error) {
+            this.logger.error("Failed to get log: ", error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to add log",
+                code: ResponseCode.FAILED_TO_GET_LOG
+            })
+        }
+    }
+
+    async getLogs(seasonId: number, stepId: number): Promise<Log[]> {
+        try {
+            const logs = await this.logRepository.find({
                 where: {
                     season_id: seasonId,
                     step_id: stepId,
                 }
+            });
+            const hashedLogs = await this.blockchainService.getHashedLogs(seasonId, stepId);
+
+            hashedLogs.map((data) => {
+                const log = logs.find((log) => log.id === data.id);
+                if (log) {
+                    log.verified = this.blockchainService.hashData(HashedLog, log) === data.hash;
+                }
             })
+
+            return logs;
         }
         catch (error) {
             this.logger.error("Failed to get logs: ", error.message);
             throw new InternalServerErrorException({
                 message: "Failed to add log",
-                code: ResponseCode.FAILED_TO_GET_LOGS
+                code: ResponseCode.FAILED_TO_GET_LOG
             })
         }
     }
@@ -99,7 +155,7 @@ export class LogService {
             this.logger.error("Failed to get logs: ", error.message);
             throw new InternalServerErrorException({
                 message: "Failed to add log",
-                code: ResponseCode.FAILED_TO_GET_LOGS
+                code: ResponseCode.FAILED_TO_GET_LOG
             })
         }
     }

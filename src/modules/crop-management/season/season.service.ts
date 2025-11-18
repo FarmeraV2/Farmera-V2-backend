@@ -121,6 +121,10 @@ export class SeasonService {
         return await this.stepService.getSteps(seasonId, getStepDto);
     }
 
+    async verifyStep(seasonId: number, stepId: number): Promise<boolean> {
+        return await this.stepService.verifyStep(seasonId, stepId);
+    }
+
     async getLogs(seasonId: number, stepId: number): Promise<Log[]> {
         return await this.logService.getLogs(seasonId, stepId);
     }
