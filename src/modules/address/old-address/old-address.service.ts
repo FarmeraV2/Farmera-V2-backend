@@ -31,7 +31,7 @@ export class OldAddressService {
     }
 
     async onApplicationBootstrap() {
-        await this.importAddresses();
+        // await this.importAddresses();
     }
 
     private async importAddresses() {

@@ -10,9 +10,6 @@ export class OldWard {
     name: string;
 
     @Column()
-    codename: string;
-
-    @Column()
     division_type: string;
 
     @ManyToOne(() => OldDistrict, (district) => district.wards, { nullable: true })
@@ -21,4 +18,7 @@ export class OldWard {
 
     @Column({ nullable: true })
     district_code?: number;
+
+    @Column({ nullable: true })
+    ghn_code?: number;
 }

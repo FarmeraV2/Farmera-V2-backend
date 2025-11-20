@@ -11,9 +11,6 @@ export class OldDistrict {
     name: string;
 
     @Column()
-    codename: string;
-
-    @Column()
     division_type: string
 
     @ManyToOne(() => OldProvince, (province) => province.districts)
@@ -25,4 +22,7 @@ export class OldDistrict {
 
     @OneToMany(() => OldWard, (ward) => ward.district, { nullable: true, cascade: true })
     wards?: OldWard[]
+
+    @Column({ nullable: true })
+    ghn_code?: number;
 }
