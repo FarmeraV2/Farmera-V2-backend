@@ -24,5 +24,5 @@ export class OldDistrict {
     wards?: OldWard[]
 
     @Column({ nullable: true })
-    ghn_code?: number;
+    ghn_code?: string;
 }

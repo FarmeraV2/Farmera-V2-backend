@@ -20,5 +20,5 @@ export class OldWard {
     district_code?: number;
 
     @Column({ nullable: true })
-    ghn_code?: number;
+    ghn_code?: string;
 }

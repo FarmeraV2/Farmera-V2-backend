@@ -19,5 +19,5 @@ export class OldProvince {
     districts: OldDistrict[];
 
     @Column({ nullable: true })
-    ghn_code?: number;
+    ghn_code?: string;
 }

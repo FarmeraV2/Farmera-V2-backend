@@ -19,5 +19,5 @@ export class Province {
     wards: Ward[];
 
     @Column({ nullable: true })
-    ghn_code?: number;
+    ghn_code?: string;
 }
