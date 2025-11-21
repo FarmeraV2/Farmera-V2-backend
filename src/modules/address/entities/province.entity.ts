@@ -9,15 +9,15 @@ export class Province {
     @Column()
     name: string;
 
-    @Column({default: ''})
+    @Column()
     division_type: string;
 
-    @Column({default: ''})
-    codename: string;
-
-    @Column({nullable: true})
+    @Column()
     phone_code: number;
 
     @OneToMany(() => Ward, (ward) => ward.province, { cascade: true })
     wards: Ward[];
+
+    @Column({ nullable: true })
+    ghn_code?: string;
 }

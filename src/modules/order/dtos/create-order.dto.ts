@@ -35,10 +35,7 @@ export class CreateSingleOrderDto {
     shipping_fee: number;
     
     
-    @IsOptional()
-    @IsInt()
-    @IsPositive()
-    delivery_address_id: number;
+    
 }
 
 export class CreateBathOrderDto {
@@ -49,4 +46,9 @@ export class CreateBathOrderDto {
     
     @IsEnum(PaymentMethod)
     payment_method: PaymentMethod;
+    
+    @IsOptional()
+    @IsInt()
+    @IsPositive()
+    delivery_address_id: number;
 }

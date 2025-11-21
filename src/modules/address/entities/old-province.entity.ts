@@ -9,15 +9,15 @@ export class OldProvince {
     @Column()
     name: string;
 
-    @Column({nullable: true})
+    @Column()
     phone_code: number;
 
-    @Column({default: ''})
+    @Column()
     division_type: string;
-
-    @Column({default: ''})
-    codename: string;
 
     @OneToMany(() => OldDistrict, (district) => district.province, { cascade: true })
     districts: OldDistrict[];
+
+    @Column({ nullable: true })
+    ghn_code?: string;
 }

@@ -31,7 +31,7 @@ export class AddressService {
     }
 
     async onApplicationBootstrap() {
-        await this.importAddresses();
+        // await this.importAddresses();
     }
 
     private async importAddresses() {

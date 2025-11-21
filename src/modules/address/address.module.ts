@@ -14,8 +14,6 @@ import { OldDistrict } from './entities/old-district.entity';
 import { OldWard } from './entities/old-ward.entity';
 import { OldAddressService } from './old-address/old-address.service';
 import { OldAddressController } from './old-address/old-address.controller';
-import { GHNService } from './ghn/ghn.service';
-import { GHNController } from './ghn/ghn.controller';
 
 @Module({
     imports: [
@@ -23,9 +21,8 @@ import { GHNController } from './ghn/ghn.controller';
         HttpModule,
         ConfigModule
     ],
-    providers: [AddressService, DeliveryAddressService, OldAddressService, GHNService],
-    controllers: [AddressController, DeliveryAddressController, OldAddressController, GHNController],
+    providers: [AddressService, DeliveryAddressService, OldAddressService],
+    controllers: [AddressController, DeliveryAddressController, OldAddressController],
     exports: [DeliveryAddressService],
 })
 export class AddressModule { }
-    

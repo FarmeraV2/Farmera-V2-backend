@@ -13,6 +13,7 @@ import { Product } from 'src/modules/product/entities/product.entity';
 import { OrderStatus } from '../enums/order-status.enum';
 import { PaymentMethod, PaymentStatus } from '../enums/payment.enum';
 import { PaymentService } from 'src/modules/payment/payment/payment.service';
+import { DeliveryAddressService } from 'src/modules/address/delivery-address/delivery-address.service';
 
 @Injectable()
 export class OrderService {
@@ -29,6 +30,7 @@ export class OrderService {
         private readonly productRepository: Repository<Product>,
         private readonly dataSource: DataSource,
         private readonly paymentService: PaymentService,
+        private readonly deliveryAddressService: DeliveryAddressService,
     ) {}
     
     async getOrdersByUserId(userId: number, queryDto: GetMyOrdersDto): Promise<{ data: Order[]; meta: PaginationMeta }> {
@@ -153,16 +155,38 @@ export class OrderService {
         await queryRunner.startTransaction();
         
         try {
-            const { orders: orderDtos, payment_method } = createBathOrderDto;
+            const { orders: orderDtos, payment_method, delivery_address_id } = createBathOrderDto;
             const createdOrders: Order[] = [];
             let grandTotal = 0;
             
             // Validate input data
             if (!orderDtos || orderDtos.length === 0) {
-                throw new BadRequestException('No orders provided');
+                throw new BadRequestException({
+                    message: 'No orders provided',
+                    code: ResponseCode.INVALID_ORDER_DATA || 'INVALID_ORDER_DATA'
+                });
             }
             
-            // Tạo Payment record chung
+            // validate delivery address
+            if (!delivery_address_id) {
+                throw new BadRequestException({
+                    message: 'Delivery address ID is required',
+                    code: ResponseCode.INVALID_ORDER_DATA || 'INVALID_ORDER_DATA'
+                });
+            }
+
+            const deliveryAddress = await this.deliveryAddressService.getAddressById(delivery_address_id, userId);
+            
+
+            if (!deliveryAddress) {
+                throw new NotFoundException({
+                    message: 'Delivery address not found',
+                    code: ResponseCode.DELIVERY_ADDRESS_NOT_FOUND || 'DELIVERY_ADDRESS_NOT_FOUND'
+                });
+            }
+
+            
+            // Tạo Payment record chung (PAYOS)
             let paymentStatus = PaymentStatus.UNPAID;
             if (payment_method === PaymentMethod.PAYOS) {
                 paymentStatus = PaymentStatus.PENDING;
@@ -181,11 +205,14 @@ export class OrderService {
             
             // Xử lý từng order
             for (const [index, orderDto] of orderDtos.entries()) {
-                const { farm_id, items, delivery_note, shipping_fee, delivery_address_id } = orderDto;
+                const { farm_id, items, delivery_note, shipping_fee } = orderDto;
                 
                 // Validate required fields
                 if (!farm_id || !items?.length || !delivery_address_id) {
-                    throw new BadRequestException(`Missing required fields in order ${index + 1}`);
+                    throw new BadRequestException({
+                        message: `Missing required fields in order ${index + 1}`,
+                        code: ResponseCode.INVALID_ORDER_DATA || 'INVALID_ORDER_DATA'
+                    });
                 }
                 
                 let orderTotal = 0;
@@ -200,7 +227,10 @@ export class OrderService {
                 // Xử lý từng item trong order
                 for (const item of items) {
                     if (!item.product_id || !item.quantity) {
-                        throw new BadRequestException(`Invalid item data in order ${index + 1}`);
+                        throw new BadRequestException({
+                            message: `Invalid item data in order ${index + 1}`,
+                            code: ResponseCode.INVALID_ORDER_DATA || 'INVALID_ORDER_DATA'
+                        });
                     }
                     
                     const product = await this.productRepository.findOne({

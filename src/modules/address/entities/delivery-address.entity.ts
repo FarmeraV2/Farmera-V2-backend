@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Province } from 'src/modules/address/entities/province.entity';
 import { Ward } from 'src/modules/address/entities/ward.entity';
 import { AddressType } from '../enums/address-type.enums';
@@ -8,6 +8,7 @@ import { Exclude } from 'class-transformer';
 import { OldProvince } from './old-province.entity';
 import { OldWard } from './old-ward.entity';
 import { OldDistrict } from './old-district.entity';
+import { Order } from 'src/modules/order/entities/order.entity';
 
 @Entity()
 export class DeliveryAddress {
@@ -86,4 +87,7 @@ export class DeliveryAddress {
 
     @OneToOne(() => Farm, (farm) => farm.address, { nullable: true })
     farm?: Farm;
+    
+    @OneToMany(() => Order, (order) => order.delivery_address, {cascade: true})
+    orders: Order[];
 }

@@ -5,6 +5,7 @@ import { OrderStatus } from '../enums/order-status.enum';
 import { Payment } from './payment.entity';
 import { Delivery } from './delivery.entity';
 import { OrderDetail } from './order_detail.entity';
+import { DeliveryAddress } from 'src/modules/address/entities/delivery-address.entity';
 
 @Entity()
 export class Order {
@@ -47,6 +48,13 @@ export class Order {
 
     @Column({ nullable: true })
     payment_id: number;
+    
+    @ManyToOne(() => DeliveryAddress, (delivery_address) => delivery_address.orders)
+    @JoinColumn({ name: 'address_id' })
+    delivery_address: DeliveryAddress;
+
+    @Column({ nullable: true })
+    delivery_address_id: number;
     
     @OneToOne(() => Delivery, (delivery) => delivery.order, { nullable: true })
     delivery?: Delivery;

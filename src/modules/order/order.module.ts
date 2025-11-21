@@ -9,6 +9,7 @@ import { OrderDetail } from './entities/order_detail.entity';
 import { Product } from '../product/entities/product.entity';
 import { PaymentModule } from '../payment/payment.module';
 import { FarmModule } from '../farm/farm.module';
+import { AddressModule } from '../address/address.module';
 
 @Module({
     imports: [
@@ -21,6 +22,7 @@ import { FarmModule } from '../farm/farm.module';
         ]),
         PaymentModule,
         FarmModule,
+        AddressModule,
     ],
     providers: [OrderService],
     controllers: [OrderController],
