@@ -16,6 +16,7 @@ USER node
 FROM node:24-alpine AS production
 WORKDIR /usr/app
 
+RUN mkdir -p /usr/app/uploads/temp && chown -R node:node /usr/app/uploads
 COPY --chown=node:node package*.json ./
 COPY --chown=node:node --from=builder /usr/app/node_modules ./node_modules
 COPY --chown=node:node --from=builder /usr/app/dist ./dist
