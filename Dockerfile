@@ -17,7 +17,7 @@ WORKDIR /usr/app
 RUN mkdir -p /usr/app/uploads/temp \
     && chown -R node:node /usr/app/uploads
 COPY --chown=node:node package*.json ./
-RUN npm ci
+RUN npm ci --only=production && npm cache clean --force
 
 COPY --chown=node:node --from=builder /usr/app/dist ./dist
 
