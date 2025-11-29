@@ -78,6 +78,10 @@ import { StringValue } from 'ms';
             {
                 path: "crop-management",
                 module: CropManagementModule
+            },
+            {
+                path: "admin",
+                module: AdminModule
             }
         ]),
         FileStorageModule,

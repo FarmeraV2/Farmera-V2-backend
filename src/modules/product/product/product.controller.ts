@@ -43,6 +43,7 @@ export class ProductController {
     }
 
     @Public()
+    @Get()
     async searchAndFilterProducts(@Query() searchProductsDTo: SearchProductsDto) {
         return await this.productService.searchAndFilterProducts(searchProductsDTo);
     }
