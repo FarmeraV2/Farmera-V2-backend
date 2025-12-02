@@ -1,3 +1,4 @@
+import { CheckStatus } from 'src/core/twilio/enums/check-status.enum';
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity({ name: 'verifications' })
@@ -22,6 +23,9 @@ export class Verification {
 
     @Column({ default: 0 })
     phone_code_count: number;
+
+    @Column({ type: 'enum', enum: CheckStatus, enumName: "check_status", default: CheckStatus.PENDING })
+    status: CheckStatus;
 
     @CreateDateColumn({ type: 'timestamptz' })
     created_at: Date;

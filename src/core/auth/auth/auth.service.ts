@@ -14,6 +14,7 @@ import { FarmService } from 'src/modules/farm/farm/farm.service';
 import { UserRole } from 'src/common/enums/role.enum';
 import { CheckStatus } from 'src/core/twilio/enums/check-status.enum';
 import { PreferenceChannelService } from 'src/modules/notification/preference-channel/preference-channel.service';
+import { ResponseCode } from 'src/common/constants/response-code.const';
 
 export const REFRESH_TOKEN_COOKIES_KEY = 'refresh_token';
 
@@ -31,25 +32,34 @@ export class AuthService {
     ) { }
 
     async register(registerDto: CreateUserDto): Promise<UserDto> {
-        const user = await this.userService.createUser(registerDto);
+        try {
+            await this.verificationService.checkVerify(registerDto.email, registerDto.phone);
+            const user = await this.userService.createUser(registerDto);
 
-        // register notification
-        setTimeout(() => {
-            void (async () => {
-                try {
-                    const result = await this.preferenceChannelService.registerNotificationChannel(user.id);
-                    if (result.length > 0) {
-                        this.logger.log(`Notification preference is registered for user id ${user.id}`)
-                    } else {
-                        this.logger.error("Register notification preference return 0 result");
+            // register notification
+            setTimeout(() => {
+                void (async () => {
+                    try {
+                        const result = await this.preferenceChannelService.registerNotificationChannel(user.id);
+                        if (result.length > 0) {
+                            this.logger.log(`Notification preference is registered for user id ${user.id}`)
+                        } else {
+                            this.logger.error("Register notification preference return 0 result");
+                        }
+                    } catch (error) {
+                        this.logger.error("Failed to register user notification preference");
                     }
-                } catch (error) {
-                    this.logger.error("Failed to register user notification preference");
-                }
-            })();
-        }, 0);
+                })();
+            }, 0);
 
-        return user;
+            return user;
+        } catch (error) {
+            if (error instanceof HttpException) throw error;
+            throw new InternalServerErrorException({
+                message: "Failed to register user",
+                code: ResponseCode.FAILED_TO_REGISTER_USER,
+            })
+        }
     }
 
     /**

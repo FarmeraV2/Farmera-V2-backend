@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Verification } from '../entities/verification.entity';
@@ -7,6 +7,8 @@ import { Cron } from '@nestjs/schedule';
 import { UserService } from 'src/modules/user/user/user.service';
 import { VerifyService } from 'src/core/twilio/verify/verify.service';
 import { CheckStatus } from 'src/core/twilio/enums/check-status.enum';
+import { ResponseCode } from 'src/common/constants/response-code.const';
+import { toInternationalPhone } from 'src/utils/phone';
 
 @Injectable()
 export class VerificationService {
@@ -31,73 +33,104 @@ export class VerificationService {
      * @throws {BadRequestException} - If the maximum number of verification codes (5) has been reached
      */
     async sendVerificationEmail(sendVerificationEmailDto: SendVerificationEmailDto, forgotPassword: boolean = false): Promise<{ result: string }> {
-        // find a user with email & validate
-        const foundUser = await this.userService.userExistsBy('email', sendVerificationEmailDto.email);
+        try {
+            // find a user with email & validate
+            const foundUser = await this.userService.userExistsBy('email', sendVerificationEmailDto.email);
 
-        if (!forgotPassword && foundUser) {
-            throw new ConflictException('This email is already in use');
-        }
-
-        if (forgotPassword && !foundUser) {
-            throw new BadRequestException('User not found');
-        }
-
-        const foundVerification = await this.verificationRepository.findOne({
-            where: { email: sendVerificationEmailDto.email },
-        });
-
-        // if verfication is found, increase count and send an email
-        if (foundVerification) {
-            if (foundVerification.email_code_count >= 5) {
-                throw new BadRequestException(
-                    'You have reached the maximum verification code sent limit, please try again tomorrow or contact the Farmera team',
-                );
+            if (!forgotPassword && foundUser) {
+                throw new ConflictException({
+                    message: 'This email is already in use',
+                    code: ResponseCode.EMAIL_CONFLICT
+                });
             }
 
-            foundVerification.email_code_count += 1;
-            foundVerification.updated_at = new Date();
+            if (forgotPassword && !foundUser) {
+                throw new BadRequestException({
+                    message: 'User not found',
+                    code: ResponseCode.USER_NOT_FOUND
+                });
+            }
 
-            await this.verificationRepository.save(foundVerification);
-
-            setTimeout(() => {
-                void (async () => {
-                    if (!forgotPassword) {
-                        await this.verifyService.createEmailVerification(sendVerificationEmailDto.email);
-                    } else {
-                        await this.verifyService.createEmailVerification(sendVerificationEmailDto.email);
-                    }
-                })();
-            }, 0);
-        }
-        // create new verification and send email
-        else {
-            const newVerification = this.verificationRepository.create({
-                ...sendVerificationEmailDto,
-                email_code_count: 1,
-                created_at: new Date(),
-                updated_at: new Date(),
+            const foundVerification = await this.verificationRepository.findOne({
+                where: { email: sendVerificationEmailDto.email },
             });
 
-            await this.verificationRepository.save(newVerification);
+            // if verfication is found, increase count and send an email
+            if (foundVerification) {
+                if (foundVerification.email_code_count >= 5) {
+                    throw new BadRequestException({
+                        message: 'You have reached the maximum verification code sent limit, please try again tomorrow or contact the Farmera team',
+                        code: ResponseCode.MAX_ATTEMPTS_REACHED
+                    });
+                }
 
-            setTimeout(() => {
-                void (async () => {
-                    if (!forgotPassword) {
-                        await this.verifyService.createEmailVerification(sendVerificationEmailDto.email);
-                    } else {
-                        await this.verifyService.createEmailVerification(sendVerificationEmailDto.email);
-                    }
-                })();
-            }, 0);
+                foundVerification.email_code_count += 1;
+                foundVerification.updated_at = new Date();
+
+                await this.verificationRepository.save(foundVerification);
+
+                setTimeout(() => {
+                    void (async () => {
+                        if (!forgotPassword) {
+                            await this.verifyService.createEmailVerification(sendVerificationEmailDto.email);
+                        } else {
+                            await this.verifyService.createEmailVerification(sendVerificationEmailDto.email);
+                        }
+                    })();
+                }, 0);
+            }
+            // create new verification and send email
+            else {
+                const newVerification = this.verificationRepository.create({
+                    ...sendVerificationEmailDto,
+                    email_code_count: 1,
+                    created_at: new Date(),
+                    updated_at: new Date(),
+                });
+
+                await this.verificationRepository.save(newVerification);
+
+                setTimeout(() => {
+                    void (async () => {
+                        if (!forgotPassword) {
+                            await this.verifyService.createEmailVerification(sendVerificationEmailDto.email);
+                        } else {
+                            await this.verifyService.createEmailVerification(sendVerificationEmailDto.email);
+                        }
+                    })();
+                }, 0);
+            }
+
+            return {
+                result: 'Success',
+            };
+        } catch (error) {
+            if (error instanceof HttpException) throw error;
+            throw new InternalServerErrorException({
+                message: "Failed to send verification email",
+                code: ResponseCode.INTERNAL_ERROR,
+            })
         }
-
-        return {
-            result: 'Success',
-        };
     }
 
     async verifyEmail(verifyEmailDto: VerifyEmailDto): Promise<CheckStatus> {
-        return await this.verifyService.createEmailVerificationCheck(verifyEmailDto.verification_code, verifyEmailDto.email);
+        try {
+            const status = await this.verifyService.createEmailVerificationCheck(verifyEmailDto.verification_code, verifyEmailDto.email);
+            const result = await this.verificationRepository.createQueryBuilder()
+                .update(Verification)
+                .set({ status: status })
+                .where('email = :email', { email: verifyEmailDto.email })
+                .execute();
+            if (result && result.affected && result.affected <= 0) {
+                throw new InternalServerErrorException();
+            }
+            return status;
+        } catch (error) {
+            throw new InternalServerErrorException({
+                message: "Failed to verify email",
+                code: ResponseCode.INTERNAL_ERROR,
+            })
+        }
     }
 
     async sendVerificationPhone(sendVerificationPhoneDto: SendVerificationPhoneDto, forgotPassword = false) {
@@ -166,7 +199,53 @@ export class VerificationService {
 
 
     async verifyPhone(verifyPhoneDto: VerifyPhoneDto): Promise<CheckStatus> {
-        return await this.verifyService.createSmsVerificationCheck(verifyPhoneDto.verification_code, verifyPhoneDto.phone);
+        try {
+            const status = await this.verifyService.createSmsVerificationCheck(verifyPhoneDto.verification_code, verifyPhoneDto.phone);
+            const result = await this.verificationRepository.createQueryBuilder()
+                .update(Verification)
+                .set({ status: status })
+                .where('phone = :phone', { phone: verifyPhoneDto.phone })
+                .execute();
+            if (result && result.affected && result.affected <= 0) {
+                throw new InternalServerErrorException();
+            }
+            return status;
+        } catch (error) {
+            throw new InternalServerErrorException({
+                message: "Failed to verify phone",
+                code: ResponseCode.INTERNAL_ERROR,
+            })
+        }
+    }
+
+    async checkVerify(email: string, phone: string): Promise<void> {
+        try {
+            phone = toInternationalPhone(phone);
+            const record = await this.verificationRepository.createQueryBuilder("verification")
+                .where("verification.email = :email OR verification.phone = :phone", { email: email, phone: phone })
+                .getOne();
+
+            if (!record) {
+                throw new NotFoundException({
+                    message: "verification not found",
+                    code: ResponseCode.VERIFICATION_NOT_FOUND,
+                })
+            }
+            if (record.status !== CheckStatus.APPROVED) {
+                throw new BadRequestException({
+                    message: "Verification failed",
+                    code: ResponseCode.VERIFICATION_FAILED
+                })
+            }
+        }
+        catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error("Failed to get verificiation: ", error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to get verification",
+                code: ResponseCode.INTERNAL_ERROR,
+            })
+        }
     }
 
     /*#########################################################################

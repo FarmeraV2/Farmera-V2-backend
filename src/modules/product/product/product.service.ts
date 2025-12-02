@@ -211,7 +211,9 @@ export class ProductService {
         // filter options
         const { subcategory_id, is_category, search, min_price, max_price, min_rating, max_rating, min_total_sold, status } = searchProductsDTo;
         try {
-            const queryBuilder = this.productsRepository.createQueryBuilder('product').select(productSelectFields);
+            const queryBuilder = this.productsRepository.createQueryBuilder('product').select(productSelectFields)
+            // todo!("only get available products")
+            // .where('product.status != :deletedStatus', { deletedStatus: ProductStatus.DELETED });
 
             // include category in result
             if (searchProductsDTo?.include_categories) {

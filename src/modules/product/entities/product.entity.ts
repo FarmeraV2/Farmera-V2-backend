@@ -82,4 +82,6 @@ export class Product {
     // @OneToMany(() => Process, (process) => process.product)
     // @JoinColumn({ name: 'process_id' })
     // processes?: Process[];
+
+    //todo!("summary columns for review data")
 }
