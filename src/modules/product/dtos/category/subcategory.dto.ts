@@ -2,6 +2,7 @@ import { Expose } from 'class-transformer';
 
 export class SubcategoryDto {
     @Expose() subcategory_id: number;
+    @Expose() name: string;
     @Expose() description: string;
 }
 

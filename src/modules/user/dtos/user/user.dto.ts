@@ -33,13 +33,14 @@ export class UserDto {
 }
 
 export class PublicUserDto {
+    @Expose() id: number;
+    @Expose() uuid: string;
     @Expose() email: string;
     @Expose() first_name: string;
     @Expose() last_name: string;
     @Expose() gender: Gender;
     @Expose() avatar?: string;
     @Expose() role: UserRole;
-    @Expose() status: UserStatus;
 }
 
-export const publicUserFields: (keyof PublicUserDto)[] = ['email', 'first_name', 'last_name', 'gender', 'avatar', 'role', 'status'];
+export const publicUserFields: (keyof PublicUserDto)[] = ['id', 'uuid', 'email', 'first_name', 'last_name', 'gender', 'avatar', 'role'];
