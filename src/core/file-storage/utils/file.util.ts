@@ -4,7 +4,7 @@ import path from 'path';
 export function generateFileName(file: Express.Multer.File, customName?: string): string {
     const timestamp = Date.now();
     const uuid = uuidv4();
-    const extension = this.getFileExtension(file.originalname);
+    const extension = getFileExtension(file.originalname);
 
     if (customName) {
         return `${customName}-${timestamp}-${uuid}${extension}`;

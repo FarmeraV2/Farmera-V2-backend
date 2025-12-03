@@ -1,0 +1,16 @@
+import { MediaGroupType } from "../enums/media-group-type.enum";
+import { StoragePermission } from "../enums/storage-permission.enum";
+
+export interface FileStorageService {
+    uploadFile(
+        body: Buffer | string | Express.Multer.File | Express.Multer.File[],
+        typeOrKey?: MediaGroupType | string,
+        subPath?: string,
+        contentType?: string
+    ): Promise<string | string[]>
+
+    getFile?(url: string): Promise<Buffer>
+    getSignedUrl?(key: string, permission: StoragePermission): Promise<string>
+
+    deleteByUrls?(urls: string[]): Promise<boolean>
+}

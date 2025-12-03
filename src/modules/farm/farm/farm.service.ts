@@ -1,4 +1,4 @@
-import { ConflictException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, HttpException, Inject, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { Farm } from '../entities/farm.entity';
@@ -15,6 +15,7 @@ import { isUUID } from 'class-validator';
 import { UpdateFarmDto } from '../dtos/update-farm.dto';
 import { UpdateFarmAvatarDto, UpdateFarmImagesDto } from '../dtos/update-farm-images.dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
+import { FileStorageService } from 'src/core/file-storage/interfaces/file-storage.interface';
 
 @Injectable()
 export class FarmService {
@@ -27,6 +28,7 @@ export class FarmService {
         // private productRepository: Repository<Product>,
         private readonly biometricsService: BiometricService,
         private readonly deliveryAddressService: DeliveryAddressService,
+        @Inject('FileStorageService') private readonly fileStorage: FileStorageService,
         // private readonly fileStorageService: AzureBlobService,
         // private readonly GhnService: GhnService,
     ) { }
@@ -150,7 +152,7 @@ export class FarmService {
             // this.logger.debug(`[Register] FPT IDR thành công cho user ${userId}. Loại thẻ: ${idrData.type}, Loại mới: ${idrData.type_new}`);
 
             // this.logger.log(`[Register] Bước 2: Gọi FPT Liveness cho user ${userId}, ảnh ${ssnImg.originalname}, video ${faceVideo.originalname}`);
-            // const livenessResult = await this.biometricsService.callFptLivenessApi(ssnImg, faceVideo);
+            await this.biometricsService.callFptLivenessApi(ssnImg, faceVideo);
             // this.logger.log(
             //     `[Register] FPT Liveness thành công cho user ${userId}. Liveness: ${livenessResult.liveness?.is_live}, Match: ${livenessResult.face_match?.isMatch}`,
             // );
@@ -174,12 +176,17 @@ export class FarmService {
             }
 
             // todo!("handle external file storage")
-            // const ssn_img_url = await this.fileStorageService.uploadFile(
-            //     ssnImg,
-            //     userId,
-            // );
+            const ssn_img_url = await this.fileStorage.uploadFile(
+                ssnImg,
+                userId.toString(),
+            );
 
-            // identification.id_card_image_url = ssn_img_url;
+            if (ssn_img_url === 'string') {
+                identification.id_card_image_url = ssn_img_url;
+            } else if (ssn_img_url.length > 0) {
+                identification.id_card_image_url = ssn_img_url[0];
+            }
+
             farm.identification = identification;
             farm.status = FarmStatus.VERIFIED;
 

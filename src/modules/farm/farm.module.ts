@@ -7,11 +7,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Farm } from './entities/farm.entity';
 import { HttpModule } from '@nestjs/axios';
 import { AddressModule } from '../address/address.module';
+import { FileStorageModule } from 'src/core/file-storage/file-storage.module';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([Farm]), ConfigModule, HttpModule, AddressModule],
+    imports: [TypeOrmModule.forFeature([Farm]), ConfigModule, HttpModule, AddressModule, FileStorageModule],
     controllers: [FarmController],
     providers: [FarmService, BiometricService],
     exports: [FarmService],
 })
-export class FarmModule {}
+export class FarmModule { }

@@ -24,6 +24,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.226.0",
     "@azure/storage-blob": "^12.29.1",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.1.9",
@@ -53,8 +54,8 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "twilio": "^5.10.5",
-    "web3": "^4.16.0",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "web3": "^4.16.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",

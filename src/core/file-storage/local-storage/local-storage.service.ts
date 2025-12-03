@@ -3,15 +3,15 @@ import { ConfigService } from "@nestjs/config";
 import { existsSync, mkdirSync } from "fs";
 import path from "path";
 import { MediaGroupType } from "../enums/media-group-type.enum";
-import { SavedFileResult } from "../interfaces/save-file-result.interface";
 import * as fs from 'fs/promises';
 import { ResponseCode } from "src/common/constants/response-code.const";
 import { generateFileName } from "../utils/file.util";
+import { FileStorageService } from "../interfaces/file-storage.interface";
 
-const SUB_URL = "api/local-storage";
+const SUB_URL = "api/file-storage";
 
 @Injectable()
-export class LocalStorageService {
+export class LocalStorageService implements FileStorageService {
     private readonly logger = new Logger(LocalStorageService.name);
     private readonly baseUploadPath: string;
     private readonly baseUrl: string;
@@ -43,12 +43,12 @@ export class LocalStorageService {
         return path.join(this.baseUploadPath, filePathFragment);
     }
 
-    async saveFiles(temporaryFiles: Express.Multer.File[], type: MediaGroupType, subPath?: string): Promise<SavedFileResult[]> {
+    async uploadFile(temporaryFiles: Express.Multer.File[], type: MediaGroupType, subPath?: string): Promise<string[]> {
         if (!temporaryFiles || temporaryFiles.length === 0) return [];
 
         const absoluteDestinationDir = path.join(this.baseUploadPath, type, subPath || '')
 
-        const results: SavedFileResult[] = [];
+        const results: string[] = [];
         const successfullyMovedFilesPaths: string[] = [];
 
         try {
@@ -79,11 +79,7 @@ export class LocalStorageService {
                 const urlPath = relativePathFragment.replace(/\\/g, '/');
                 const finalUrl = `${this.appUrl}/${SUB_URL}/${this.baseUrl}/${urlPath}`;
 
-                results.push({
-                    url: finalUrl,
-                    storageType: 'local',
-                    originalName: tempFile.originalname,
-                });
+                results.push(finalUrl);
 
                 successfullyMovedFilesPaths.push(finalAbsolutePath);
 
