@@ -8,7 +8,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { CreateUserDto } from '../dtos/user/create-user.dto';
 import { PublicUserDto, publicUserFields, UserDto } from '../dtos/user/user.dto';
@@ -293,6 +293,20 @@ export class UserService {
         }
     }
 
+    async updateRole(id: number, role: UserRole, manager: EntityManager): Promise<void> {
+        try {
+            const result = await manager.update(User, id, { role: role })
+            if (!result || !result.affected || result.affected <= 0) {
+                throw new InternalServerErrorException();
+            }
+        } catch (error) {
+            this.logger.error("Failed to update user role");
+            throw new InternalServerErrorException({
+                message: "Failed to update user role",
+                code: ResponseCode.FAILED_TO_UPDATE_ROLE,
+            })
+        }
+    }
     // async getUserDetails(id: number, )
 
     // async deleteUser(id: string, hardDelete = false) {

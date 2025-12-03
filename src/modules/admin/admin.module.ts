@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
-import { FarmController } from './farm/farm.controller';
+import { FarmManagementService } from './farm-management/farm-management.service';
 import { FarmModule } from '../farm/farm.module';
+import { UserModule } from '../user/user.module';
+import { FarmManagementController } from './farm-management/farm-management.controller';
 
 @Module({
-  imports: [FarmModule],
-  controllers: [FarmController],
+  imports: [FarmModule, UserModule],
+  controllers: [FarmManagementController],
+  providers: [FarmManagementService]
 })
 export class AdminModule { }

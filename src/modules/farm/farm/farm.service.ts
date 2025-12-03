@@ -1,6 +1,6 @@
 import { ConflictException, HttpException, Inject, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { Farm } from '../entities/farm.entity';
 import { FptIdrCardFrontData, FptIdrCccdFrontData } from '../interfaces/fpt-idr-front.interface';
 import { BiometricService } from '../biometric/biometric.service';
@@ -312,7 +312,7 @@ export class FarmService {
      */
     async validateFarmer(userId: number): Promise<{ id: number; uuid: string } | undefined> {
         try {
-            const farm = await this.farmRepository.findOne({ select: ['id', 'farm_id'], where: { user_id: userId } });
+            const farm = await this.farmRepository.findOne({ select: ['id', 'farm_id'], where: { user_id: userId, status: FarmStatus.APPROVED } });
             if (!farm || farm.id <= 0) {
                 throw new InternalServerErrorException({
                     message: "Something ưent wrong, you're a farmer but your Farm is not found",
@@ -497,6 +497,21 @@ export class FarmService {
         });
         if (farm) return farm.id;
         return null;
+    }
+
+    async updateFarmStatus(farmId: number, status: FarmStatus, manager: EntityManager): Promise<void> {
+        try {
+            const result = await manager.update(Farm, farmId, { status: status });
+            if (!result || !result.affected || result.affected <= 0) {
+                throw new InternalServerErrorException();
+            }
+        } catch (error) {
+            this.logger.error("Failed to update farm status");
+            throw new InternalServerErrorException({
+                message: "Failed to update farm status",
+                code: ResponseCode.FAILED_TO_UPDATE_FARM
+            })
+        }
     }
 
     //   async findFarmsByIds(farmIds: string[]): Promise<Farm[]> {
