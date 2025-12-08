@@ -81,8 +81,8 @@ export class AuthService {
             const user = await this.userService.validateUser(req.password, req.email, req.phone);
 
             if (user) {
-                const { id, uuid, email, phone, first_name, last_name, role, status, avatar } = user;
-                const payload: any = { id, uuid, email, phone, first_name, last_name, role, status, avatar };
+                const { id, uuid, email, phone, first_name, last_name, role, status, avatar, gender, points, created_at, updated_at } = user;
+                const payload: any = { id, uuid, email, phone, first_name, last_name, role, status, avatar, gender, points, created_at, updated_at };
 
                 if (user.role === UserRole.FARMER) {
                     const farm = await this.farmService.validateFarmer(user.id);
@@ -176,6 +176,10 @@ export class AuthService {
                     role: user.role,
                     status: user.status,
                     avatar: user.avatar,
+                    gender: user.gender,
+                    points: user.points,
+                    created_at: user.created_at,
+                    updated_at: user.updated_at,
                 };
 
                 const newAccessToken = this.jwtService.sign(payload);

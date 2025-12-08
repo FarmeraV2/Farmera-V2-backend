@@ -8,6 +8,7 @@ import { UploadFileDto } from '../dtos/upload-file.dto';
 import { getFileExtension } from '../utils/file.util';
 import { Response } from "express";
 import { lookup } from 'mime-types';
+import { Public } from 'src/common/decorators/public.decorator';
 
 @Controller('file-storage')
 export class FileStorageController {
@@ -71,6 +72,7 @@ export class FileStorageController {
     }
 
     @Get("*url")
+    @Public()
     async getFile(@Param("url") url: string | string[], @Res() res: Response) {
         if (this.fileStorageService.getFile) {
             const filePath = Array.isArray(url) ? url.join('/') : url;
