@@ -26,11 +26,12 @@ export class VerificationService {
      * @param {boolean} [forgotPassword=false] - Flag indicating if this is for password reset (true) or registration (false)
      *
      * @returns {Promise<{result: string}>} - Returns an object containing:
-     *  - `result`: 'Success' if the email is sent or verification record is created/updated successfully
+     *  - `result`: 'Success' if the email verification record is created/updated and the email send process is triggered
      *
-     * @throws {ConflictException} - If the email is already in use during registration
-     * @throws {BadRequestException} - If the user is not found during password reset
-     * @throws {BadRequestException} - If the maximum number of verification codes (5) has been reached
+     * @throws {ConflictException} - If the email is already in use during registration (`EMAIL_CONFLICT`)
+     * @throws {BadRequestException} - If the user is not found during password reset (`USER_NOT_FOUND`)
+     * @throws {BadRequestException} - If the maximum number of verification codes (5) has been reached (`MAX_ATTEMPTS_REACHED`)
+     * @throws {InternalServerErrorException} - If an unexpected error occurs while sending the verification email (`INTERNAL_ERROR`)
      */
     async sendVerificationEmail(sendVerificationEmailDto: SendVerificationEmailDto, forgotPassword: boolean = false): Promise<{ result: string }> {
         try {
@@ -113,7 +114,15 @@ export class VerificationService {
         }
     }
 
-    async verifyEmail(verifyEmailDto: VerifyEmailDto): Promise<CheckStatus> {
+    /**
+     * @function verifyEmail - Verifies the email using a verification code
+     * @param {VerifyEmailDto} verifyEmailDto - Contains email + verification code
+     *
+     * @returns {Promise<CheckStatus>} - Verification status
+     *
+     * @throws {VERIFICATION_FAILED} - If verification update fails or unexpected error occurs (`VERIFICATION_FAILED`)
+     */
+    async verifyEmail(verifyEmailDto: VerifyEmailDto): Promise<{ status: CheckStatus }> {
         try {
             const status = await this.verifyService.createEmailVerificationCheck(verifyEmailDto.verification_code, verifyEmailDto.email);
             const result = await this.verificationRepository.createQueryBuilder()
@@ -124,17 +133,34 @@ export class VerificationService {
             if (result && result.affected && result.affected <= 0) {
                 throw new InternalServerErrorException();
             }
-            return status;
+            return { status };
         } catch (error) {
             throw new InternalServerErrorException({
                 message: "Failed to verify email",
-                code: ResponseCode.INTERNAL_ERROR,
+                code: ResponseCode.VERIFICATION_FAILED,
             })
         }
     }
 
+    /**
+     * @function sendVerificationPhone - Sends SMS verification for registration or password reset
+     * @param {SendVerificationPhoneDto} sendVerificationPhoneDto - DTO containing phone number
+     * @param {boolean} [forgotPassword=false] - Whether SMS is for password reset
+     *
+     * @returns {Promise<{result: string}>} - 'Success' if verification SMS is triggered
+     *
+     * @throws {ConflictException} - If the phone number is already in use (`PHONE_CONFLICT`)
+     * @throws {BadRequestException} - If user not found during password reset (`USER_NOT_FOUND`)
+     * @throws {BadRequestException} - If max verification attempts (5) reached (`MAX_ATTEMPTS_REACHED`)
+     * @throws {InternalServerErrorException} - Unexpected failures (`INTERNAL_ERROR`)
+     */
     async sendVerificationPhone(sendVerificationPhoneDto: SendVerificationPhoneDto, forgotPassword = false) {
-        const foundUser = await this.userService.userExistsBy('phone', sendVerificationPhoneDto.phone);
+        let phone = sendVerificationPhoneDto.phone;
+        if (!phone.includes('+')) {
+            phone = toInternationalPhone(phone);
+        }
+
+        const foundUser = await this.userService.userExistsBy('phone', phone);
 
         if (!forgotPassword && foundUser) {
             throw new ConflictException('This phone is already in use');
@@ -145,14 +171,15 @@ export class VerificationService {
         }
 
         const foundVerification = await this.verificationRepository.findOne({
-            where: { email: sendVerificationPhoneDto.phone },
+            where: { phone },
         });
 
-        if (foundVerification) {
+        if (foundVerification && foundVerification.phone) {
             if (foundVerification.email_code_count >= 5) {
-                throw new BadRequestException(
-                    'You have reached the maximum verification code sent limit, please try again tomorrow or contact the Farmera team',
-                );
+                throw new BadRequestException({
+                    message: 'You have reached the maximum verification code sent limit, please try again tomorrow or contact the Farmera team',
+                    code: ResponseCode.MAX_ATTEMPTS_REACHED,
+                });
             }
 
             foundVerification.email_code_count += 1;
@@ -163,9 +190,9 @@ export class VerificationService {
             setTimeout(() => {
                 void (async () => {
                     if (!forgotPassword) {
-                        await this.verifyService.createSmsVerification(sendVerificationPhoneDto.phone);
+                        await this.verifyService.createSmsVerification(phone);
                     } else {
-                        await this.verifyService.createSmsVerification(sendVerificationPhoneDto.phone);
+                        await this.verifyService.createSmsVerification(phone);
                     }
                 })();
             }, 0);
@@ -184,9 +211,9 @@ export class VerificationService {
             setTimeout(() => {
                 void (async () => {
                     if (!forgotPassword) {
-                        await this.verifyService.createSmsVerification(sendVerificationPhoneDto.phone);
+                        await this.verifyService.createSmsVerification(phone);
                     } else {
-                        await this.verifyService.createSmsVerification(sendVerificationPhoneDto.phone);
+                        await this.verifyService.createSmsVerification(phone);
                     }
                 })();
             }, 0);
@@ -198,18 +225,31 @@ export class VerificationService {
     }
 
 
-    async verifyPhone(verifyPhoneDto: VerifyPhoneDto): Promise<CheckStatus> {
+    /**
+     * @function verifyPhone - Verifies the phone using a verification code
+     * @param {VerifyPhoneDto} verifyPhoneDto - Contains phone + verification code
+     *
+     * @returns {Promise<CheckStatus>} - Verification status
+     *
+     * @throws {VERIFICATION_FAILED} - If verification update fails or unexpected error occurs (`VERIFICATION_FAILED`)
+     */
+    async verifyPhone(verifyPhoneDto: VerifyPhoneDto): Promise<{ status: CheckStatus }> {
         try {
-            const status = await this.verifyService.createSmsVerificationCheck(verifyPhoneDto.verification_code, verifyPhoneDto.phone);
+            let phone = verifyPhoneDto.phone;
+            if (!phone.includes('+')) {
+                phone = toInternationalPhone(phone);
+            }
+            const status = await this.verifyService.createSmsVerificationCheck(verifyPhoneDto.verification_code, phone);
             const result = await this.verificationRepository.createQueryBuilder()
                 .update(Verification)
                 .set({ status: status })
-                .where('phone = :phone', { phone: verifyPhoneDto.phone })
+                .where('phone = :phone', { phone })
                 .execute();
             if (result && result.affected && result.affected <= 0) {
                 throw new InternalServerErrorException();
             }
-            return status;
+            this.logger.log(`Phone verification status: ${status}`);
+            return { status };
         } catch (error) {
             throw new InternalServerErrorException({
                 message: "Failed to verify phone",

@@ -255,9 +255,9 @@ export class AuthService {
         // verify code
         let verification: CheckStatus = CheckStatus.FAILED;
         if (email) {
-            verification = await this.verificationService.verifyEmail({ email, verification_code: req.code });
+            verification = (await this.verificationService.verifyEmail({ email, verification_code: req.code })).status;
         } else if (phone) {
-            verification = await this.verificationService.verifyPhone({ phone, verification_code: req.code });
+            verification = (await this.verificationService.verifyPhone({ phone, verification_code: req.code })).status;
         }
 
         if (verification !== CheckStatus.APPROVED) {
