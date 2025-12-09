@@ -154,7 +154,8 @@ export class VerificationService {
      * @throws {BadRequestException} - If max verification attempts (5) reached (`MAX_ATTEMPTS_REACHED`)
      * @throws {InternalServerErrorException} - Unexpected failures (`INTERNAL_ERROR`)
      */
-    async sendVerificationPhone(sendVerificationPhoneDto: SendVerificationPhoneDto, forgotPassword = false) {
+    // todo!("uncomment");
+    async sendVerificationPhone(sendVerificationPhoneDto: SendVerificationPhoneDto, forgotPassword = false): Promise<{ result: string }> {
         let phone = sendVerificationPhoneDto.phone;
         if (!phone.includes('+')) {
             phone = toInternationalPhone(phone);
@@ -171,18 +172,18 @@ export class VerificationService {
         }
 
         const foundVerification = await this.verificationRepository.findOne({
-            where: { phone },
+            where: { phone: phone },
         });
 
         if (foundVerification && foundVerification.phone) {
-            if (foundVerification.email_code_count >= 5) {
+            if (foundVerification.phone_code_count >= 5) {
                 throw new BadRequestException({
                     message: 'You have reached the maximum verification code sent limit, please try again tomorrow or contact the Farmera team',
                     code: ResponseCode.MAX_ATTEMPTS_REACHED,
                 });
             }
 
-            foundVerification.email_code_count += 1;
+            foundVerification.phone_code_count += 1;
             foundVerification.updated_at = new Date();
 
             await this.verificationRepository.save(foundVerification);
@@ -190,9 +191,9 @@ export class VerificationService {
             setTimeout(() => {
                 void (async () => {
                     if (!forgotPassword) {
-                        await this.verifyService.createSmsVerification(phone);
+                        // await this.verifyService.createSmsVerification(phone);
                     } else {
-                        await this.verifyService.createSmsVerification(phone);
+                        // await this.verifyService.createSmsVerification(phone);
                     }
                 })();
             }, 0);
@@ -201,9 +202,11 @@ export class VerificationService {
         else {
             const newVerification = this.verificationRepository.create({
                 ...sendVerificationPhoneDto,
-                email_code_count: 1,
+                phone,
+                phone_code_count: 1,
                 created_at: new Date(),
                 updated_at: new Date(),
+                status: CheckStatus.APPROVED, // todo!("remove");
             });
 
             await this.verificationRepository.save(newVerification);
@@ -211,9 +214,9 @@ export class VerificationService {
             setTimeout(() => {
                 void (async () => {
                     if (!forgotPassword) {
-                        await this.verifyService.createSmsVerification(phone);
+                        // await this.verifyService.createSmsVerification(phone);
                     } else {
-                        await this.verifyService.createSmsVerification(phone);
+                        // await this.verifyService.createSmsVerification(phone);
                     }
                 })();
             }, 0);
@@ -233,29 +236,31 @@ export class VerificationService {
      *
      * @throws {VERIFICATION_FAILED} - If verification update fails or unexpected error occurs (`VERIFICATION_FAILED`)
      */
+    // todo!("uncomment");
     async verifyPhone(verifyPhoneDto: VerifyPhoneDto): Promise<{ status: CheckStatus }> {
-        try {
-            let phone = verifyPhoneDto.phone;
-            if (!phone.includes('+')) {
-                phone = toInternationalPhone(phone);
-            }
-            const status = await this.verifyService.createSmsVerificationCheck(verifyPhoneDto.verification_code, phone);
-            const result = await this.verificationRepository.createQueryBuilder()
-                .update(Verification)
-                .set({ status: status })
-                .where('phone = :phone', { phone })
-                .execute();
-            if (result && result.affected && result.affected <= 0) {
-                throw new InternalServerErrorException();
-            }
-            this.logger.log(`Phone verification status: ${status}`);
-            return { status };
-        } catch (error) {
-            throw new InternalServerErrorException({
-                message: "Failed to verify phone",
-                code: ResponseCode.INTERNAL_ERROR,
-            })
-        }
+        return { status: CheckStatus.APPROVED };
+        // try {
+        //     let phone = verifyPhoneDto.phone;
+        //     if (!phone.includes('+')) {
+        //         phone = toInternationalPhone(phone);
+        //     }
+        //     const status = await this.verifyService.createSmsVerificationCheck(verifyPhoneDto.verification_code, phone);
+        //     const result = await this.verificationRepository.createQueryBuilder()
+        //         .update(Verification)
+        //         .set({ status: status })
+        //         .where('phone = :phone', { phone })
+        //         .execute();
+        //     if (result && result.affected && result.affected <= 0) {
+        //         throw new InternalServerErrorException();
+        //     }
+        //     this.logger.log(`Phone verification status: ${status}`);
+        //     return { status };
+        // } catch (error) {
+        //     throw new InternalServerErrorException({
+        //         message: "Failed to verify phone",
+        //         code: ResponseCode.INTERNAL_ERROR,
+        //     })
+        // }
     }
 
     async checkVerify(email: string, phone: string): Promise<void> {
