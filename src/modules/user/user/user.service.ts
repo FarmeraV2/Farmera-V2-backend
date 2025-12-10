@@ -18,6 +18,7 @@ import { UpdateProfileDto } from '../dtos/user/update-profile.dto';
 import { isUUID } from 'class-validator';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { UserRole } from 'src/common/enums/role.enum';
+import { toInternationalPhone } from 'src/utils/phone';
 
 @Injectable()
 export class UserService {
@@ -56,7 +57,7 @@ export class UserService {
             }
 
             const existingPhone = await this.userRepository.existsBy({
-                email: createUserDto.email,
+                phone: createUserDto.phone,
             });
             if (existingPhone) {
                 throw new ConflictException({
@@ -176,9 +177,9 @@ export class UserService {
 
             // update
             if (email) {
-                result = (await this.userRepository.update(email, { hashed_pwd })).affected;
+                result = (await this.userRepository.update({ email: email }, { hashed_pwd })).affected;
             } else if (phone) {
-                result = (await this.userRepository.update(phone, { hashed_pwd })).affected;
+                result = (await this.userRepository.update({ phone: phone }, { hashed_pwd })).affected;
             }
 
             // validate result
@@ -186,7 +187,7 @@ export class UserService {
                 throw new InternalServerErrorException();
             }
         } catch (error) {
-            this.logger.error(error.message);
+            this.logger.error(`Failed to update password: ${error.message}`);
             throw new InternalServerErrorException({
                 message: 'Failed to update password',
                 ResponseCode: ResponseCode.FAILED_TO_UPDATE_PASSWORD

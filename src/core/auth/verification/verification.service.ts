@@ -9,6 +9,8 @@ import { VerifyService } from 'src/core/twilio/verify/verify.service';
 import { CheckStatus } from 'src/core/twilio/enums/check-status.enum';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { toInternationalPhone } from 'src/utils/phone';
+import { messaging } from 'firebase-admin';
+import { response } from 'express';
 
 @Injectable()
 export class VerificationService {
@@ -263,12 +265,24 @@ export class VerificationService {
         // }
     }
 
-    async checkVerify(email: string, phone: string): Promise<void> {
+    async checkVerify(email?: string, phone?: string): Promise<void> {
         try {
-            phone = toInternationalPhone(phone);
-            const record = await this.verificationRepository.createQueryBuilder("verification")
-                .where("verification.email = :email OR verification.phone = :phone", { email: email, phone: phone })
-                .getOne();
+            if (!email && !phone) throw new BadRequestException({
+                messaging: "Email or phone is required",
+                code: ResponseCode.EMAIL_OR_PHONE_IS_REQUIRED,
+            })
+
+            const queryBuilder = this.verificationRepository.createQueryBuilder("verification");
+
+            if (phone) {
+                phone = toInternationalPhone(phone);
+                queryBuilder.where("verification.phone = :phone", { phone: phone })
+            }
+            if (email) {
+                queryBuilder.orWhere("verification.email = :email", { email: email });
+            }
+
+            const record = await queryBuilder.getOne();
 
             if (!record) {
                 throw new NotFoundException({
@@ -282,6 +296,7 @@ export class VerificationService {
                     code: ResponseCode.VERIFICATION_FAILED
                 })
             }
+            await this.verificationRepository.delete({ id: record.id });
         }
         catch (error) {
             if (error instanceof HttpException) throw error;

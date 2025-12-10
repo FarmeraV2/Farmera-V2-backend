@@ -1,10 +1,10 @@
-import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Req, Res } from '@nestjs/common';
 import { AuthService, REFRESH_TOKEN_COOKIES_KEY } from './auth.service';
 import { LoginDto } from '../dtos/login.dto';
 import { CreateUserDto } from 'src/modules/user/dtos/user/create-user.dto';
 import { Public } from 'src/common/decorators/public.decorator';
 import { Request, Response } from 'express';
-import { ForgotPasswordDto, UpdateNewPasswordDto } from '../dtos/forgot-password.dto';
+import { UpdateNewPasswordDto } from '../dtos/forgot-password.dto';
 import { Roles } from 'src/common/decorators/role.decorator';
 import { UserRole } from 'src/common/enums/role.enum';
 
@@ -38,13 +38,7 @@ export class AuthController {
     }
 
     @Public()
-    @Post('forgot-password')
-    async forgotPassword(@Body() req: ForgotPasswordDto) {
-        return await this.authService.forgotPassword(req);
-    }
-
-    @Public()
-    @Post('update-new-password')
+    @Patch('update-new-password')
     async updateNewPassword(@Body() req: UpdateNewPasswordDto) {
         return await this.authService.updateNewPassword(req);
     }

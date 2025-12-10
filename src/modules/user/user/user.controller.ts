@@ -8,10 +8,11 @@ import { GetUserDetailDto } from '../dtos/user/get-user-detail.dto';
 
 @Controller('user')
 export class UserController {
-    constructor(private readonly userService: UserService) {}
+    constructor(private readonly userService: UserService) { }
 
     @Get('profile')
     async getUserProfile(@User() user: UserInterface, @Query() getDetailDto: GetUserDetailDto) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
         return await this.userService.getUserById(user.id, getDetailDto.include_addresses, getDetailDto.include_payment_methods);
     }
 

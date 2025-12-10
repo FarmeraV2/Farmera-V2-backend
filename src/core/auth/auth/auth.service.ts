@@ -6,7 +6,7 @@ import { LoginDto } from '../dtos/login.dto';
 import { UserStatus } from 'src/modules/user/enums/user-status.enum';
 import { JsonWebTokenError, JwtService, TokenExpiredError } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { Response } from 'express';
+import e, { Response } from 'express';
 import ms, { StringValue } from 'ms';
 import { ForgotPasswordDto, UpdateNewPasswordDto } from '../dtos/forgot-password.dto';
 import { VerificationService } from '../verification/verification.service';
@@ -250,24 +250,24 @@ export class AuthService {
      * @throws {InternalServerErrorException} - If updating the password fails internally
      */
     async updateNewPassword(req: UpdateNewPasswordDto): Promise<boolean> {
-        const { email, phone, newPassword } = req;
+        const { email, phone, new_password } = req;
 
-        // verify code
-        let verification: CheckStatus = CheckStatus.FAILED;
-        if (email) {
-            verification = (await this.verificationService.verifyEmail({ email, verification_code: req.code })).status;
-        } else if (phone) {
-            verification = (await this.verificationService.verifyPhone({ phone, verification_code: req.code })).status;
+        try {
+            await this.verificationService.checkVerify(req.email, req.phone);
+
+            // update password
+            await this.userService.updateUserPassword(new_password, email, phone);
+
+            return true;
         }
-
-        if (verification !== CheckStatus.APPROVED) {
-            throw new BadRequestException('Invalid verification code');
+        catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error(`Failed to update password: ${error.message}`)
+            throw new InternalServerErrorException({
+                message: "Failed to update password",
+                code: ResponseCode.FAILED_TO_UPDATE_PASSWORD
+            })
         }
-
-        // update password
-        await this.userService.updateUserPassword(newPassword, email, phone);
-
-        return true;
     }
 
     /*#########################################################################
