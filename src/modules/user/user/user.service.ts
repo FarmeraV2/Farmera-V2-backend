@@ -258,28 +258,20 @@ export class UserService {
     }
 
     /**
-     * @function getPublicUser - Retrieves a user's public profile data by UUID
-     * @param {string} uuid - The unique identifier of the user
+     * @function getPublicUser - Retrieves a user's public profile data by user id
+     * @param {number} id - The unique identifier of the user
      *
      * @returns {Promise<PublicUserDto>} - Returns the user's public information, excluding sensitive fields
      *
      * @throws {NotFoundException} - If no user is found with the given UUID
      * @throws {InternalServerErrorException} - If there is an unexpected error during retrieval
      */
-    async getPublicUser(uuid: string): Promise<PublicUserDto> {
-        if (!isUUID(uuid)) throw new NotFoundException({
-            message: `User with ID ${uuid} not found`,
-            code: ResponseCode.USER_NOT_FOUND
-        });
+    async getPublicUser(id: number): Promise<PublicUserDto> {
         try {
-            const user = await this.userRepository.findOne({
-                select: publicUserFields,
-                where: { uuid },
-            });
-
+            const user = await this.userRepository.findOne({ where: { id } });
             if (!user) {
                 throw new NotFoundException({
-                    message: `User with ID ${uuid} not found`,
+                    message: `User with ID ${id} is not found`,
                     code: ResponseCode.USER_NOT_FOUND
                 });
             }

@@ -122,10 +122,15 @@ export class AuthService {
                     user: payload,
                 };
             }
-            throw new InternalServerErrorException('Failed to login user');
+            throw new InternalServerErrorException();
         } catch (error) {
+            if (error instanceof HttpException) throw error;
             this.logger.error(error.message);
-            throw error;
+            throw new InternalServerErrorException({
+                message: 'Failed to login user',
+                code: ResponseCode.INTERNAL_ERROR
+            });
+
         }
     }
 

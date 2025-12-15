@@ -12,7 +12,6 @@ export class UserController {
 
     @Get('profile')
     async getUserProfile(@User() user: UserInterface, @Query() getDetailDto: GetUserDetailDto) {
-        await new Promise(resolve => setTimeout(resolve, 5000));
         return await this.userService.getUserById(user.id, getDetailDto.include_addresses, getDetailDto.include_payment_methods);
     }
 
@@ -23,7 +22,7 @@ export class UserController {
 
     @Public()
     @Get(':userId')
-    async getUserById(@Param('userId') userId: string) {
+    async getUserById(@Param('userId') userId: number) {
         return await this.userService.getPublicUser(userId);
     }
 
