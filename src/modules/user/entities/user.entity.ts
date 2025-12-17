@@ -46,7 +46,7 @@ export class User {
     @Column({ nullable: true })
     avatar?: string;
 
-    @Column({ nullable: true })
+    @Column({ nullable: true, type: 'date' })
     birthday?: Date;
 
     @Column({ enum: UserRole, default: UserRole.BUYER })

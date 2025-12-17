@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Put, Query } from '@nestjs/common';
 import { UserService } from './user.service';
 import { Public } from 'src/common/decorators/public.decorator';
 import { UserInterface } from 'src/common/types/user.interface';
@@ -15,7 +15,7 @@ export class UserController {
         return await this.userService.getUserById(user.id, getDetailDto.include_addresses, getDetailDto.include_payment_methods);
     }
 
-    @Put('profile')
+    @Patch('profile')
     async updateProfile(@User() user: UserInterface, @Body() req: UpdateProfileDto) {
         return await this.userService.updateUserProfile(user.id, req);
     }

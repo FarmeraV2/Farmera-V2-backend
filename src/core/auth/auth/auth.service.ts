@@ -109,10 +109,10 @@ export class AuthService {
                     const expirationSetting = this.configService.get<string>('JWT_REFRESH_TOKEN_EXPIRATION');
 
                     res.cookie(REFRESH_TOKEN_COOKIES_KEY, refreshToken, {
-                        httpOnly: false,
+                        httpOnly: true,
                         maxAge: ms(expirationSetting as ms.StringValue),
                         sameSite: 'none',
-                        secure: true,
+                        secure: this.configService.get<string>('NODE_ENV') === 'production',
                     });
                 }
 
@@ -153,17 +153,15 @@ export class AuthService {
         let userDecoded: UserDto;
         // verify token
         try {
-            userDecoded = this.jwtService.verify<UserDto>(refreshToken, {
+            userDecoded = await this.jwtService.verifyAsync<UserDto>(refreshToken, {
                 secret: this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
             });
         } catch (error) {
             this.logger.error(error.message);
-            if (error instanceof TokenExpiredError) {
-                throw new UnauthorizedException('Refresh token expired');
-            } else if (error instanceof JsonWebTokenError) {
-                throw new UnauthorizedException('Invalid refresh token');
-            }
-            throw new InternalServerErrorException('Failed to verify token');
+            throw new InternalServerErrorException({
+                message: 'Failed to verify token',
+                code: ResponseCode.INTERNAL_ERROR
+            });
         }
 
         // generate new tokens
@@ -202,10 +200,10 @@ export class AuthService {
                     const expirationSetting = this.configService.get<string>('JWT_REFRESH_TOKEN_EXPIRATION');
 
                     res.cookie(REFRESH_TOKEN_COOKIES_KEY, newRefreshToken, {
-                        httpOnly: false, // Consider setting this to true for refresh tokens if possible
+                        httpOnly: true,
                         maxAge: ms(expirationSetting as ms.StringValue), // Type assertion here
                         sameSite: 'none',
-                        secure: true,
+                        secure: this.configService.get<string>('NODE_ENV') === 'production',
                     });
                 }
 
@@ -215,12 +213,18 @@ export class AuthService {
                     user: payload,
                 };
             } else {
-                throw new BadRequestException('Refresh token is invalid or expired');
+                throw new BadRequestException({
+                    message: 'Refresh token is invalid or expired',
+                    code: ResponseCode.TOKEN_INVALID_OR_EXPIRED
+                });
             }
         } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to process refresh token');
+            throw new InternalServerErrorException({
+                message: 'Failed to process refresh token',
+                code: ResponseCode.INTERNAL_ERROR
+            });
         }
     }
 
@@ -280,6 +284,7 @@ export class AuthService {
     #########################################################################*/
     private createRefreshToken(payload: Record<string, string | number | boolean | object | undefined | null | Array<any>>) {
         const refreshToken = this.jwtService.sign(payload, {
+            secret: this.configService.get<StringValue>('JWT_REFRESH_TOKEN_SECRET'),
             expiresIn: this.configService.get<StringValue>('JWT_REFRESH_TOKEN_EXPIRATION'),
         });
 

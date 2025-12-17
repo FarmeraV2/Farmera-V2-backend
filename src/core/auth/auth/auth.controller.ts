@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import { UpdateNewPasswordDto } from '../dtos/forgot-password.dto';
 import { Roles } from 'src/common/decorators/role.decorator';
 import { UserRole } from 'src/common/enums/role.enum';
+import { RefreshToken } from '../dtos/refresh-token.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -35,6 +36,12 @@ export class AuthController {
     async refreshToken(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
         const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIES_KEY] as string;
         return await this.authService.refreshToken(refreshToken, res);
+    }
+
+    @Public()
+    @Post('refresh-token')
+    async refreshTokenBody(@Res({ passthrough: true }) res: Response, @Body() body: RefreshToken) {
+        return await this.authService.refreshToken(body.refresh_token, res);
     }
 
     @Public()
