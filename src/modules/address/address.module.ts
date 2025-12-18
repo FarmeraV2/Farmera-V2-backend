@@ -1,8 +1,6 @@
-import { Module } from '@nestjs/common';
-import { AddressService } from './address/address.service';
-import { AddressController } from './address/address.controller';
+import { Module, Provider } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Province } from './entities/province.entity';
 import { Ward } from './entities/ward.entity';
@@ -14,6 +12,8 @@ import { OldDistrict } from './entities/old-district.entity';
 import { OldWard } from './entities/old-ward.entity';
 import { OldAddressService } from './old-address/old-address.service';
 import { OldAddressController } from './old-address/old-address.controller';
+import { NewAddressService } from './new-address/new-address.service';
+import { NewAddressController } from './new-address/new-address.controller';
 
 @Module({
     imports: [
@@ -21,8 +21,8 @@ import { OldAddressController } from './old-address/old-address.controller';
         HttpModule,
         ConfigModule
     ],
-    providers: [AddressService, DeliveryAddressService, OldAddressService],
-    controllers: [AddressController, DeliveryAddressController, OldAddressController],
+    providers: [DeliveryAddressService, OldAddressService, NewAddressService],
+    controllers: [DeliveryAddressController, NewAddressController, OldAddressController],
     exports: [DeliveryAddressService],
 })
 export class AddressModule { }

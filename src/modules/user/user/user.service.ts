@@ -11,14 +11,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { CreateUserDto } from '../dtos/user/create-user.dto';
-import { PublicUserDto, publicUserFields, UserDto } from '../dtos/user/user.dto';
+import { PublicUserDto, UserDto } from '../dtos/user/user.dto';
 import { plainToInstance } from 'class-transformer';
 import { HashService } from 'src/services/hash.service';
 import { UpdateProfileDto } from '../dtos/user/update-profile.dto';
-import { isUUID } from 'class-validator';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { UserRole } from 'src/common/enums/role.enum';
-import { toInternationalPhone } from 'src/utils/phone';
+import { DeliveryAddressService } from 'src/modules/address/delivery-address/delivery-address.service';
 
 @Injectable()
 export class UserService {
@@ -31,6 +30,7 @@ export class UserService {
         // @InjectRepository(PaymentMethod)
         // private paymentMethodsRepository: Repository<PaymentMethod>,
         private readonly hashService: HashService,
+        private readonly deliveryAddressService: DeliveryAddressService,
     ) { }
 
     /**
@@ -209,7 +209,6 @@ export class UserService {
     async getUserById(id: number, addresses?: boolean, paymentMethod?: boolean): Promise<UserDto> {
         try {
             const relations: string[] = [];
-            if (addresses) relations.push('addresses');
             if (paymentMethod) relations.push('payment_methods');
 
             const user = await this.userRepository.findOne({
@@ -223,7 +222,16 @@ export class UserService {
                     code: ResponseCode.USER_NOT_FOUND
                 });
             }
-            return plainToInstance(UserDto, user, { excludeExtraneousValues: true });
+
+            const userDto = plainToInstance(UserDto, user, { excludeExtraneousValues: true });
+
+            if (addresses) {
+                const addresses = await this.deliveryAddressService.getUserAddresses(id);
+                userDto.addresses = addresses;
+            }
+
+            return userDto;
+
         } catch (error) {
             if (error instanceof HttpException) throw error;
             this.logger.error(error.message);

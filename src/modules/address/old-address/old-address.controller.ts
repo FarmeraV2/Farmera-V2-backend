@@ -9,18 +9,18 @@ export class OldAddressController {
     @Public()
     @Get('province')
     async getProvinces() {
-        return await this.addressService.getAllProvinces();
+        return await this.addressService.getProvinces();
     }
 
     @Public()
     @Get('district/:province_code')
     async getDistrict(@Param('province_code') code: number) {
-        return await this.addressService.getDistrictsByProvince(code);
+        return await this.addressService.getDistricts(code);
     }
 
     @Public()
     @Get('ward/:district_code')
     async getWard(@Param('district_code') code: number) {
-        return await this.addressService.getWardsByDistrict(code);
+        return await this.addressService.getWards(code);
     }
 }

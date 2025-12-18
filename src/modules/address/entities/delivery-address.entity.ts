@@ -34,26 +34,26 @@ export class DeliveryAddress {
     @Column({ nullable: true })
     ward_code?: number;
 
-    @ManyToOne(() => OldProvince)
+    @ManyToOne(() => OldProvince, { nullable: true })
     @JoinColumn({ name: 'old_province_code' })
-    old_province: OldProvince;
+    old_province?: OldProvince;
 
-    @Column()
-    old_province_code: number;
+    @Column({ nullable: true })
+    old_province_code?: number;
 
-    @ManyToOne(() => OldDistrict)
+    @ManyToOne(() => OldDistrict, { nullable: true })
     @JoinColumn({ name: 'old_district_code' })
-    old_district: OldDistrict;
+    old_district?: OldDistrict;
 
-    @Column()
-    old_district_code: number;
+    @Column({ nullable: true })
+    old_district_code?: number;
 
-    @ManyToOne(() => OldWard)
+    @ManyToOne(() => OldWard, { nullable: true })
     @JoinColumn({ name: 'old_ward_code' })
-    old_ward: OldWard;
+    old_ward?: OldWard;
 
-    @Column()
-    old_ward_code: number;
+    @Column({ nullable: true })
+    old_ward_code?: number;
 
     @Column()
     street: string;

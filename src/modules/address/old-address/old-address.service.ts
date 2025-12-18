@@ -8,9 +8,10 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { ResponseCode } from 'src/common/constants/response-code.const';
+import { AddressService } from '../interfaces/address.interface';
 
 @Injectable()
-export class OldAddressService {
+export class OldAddressService implements AddressService {
 
     private readonly logger = new Logger(OldAddressService.name);
     private addressApi: string | undefined;
@@ -55,7 +56,7 @@ export class OldAddressService {
         }
     }
 
-    async getAllProvinces(): Promise<OldProvince[]> {
+    async getProvinces(): Promise<OldProvince[]> {
         try {
             return await this.oldProvinceRepository.find();
         }
@@ -69,7 +70,7 @@ export class OldAddressService {
         }
     }
 
-    async getDistrictsByProvince(code: number): Promise<OldDistrict[]> {
+    async getDistricts(code: number): Promise<OldDistrict[]> {
         try {
             return await this.oldDistrictRepository.find({ where: { province_code: code } });
         }
@@ -83,7 +84,7 @@ export class OldAddressService {
         }
     }
 
-    async getWardsByDistrict(code: number): Promise<OldWard[]> {
+    async getWards(code: number): Promise<OldWard[]> {
         try {
             return await this.oldWardRepository.find({ where: { district_code: code } });
         }

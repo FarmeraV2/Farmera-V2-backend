@@ -20,25 +20,24 @@ export class CreateAddressDto {
     @IsPositive()
     ward_code?: number;
 
+    @IsOptional()
     @IsNumber()
     @IsPositive()
-    old_province_code: number;
+    old_province_code?: number;
 
+    @IsOptional()
     @IsNumber()
     @IsPositive()
-    old_district_code: number;
+    old_district_code?: number;
 
+    @IsOptional()
     @IsNumber()
     @IsPositive()
-    old_ward_code: number;
+    old_ward_code?: number;
 
     @IsString()
     @IsNotEmpty()
     street: string;
-
-    @IsString()
-    @IsNotEmpty()
-    address_line: string;
 
     @IsString()
     @IsOptional()

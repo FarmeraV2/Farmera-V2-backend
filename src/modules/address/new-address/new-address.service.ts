@@ -8,10 +8,11 @@ import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import * as https from 'https';
 import { ResponseCode } from 'src/common/constants/response-code.const';
+import { AddressService } from '../interfaces/address.interface';
 
 @Injectable()
-export class AddressService {
-    private readonly logger = new Logger(AddressService.name);
+export class NewAddressService implements AddressService {
+    private readonly logger = new Logger(NewAddressService.name);
 
     private addressApi: string | undefined;
 
@@ -57,7 +58,7 @@ export class AddressService {
         }
     }
 
-    async getAllProvinces(): Promise<Province[]> {
+    async getProvinces(): Promise<Province[]> {
         try {
             const provinces = await this.provinceRepository.find();
             return provinces;
@@ -70,7 +71,7 @@ export class AddressService {
         }
     }
 
-    async getWardByProvinceCode(code: number): Promise<Ward[]> {
+    async getWards(code: number): Promise<Ward[]> {
         try {
             const wards = await this.wardRepository.find({ where: { province_code: code } });
             return wards;

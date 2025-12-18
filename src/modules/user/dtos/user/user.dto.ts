@@ -2,7 +2,7 @@ import { Expose, Type } from 'class-transformer';
 import { PaymentMethod } from '../../entities/payment-method.entity';
 import { Gender } from '../../enums/gender.enum';
 import { UserStatus } from '../../enums/user-status.enum';
-import { AddressDto } from 'src/modules/address/dtos/address.dto';
+import { DeliveryAddressDto } from 'src/modules/address/dtos/delivery-address.dto';
 import { UserRole } from 'src/common/enums/role.enum';
 
 /**
@@ -28,8 +28,8 @@ export class UserDto {
     @Expose() updated_at: Date;
 
     @Expose()
-    @Type(() => AddressDto)
-    addresses?: AddressDto[];
+    @Type(() => DeliveryAddressDto)
+    addresses?: DeliveryAddressDto[];
 }
 
 export class PublicUserDto {
