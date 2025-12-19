@@ -84,7 +84,7 @@ export class DeliveryAddressService {
 
             const result = await this.deliveryAddressRepository.insert(newLocation);
 
-            return await this.getAddressById(result.identifiers[0].id);
+            return await this.getAddressById(result.identifiers[0].address_id);
         } catch (error) {
             this.logger.error(error.message);
             throw new InternalServerErrorException({
@@ -139,6 +139,11 @@ export class DeliveryAddressService {
             // If setting this as primary, unset other primary locations for this user
             if (locationData.is_primary) {
                 await this.deliveryAddressRepository.update({ user: { id: userId } }, { is_primary: false });
+            } else {
+                const exist = await this.deliveryAddressRepository.exists({ where: { user: { id: userId }, is_primary: true } });
+                if (!exist) {
+                    locationData.is_primary = true;
+                }
             }
 
             await this.deliveryAddressRepository.update({ address_id: addressId, user: { id: userId } }, locationData);
@@ -166,6 +171,18 @@ export class DeliveryAddressService {
         }
 
         await this.deliveryAddressRepository.delete({ address_id: addressId });
+
+        // if a primary address is deleted, update another address to primary
+        if (location.is_primary) {
+            const toPrimary = await this.deliveryAddressRepository.findOne({
+                select: ["address_id"],
+                where: { user: { id: userId } },
+            })
+            if (toPrimary) {
+                await this.deliveryAddressRepository.update({ address_id: toPrimary.address_id }, { is_primary: true });
+            }
+        }
+
         return { success: true, message: 'Location deleted successfully' };
     }
 
