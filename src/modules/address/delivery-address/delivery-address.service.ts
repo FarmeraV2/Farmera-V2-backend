@@ -89,7 +89,7 @@ export class DeliveryAddressService {
             this.logger.error(error.message);
             throw new InternalServerErrorException({
                 message: 'Failed to add new user address',
-                code: ResponseCode.FAILED_TO_GET_USER_ADDRESS
+                code: ResponseCode.FAILED_TO_CREATE_USER_ADDRESS
             });
         }
     }
