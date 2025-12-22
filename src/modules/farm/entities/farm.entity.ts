@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Plot } from 'src/modules/crop-management/entities/plot.entity';
 import { Season } from 'src/modules/crop-management/entities/season.entity';
 import { Log } from 'src/modules/crop-management/entities/log.entity';
+import { Product } from 'src/modules/product/entities/product.entity';
 
 @Entity()
 export class Farm {
@@ -23,8 +24,8 @@ export class Farm {
     @Column({ unique: true })
     farm_name: string;
 
-    @Column({ nullable: true })
-    description?: string;
+    @Column()
+    description: string;
 
     @Column({ nullable: true })
     avatar_url: string;
@@ -65,15 +66,15 @@ export class Farm {
 
     // stats?: FarmStats
 
-    @Column({ nullable: true })
+    @Column()
     address_id: number;
 
-    @OneToOne(() => DeliveryAddress, (address) => address.farm, { nullable: true })
+    @OneToOne(() => DeliveryAddress, (address) => address.farm)
     @JoinColumn({ name: 'address_id' })
     address: DeliveryAddress;
 
-    // @OneToMany(() => Product, (product) => product.farm, { cascade: true })
-    // products: Product[];
+    @OneToMany(() => Product, (product) => product.farm, { cascade: true })
+    products: Product[];
 
     @OneToMany(() => Plot, (plot) => plot.farm)
     plots?: Plot[]

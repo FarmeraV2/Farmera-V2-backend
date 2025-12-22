@@ -26,7 +26,7 @@ export class Product {
     @Column()
     description: string;
 
-    @Column({ type: 'numeric', precision: 10, scale: 2 })
+    @Column({ type: 'bigint' })
     price_per_unit: number;
 
     @Column()
@@ -65,7 +65,7 @@ export class Product {
     @Column({ nullable: true })
     qr_code?: string;
 
-    @ManyToOne(() => Farm)
+    @ManyToOne(() => Farm, (farm) => farm.products)
     @JoinColumn({ name: 'farm_id' })
     farm: Farm;
 

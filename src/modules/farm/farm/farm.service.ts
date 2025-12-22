@@ -213,8 +213,7 @@ export class FarmService {
      */
     async getUserFarm(id: number): Promise<Farm> {
         const farm = await this.farmRepository.findOne({
-            where: { user_id: id },
-            relations: ['address'],
+            where: { user_id: id }
         });
         if (!farm) {
             throw new NotFoundException({

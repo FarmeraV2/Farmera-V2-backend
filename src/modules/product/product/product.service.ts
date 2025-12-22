@@ -28,6 +28,8 @@ import { SearchProductsDto } from '../dtos/product/search-product.dto';
 import { UpdateProductDto } from '../dtos/product/update-product-dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { applyPagination } from 'src/common/utils/pagination.util';
+import { FarmSummaryDtoSelectFields } from 'src/modules/farm/dtos/farm.dto';
+import { ProductDetailDto, productDetailSelectFields } from '../dtos/product/product-detail.dto';
 
 @Injectable()
 export class ProductService {
@@ -296,20 +298,24 @@ export class ProductService {
      * @throws {NotFoundException} - If no active (non-deleted) product is found with the given ID
      * @throws {InternalServerErrorException} - If the retrieval process fails due to an unexpected error
      */
-    async getProductById(productId: number, includeCategories?: boolean): Promise<Product> {
+    async getProductById(productId: number, includeCategories?: boolean): Promise<ProductDetailDto> {
         try {
-            const product = await this.productsRepository.findOne({
-                where: { product_id: productId, status: Not(ProductStatus.DELETED) },
-                relations: includeCategories ? ['subcategories'] : undefined,
-            });
+            const queryBuilder = this.productsRepository.createQueryBuilder('product').select(productDetailSelectFields)
+                .where('product.product_id = :productId', { productId })
+                .leftJoin('product.farm', 'farm').addSelect(FarmSummaryDtoSelectFields);
+
+            if (includeCategories)
+                queryBuilder.leftJoin('product.subcategories', 'subcategory').addSelect(subcategorySelectFields);
+
+            const product = await queryBuilder.getOne();
 
             if (!product) {
-                throw new NotFoundException({
+                throw new InternalServerErrorException({
                     message: 'Product not found',
                     code: ResponseCode.PRODUCT_NOT_FOUND,
                 });
             }
-            return product;
+            return plainToInstance(ProductDetailDto, product, { excludeExtraneousValues: true });
         } catch (err) {
             if (err instanceof HttpException) throw err;
             this.logger.error(err.message);
