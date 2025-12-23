@@ -1,28 +1,30 @@
 export class RatingBreakdown {
+    star: number;
     count: number;
     percentage: number;
 
-    constructor(count: number, total: number) {
+    constructor(star: number, count: number, total: number) {
+        this.star = star;
         this.count = count;
         this.percentage = total === 0 ? 0 : parseFloat(((count / total) * 100).toFixed(2));
     }
 }
 
 export class RatingStatsDto {
-    totalCount: number;
-    totalRating: number;
-    averageRating: number;
-    ratings: Record<number, RatingBreakdown>;
+    total_count: number;
+    total_rating: number;
+    average_rating: number;
+    ratings: RatingBreakdown[];
 
     constructor(counts: Record<number, number>) {
-        this.totalCount = Object.values(counts).reduce((sum, val) => sum + val, 0);
-        this.totalRating = Object.entries(counts).reduce((sum, [rating, count]) => sum + Number(rating) * count, 0);
-        this.averageRating = this.totalCount === 0 ? 0 : parseFloat((this.totalRating / this.totalCount).toFixed(2));
+        this.total_count = Object.values(counts).reduce((sum, val) => sum + val, 0);
+        this.total_rating = Object.entries(counts).reduce((sum, [rating, count]) => sum + Number(rating) * count, 0);
+        this.average_rating = this.total_count === 0 ? 0 : parseFloat((this.total_rating / this.total_count).toFixed(2));
 
-        this.ratings = {} as Record<number, RatingBreakdown>;
+        this.ratings = [];
         for (let i = 1; i <= 5; i++) {
             const count = counts[i] || 0;
-            this.ratings[i] = new RatingBreakdown(count, this.totalCount);
+            this.ratings.push(new RatingBreakdown(i, count, this.total_count));
         }
     }
 }

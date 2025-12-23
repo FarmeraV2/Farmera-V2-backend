@@ -13,6 +13,8 @@ import { CursorPaginationResult } from 'src/common/dtos/pagination/cursor-pagina
 import { RatingStatsDto } from '../dtos/review/rating-stats.dto';
 import { Order } from 'src/common/enums/pagination.enum';
 import { ResponseCode } from 'src/common/constants/response-code.const';
+import { replySelectFields, ReviewDto, reviewSelectFields } from '../dtos/review/review.dto';
+import { publicUserFields } from 'src/modules/user/dtos/user/user.dto';
 
 @Injectable()
 export class ReviewService {
@@ -68,7 +70,7 @@ export class ReviewService {
         }
     }
 
-    async getProductReviewsByCursor(productId: number, getReviewDto: GetReviewsDto) {
+    async getProductReviewsByCursor(productId: number, getReviewDto: GetReviewsDto): Promise<CursorPaginationResult<ReviewDto>> {
         // extract pagination options
         const paginationOptions = plainToInstance(CursorPaginationTransform<ReviewSortField>, getReviewDto);
         const { limit, sort_by, order, cursor } = paginationOptions;
@@ -76,10 +78,12 @@ export class ReviewService {
 
         // build query
         const qb = this.reviewRepository
-            .createQueryBuilder('review')
+            .createQueryBuilder('review').select(reviewSelectFields)
             .where('review.is_deleted = false')
-            .leftJoinAndSelect('review.replies', 'reply', 'reply.is_deleted = false')
+            .leftJoin('review.replies', 'reply', 'reply.is_deleted = false').addSelect(replySelectFields)
             .andWhere('review.product_id = :productId', { productId })
+            .leftJoin('review.user', 'user1').addSelect(publicUserFields.map((prop) => `user1.${prop}`))
+            .leftJoin('reply.user', 'user2').addSelect(publicUserFields.map((prop) => `user2.${prop}`))
             .take(limit);
 
         if (sort_by === ReviewSortField.CREATED) {
@@ -136,7 +140,10 @@ export class ReviewService {
             nextCursor = this.encodeCursor(nextCursor);
         }
 
-        return new CursorPaginationResult(reviews, { next_cursor: nextCursor });
+        return new CursorPaginationResult(
+            plainToInstance(ReviewDto, reviews, { excludeExtraneousValues: true }),
+            { next_cursor: nextCursor }
+        );
     }
 
     async deleteReview(reviewId: number, userId: number): Promise<boolean> {

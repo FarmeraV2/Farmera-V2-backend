@@ -8,10 +8,11 @@ import { Public } from 'src/common/decorators/public.decorator';
 import { CreateReviewDto } from '../dtos/review/create-review.dto';
 import { CreateReplyDto } from '../dtos/review/create-reply.dto';
 import { GetReviewsDto } from '../dtos/review/get-review.dto';
+import { resolve } from 'path';
 
 @Controller('review')
 export class ReviewController {
-    constructor(private readonly reviewService: ReviewService) {}
+    constructor(private readonly reviewService: ReviewService) { }
 
     @Post()
     // @Roles([UserRole.BUYER])
@@ -20,7 +21,7 @@ export class ReviewController {
     }
 
     @Post('reply')
-    @Roles([UserRole.FARMER])
+    // @Roles([UserRole.FARMER])
     async createReply(@User() user: UserInterface, @Body() createReplyDto: CreateReplyDto) {
         return await this.reviewService.createReply(createReplyDto, user.id);
     }
