@@ -15,6 +15,7 @@ import { Order } from 'src/common/enums/pagination.enum';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { replySelectFields, ReviewDto, reviewSelectFields } from '../dtos/review/review.dto';
 import { publicUserFields } from 'src/modules/user/dtos/user/user.dto';
+import { UserInterface } from 'src/common/types/user.interface';
 
 @Injectable()
 export class ReviewService {
@@ -26,16 +27,17 @@ export class ReviewService {
         // private readonly fileStorageService: AzureBlobService,
     ) { }
 
-    async createReview(createReviewDto: CreateReviewDto, userId: number): Promise<Review> {
+    async createReview(createReviewDto: CreateReviewDto, user: UserInterface): Promise<ReviewDto> {
         try {
             // todo!("check if user has purchased the product")
             // const orderDetailId = 0;
 
             const review = this.reviewRepository.create(createReviewDto);
-            review.user_id = userId;
+            review.user_id = user.id;
             // review.order_detailId = orderDetailId;
 
-            return await this.reviewRepository.save(review);
+            const result = await this.reviewRepository.save(review);
+            return plainToInstance(ReviewDto, { ...result, user: user }, { excludeExtraneousValues: true });
         } catch (error) {
             this.logger.error(error.message);
             throw new InternalServerErrorException({
