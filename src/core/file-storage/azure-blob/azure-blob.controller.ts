@@ -1,19 +1,19 @@
 import { Body, Controller, Post } from '@nestjs/common';
 import { AzureBlobService } from './azure-blob.service';
-import { GetSignedUrlDto } from '../dtos/get-signed-url.dto';
 import { StoragePermission } from '../enums/storage-permission.enum';
+import { UploadFileDto } from '../dtos/upload-file.dto';
 
 @Controller('azure-blob')
 export class AzureBlobController {
     constructor(private readonly azureBlobService: AzureBlobService) { }
 
     @Post("signed-url/read")
-    async getGetSignedUrl(@Body() getDto: GetSignedUrlDto) {
+    async getGetSignedUrl(@Body() getDto: UploadFileDto) {
         return await this.azureBlobService.generateSasUrl(getDto.key, StoragePermission.READ)
     }
 
     @Post("signed-url/write")
-    async getPutSignedUrl(@Body() getDto: GetSignedUrlDto) {
+    async getPutSignedUrl(@Body() getDto: UploadFileDto) {
         return await this.azureBlobService.generateSasUrl(getDto.key, StoragePermission.WRITE)
     }
 }

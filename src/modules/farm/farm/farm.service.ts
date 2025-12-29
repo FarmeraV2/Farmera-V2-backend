@@ -181,9 +181,7 @@ export class FarmService {
                 userId.toString(),
             );
 
-            if (ssn_img_url === 'string') {
-                identification.id_card_image_url = ssn_img_url;
-            } else if (ssn_img_url.length > 0) {
+            if (ssn_img_url.length > 0) {
                 identification.id_card_image_url = ssn_img_url[0];
             }
 

@@ -9,4 +9,17 @@ export class UploadFileDto {
     @IsString()
     @IsNotEmpty()
     sub_path?: string;
+
+    @IsOptional()
+    @IsString()
+    @IsNotEmpty()
+    file_key?: string;
+
+    get key(): string {
+        if (this.file_key) return `${this.group_type}/${this.sub_path}`;
+
+        return this.sub_path
+            ? `${this.group_type}/${this.sub_path}`
+            : `${this.group_type}`;
+    }
 }

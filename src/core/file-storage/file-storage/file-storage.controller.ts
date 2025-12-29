@@ -1,6 +1,5 @@
 import { Body, Controller, Delete, Get, Inject, InternalServerErrorException, MaxFileSizeValidator, Param, ParseFilePipe, Post, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FileStorageService } from '../interfaces/file-storage.interface';
-import { GetSignedUrlDto } from '../dtos/get-signed-url.dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { StoragePermission } from '../enums/storage-permission.enum';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -16,7 +15,7 @@ export class FileStorageController {
     constructor(@Inject('FileStorageService') private readonly fileStorageService: FileStorageService) { }
 
     @Post("signed-url/get")
-    async getGetSignedUrl(@Body() getDto: GetSignedUrlDto) {
+    async getGetSignedUrl(@Body() getDto: UploadFileDto) {
         if (this.fileStorageService.getSignedUrl) {
             return await this.fileStorageService.getSignedUrl(getDto.key, StoragePermission.READ);
         } else {
@@ -28,7 +27,7 @@ export class FileStorageController {
     }
 
     @Post("signed-url/put")
-    async getPutSignedUrl(@Body() getDto: GetSignedUrlDto) {
+    async getPutSignedUrl(@Body() getDto: UploadFileDto) {
         if (this.fileStorageService.getSignedUrl) {
             return await this.fileStorageService.getSignedUrl(getDto.key, StoragePermission.WRITE);
         } else {

@@ -99,14 +99,17 @@ export class LocalStorageService implements FileStorageService {
         return results;
     }
 
-    private async deleteByIdentifiers(absoluteFilePaths: string[]): Promise<boolean> {
-        if (!absoluteFilePaths || absoluteFilePaths.length === 0) return false;
+    private async deleteByIdentifiers(absoluteFilePaths: string[]): Promise<string[]> {
+        if (!absoluteFilePaths || absoluteFilePaths.length === 0) return [];
+
+        const deletedPaths: string[] = [];
 
         const deletionPromises = absoluteFilePaths.map(async (filePath) => {
             const trimmedPath = filePath?.trim();
             if (!trimmedPath) return Promise.resolve();
             try {
                 await fs.unlink(trimmedPath);
+                deletedPaths.push(trimmedPath);
             } catch (error) {
                 if (error.code !== 'ENOENT') {
                     this.logger.error(`Error deleting "${trimmedPath}": ${error.message}`);
@@ -117,11 +120,11 @@ export class LocalStorageService implements FileStorageService {
         });
 
         await Promise.all(deletionPromises);
-        return true;
+        return deletedPaths;
     }
 
-    async deleteByUrls(urls: string[]): Promise<boolean> {
-        if (!urls || urls.length === 0) return false;
+    async deleteByUrls(urls: string[]): Promise<string[]> {
+        if (!urls || urls.length === 0) return [];
 
         const pathsToDelete = urls.map(url => this.getAbsolutePathFromUrl(url))
             .filter((p): p is string => !!p);
@@ -129,7 +132,7 @@ export class LocalStorageService implements FileStorageService {
         if (pathsToDelete.length > 0) {
             return await this.deleteByIdentifiers(pathsToDelete);
         }
-        return false;
+        return [];
     }
 
     async getFile(url: string): Promise<Buffer> {

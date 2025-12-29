@@ -7,10 +7,10 @@ export interface FileStorageService {
         typeOrKey?: MediaGroupType | string,
         subPath?: string,
         contentType?: string
-    ): Promise<string | string[]>
+    ): Promise<string[]>
 
     getFile?(url: string): Promise<Buffer>
     getSignedUrl?(key: string, permission: StoragePermission): Promise<string>
 
-    deleteByUrls?(urls: string[]): Promise<boolean>
+    deleteByUrls?(urls: string[]): Promise<string[]>
 }
