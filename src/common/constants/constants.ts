@@ -1,1 +1,1 @@
-export const SIGNED_URL_EXP: number = 120 // secs
+export const SIGNED_URL_EXP: number = 30 // secs

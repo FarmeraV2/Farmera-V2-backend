@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Inject, InternalServerErrorException, MaxFileSizeValidator, Param, ParseFilePipe, Post, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpException, Inject, InternalServerErrorException, MaxFileSizeValidator, Param, ParseFilePipe, Post, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FileStorageService } from '../interfaces/file-storage.interface';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { StoragePermission } from '../enums/storage-permission.enum';
@@ -8,6 +8,7 @@ import { getFileExtension } from '../utils/file.util';
 import { Response } from "express";
 import { lookup } from 'mime-types';
 import { Public } from 'src/common/decorators/public.decorator';
+import * as fs from 'fs/promises';
 
 @Controller('file-storage')
 export class FileStorageController {
@@ -44,7 +45,7 @@ export class FileStorageController {
     async upload(
         @UploadedFiles(new ParseFilePipe({
             validators: [
-                new MaxFileSizeValidator({ maxSize: 25 * 1024 * 1024 }), // 25MB
+                new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10MB
                 // todo!("handle this error")
                 // new FileTypeValidator({
                 //     fileType:
@@ -70,8 +71,48 @@ export class FileStorageController {
         }
     }
 
-    @Get("*url")
+    @Get('*url')
     @Public()
+    async serveFile(@Param('url') url: string | string[], @Res() res: Response) {
+        const filePath = Array.isArray(url) ? url.join('/') : url;
+        try {
+            const { absolutePath, isVideo, mimeType } = await this.fileStorageService.getFilePath(filePath);
+
+            res.setHeader('Content-Type', mimeType);
+            res.setHeader('Accept-Ranges', 'bytes');
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+
+            if (isVideo) {
+                res.sendFile(absolutePath, {
+                    dotfiles: 'deny',
+                    acceptRanges: true,
+                }, (err) => {
+                    if (err) {
+                        if (!res.headersSent) {
+                            res.status(500).json({
+                                message: 'Error streaming file',
+                                code: ResponseCode.INTERNAL_ERROR,
+                            });
+                        }
+                    }
+                });
+            } else {
+                const buffer = await fs.readFile(absolutePath);
+                res.send(buffer);
+            }
+        } catch (error) {
+            if (error instanceof HttpException) {
+                throw error;
+            }
+
+            throw new InternalServerErrorException({
+                message: 'Failed to serve file',
+                code: ResponseCode.INTERNAL_ERROR,
+            });
+        }
+    }
+
+    /**DEPRECATED */
     async getFile(@Param("url") url: string | string[], @Res() res: Response) {
         if (this.fileStorageService.getFile) {
             const filePath = Array.isArray(url) ? url.join('/') : url;

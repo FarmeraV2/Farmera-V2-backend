@@ -36,6 +36,15 @@ export class CloudflareR2Service implements FileStorageService {
             signatureVersion: "v4"
         })
     }
+    getFile?(url: string): Promise<Buffer> {
+        throw new Error('Method not implemented.');
+    }
+    getFilePath(url: string): Promise<{ absolutePath: string; isVideo: boolean; mimeType: string; }> {
+        throw new Error('Method not implemented.');
+    }
+    deleteByUrls?(urls: string[]): Promise<string[]> {
+        throw new Error('Method not implemented.');
+    }
 
     async getSignedUrl(key: string, permission: StoragePermission): Promise<string> {
         if (!this.r2) {

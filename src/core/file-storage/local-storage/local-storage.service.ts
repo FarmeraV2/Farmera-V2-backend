@@ -1,14 +1,16 @@
 import { HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { existsSync, mkdirSync } from "fs";
-import path from "path";
+import path, { extname } from "path";
 import { MediaGroupType } from "../enums/media-group-type.enum";
 import * as fs from 'fs/promises';
 import { ResponseCode } from "src/common/constants/response-code.const";
 import { generateFileName } from "../utils/file.util";
 import { FileStorageService } from "../interfaces/file-storage.interface";
+import { lookup } from "mime-types";
 
 const SUB_URL = "api/file-storage";
+const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv', '.flv'];
 
 @Injectable()
 export class LocalStorageService implements FileStorageService {
@@ -135,6 +137,8 @@ export class LocalStorageService implements FileStorageService {
         return [];
     }
 
+
+    /**DEPRECATED */
     async getFile(url: string): Promise<Buffer> {
         const absolutePath = this.getAbsolutePathFromUrl(url);
         if (!absolutePath) {
@@ -162,6 +166,45 @@ export class LocalStorageService implements FileStorageService {
             throw new NotFoundException({
                 message: `Unable to read file: ${url}`,
                 code: ResponseCode.FAILED_TO_READ_FILE
+            });
+        }
+    }
+
+    async getFilePath(url: string): Promise<{
+        absolutePath: string;
+        isVideo: boolean;
+        mimeType: string;
+    }> {
+        const absolutePath = this.getAbsolutePathFromUrl(url);
+        if (!absolutePath) {
+            throw new NotFoundException({
+                message: `File path could not be resolved from URL: ${url}`,
+                code: ResponseCode.FILE_PATH_NOT_FOUND,
+            });
+        }
+
+        try {
+            const stats = await fs.stat(absolutePath);
+            if (!stats.isFile()) {
+                throw new NotFoundException({
+                    message: `Path is not a file: ${url}`,
+                    code: ResponseCode.FILE_NOT_FOUND,
+                });
+            }
+
+            const ext = extname(absolutePath).toLowerCase();
+            const isVideo = VIDEO_EXTENSIONS.includes(ext);
+            const mimeType = lookup(ext) || 'application/octet-stream';
+
+            return { absolutePath, isVideo, mimeType };
+
+        } catch (error) {
+            if (error instanceof HttpException) throw error;
+
+            this.logger.error(`Error accessing file: ${absolutePath}`, error.stack);
+            throw new NotFoundException({
+                message: `Unable to access file: ${url}`,
+                code: ResponseCode.FAILED_TO_READ_FILE,
             });
         }
     }

@@ -10,6 +10,11 @@ export interface FileStorageService {
     ): Promise<string[]>
 
     getFile?(url: string): Promise<Buffer>
+    getFilePath(url: string): Promise<{
+        absolutePath: string;
+        isVideo: boolean;
+        mimeType: string;
+    }>
     getSignedUrl?(key: string, permission: StoragePermission): Promise<string>
 
     deleteByUrls?(urls: string[]): Promise<string[]>

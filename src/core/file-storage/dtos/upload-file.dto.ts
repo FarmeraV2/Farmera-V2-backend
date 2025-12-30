@@ -16,7 +16,7 @@ export class UploadFileDto {
     file_key?: string;
 
     get key(): string {
-        if (this.file_key) return `${this.group_type}/${this.sub_path}`;
+        if (this.file_key) return `${this.group_type}/${this.file_key}`;
 
         return this.sub_path
             ? `${this.group_type}/${this.sub_path}`
