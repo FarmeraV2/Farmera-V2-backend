@@ -6,8 +6,7 @@ export class FarmRegistrationDto {
     farm_name: string;
 
     @IsString()
-    @IsOptional()
-    description?: string;
+    description: string;
 
     @IsString()
     @IsNotEmpty()
@@ -34,15 +33,18 @@ export class FarmRegistrationDto {
 
     @IsNumber()
     @IsPositive()
-    old_province_code: number;
+    @IsOptional()
+    old_province_code?: number;
 
     @IsNumber()
     @IsPositive()
-    old_district_code: number;
+    @IsOptional()
+    old_district_code?: number;
 
     @IsNumber()
     @IsPositive()
-    old_ward_code: number;
+    @IsOptional()
+    old_ward_code?: number;
 
     @IsString()
     @IsNotEmpty()

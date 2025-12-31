@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { DeliveryAddress } from '../entities/delivery-address.entity';
 import { CreateAddressDto, CreateFarmAddressDto } from '../dtos/create-address.dto';
 import { UpdateAddressDto } from '../dtos/update-address.dto';
@@ -97,6 +97,7 @@ export class DeliveryAddressService {
     /**
      * @function addFarmAddress - Creates a address for a given farm
      * @param {CreateFarmAddressDto} addressData - DTO containing the new address details
+     * @param {EntityManager} manager - Entity manager for rollback when error
      *
      * @returns {Promise<DeliveryAddress>} - Returns the newly created and saved delivery address entity
      *
@@ -105,15 +106,17 @@ export class DeliveryAddressService {
      * @WARNING This function should **NOT** be called directly from controllers or exposed to end users.
      * Always wrap this method inside a service-level function that enforces ownership and validation checks.
      */
-    async addFarmAddress(addressData: CreateFarmAddressDto): Promise<DeliveryAddress> {
+    async addFarmAddress(addressData: CreateFarmAddressDto, manager?: EntityManager): Promise<DeliveryAddressDto> {
         try {
-            const newAddress = this.deliveryAddressRepository.create({
+            const repo = manager ? manager.getRepository(DeliveryAddress) : this.deliveryAddressRepository;
+            const newAddress = repo.create({
                 ...addressData,
                 location: { lat: addressData.latitude, lng: addressData.longitude },
                 owner_type: AddressType.FARM,
             });
-            const savedLocation = await this.deliveryAddressRepository.save(newAddress);
-            return savedLocation;
+            const result = await this.deliveryAddressRepository.insert(newAddress);
+
+            return await this.getAddressById(result.identifiers[0].address_id);
         } catch (error) {
             this.logger.error(error.message);
             throw new InternalServerErrorException({

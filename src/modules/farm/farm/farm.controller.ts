@@ -12,10 +12,10 @@ import { UserRole } from 'src/common/enums/role.enum';
 
 @Controller('farm')
 export class FarmController {
-    constructor(private readonly farmService: FarmService) {}
+    constructor(private readonly farmService: FarmService) { }
 
     @Post('register')
-    async farmRegister(@User() user: UserInterface, @Body() farmRegistration: FarmRegistrationDto): Promise<Farm> {
+    async farmRegister(@User() user: UserInterface, @Body() farmRegistration: FarmRegistrationDto) {
         return await this.farmService.farmRegister(farmRegistration, user.id);
     }
 
@@ -42,13 +42,13 @@ export class FarmController {
 
     @Public()
     @Get('owner/:userId')
-    async getFarmByOwnerId(@Param('userId') userId: string) {
+    async getFarmByOwnerId(@Param('userId') userId: number) {
         return await this.farmService.getFarmByOwner(userId);
     }
 
     @Public()
     @Get(':farmId')
-    async getFarm(@Param('farmId') farmId: string) {
+    async getFarm(@Param('farmId') farmId: number) {
         return await this.farmService.findFarmById(farmId);
     }
 

@@ -1,19 +1,8 @@
 import { Expose, Type } from "class-transformer";
 import { DeliveryAddressDto } from "src/modules/address/dtos/delivery-address.dto";
-import { PublicUserDto } from "src/modules/user/dtos/user/user.dto";
+import { FarmStatus } from "../enums/farm-status.enum";
 
-export class FarmSummaryDto {
-    @Expose() id: number;
-    @Expose() farm_name: string;
-    @Expose() description: string;
-    @Expose() avatar_url: string;
-}
-
-const dtoProps = Object.keys(new FarmSummaryDto());
-export const farmSummaryDtoSelectFields = dtoProps
-    .map((prop) => `farm.${prop}`);
-
-export class FarmDto {
+export class MyFarmDto {
     @Expose() id: number;
     @Expose() farm_id: string;
     @Expose() farm_name: string;
@@ -24,20 +13,18 @@ export class FarmDto {
     @Expose() email: string;
     @Expose() phone: string;
     @Expose() tax_number: string;
-
-    @Expose()
-    @Type(() => PublicUserDto)
-    owner: PublicUserDto;
-
+    @Expose() status: FarmStatus;
+    @Expose() created: Date;
+    @Expose() updated: Date;
 
     @Type(() => DeliveryAddressDto)
     @Expose() address: DeliveryAddressDto;
 }
 
-const farmDtoProps = Object.keys(new FarmDto());
+const farmDtoProps = Object.keys(new MyFarmDto());
 export const farmDtoSelectFields = farmDtoProps
     .map((prop) => {
-        if (prop === 'owner' || prop === 'address') return null;
+        if (prop === 'address') return null;
         return `farm.${prop}`;
     })
     .filter((field): field is string => !!field);

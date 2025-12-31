@@ -50,7 +50,7 @@ export class ProductController {
 
     @Public()
     @Get('farm/:farm_id')
-    async getProductsByFarm(@Param('farm_id') farmId: string, @Query() getProductByFarmDto?: GetProductByFarmDto) {
+    async getProductsByFarm(@Param('farm_id') farmId: number, @Query() getProductByFarmDto?: GetProductByFarmDto) {
         return await this.productService.getProductsByFarmId(farmId, getProductByFarmDto);
     }
 

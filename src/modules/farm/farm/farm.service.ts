@@ -16,6 +16,10 @@ import { UpdateFarmDto } from '../dtos/update-farm.dto';
 import { UpdateFarmAvatarDto, UpdateFarmImagesDto } from '../dtos/update-farm-images.dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { FileStorageService } from 'src/core/file-storage/interfaces/file-storage.interface';
+import { FarmDto, farmDtoSelectFields } from '../dtos/farm.dto';
+import { UserInterface } from 'src/common/types/user.interface';
+import { publicUserFields } from 'src/modules/user/dtos/user/user.dto';
+import { MyFarmDto } from '../dtos/my-farm.dto';
 
 @Injectable()
 export class FarmService {
@@ -33,7 +37,7 @@ export class FarmService {
         // private readonly GhnService: GhnService,
     ) { }
 
-    async farmRegister(registerDto: FarmRegistrationDto, userId: number): Promise<Farm> {
+    async farmRegister(registerDto: FarmRegistrationDto, userId: number): Promise<MyFarmDto> {
         const isExistingFarm = await this.farmRepository.existsBy({ user_id: userId });
         if (isExistingFarm) {
             throw new ConflictException({
@@ -42,82 +46,31 @@ export class FarmService {
             });
         }
 
-        // todo!();
-        try {
-            // validate address
-            // const ghn_province_id = await this.GhnService.getIdProvince(
-            //     registerDto.city,
-            // );
-            // if (!ghn_province_id) {
-            //     throw new NotFoundException(
-            //         `Không tìm thấy ID tỉnh GHN cho thành phố ${registerDto.city}`,
-            //     );
-            // }
-            // const ghn_district_id = await this.GhnService.getIdDistrict(
-            //     registerDto.district,
-            //     ghn_province_id,
-            // );
-            // if (!ghn_district_id) {
-            //     throw new NotFoundException(
-            //         `Không tìm thấy ID quận huyện GHN cho ${registerDto.district} trong tỉnh ${registerDto.city}`,
-            //     );
-            // }
-            // const ghn_ward_id = await this.GhnService.getIdWard(
-            //     registerDto.ward,
-            //     ghn_district_id,
-            // );
-            // if (!ghn_ward_id) {
-            //     throw new NotFoundException(
-            //         `Không tìm thấy ID phường xã GHN cho ${registerDto.ward} trong quận ${registerDto.district}`,
-            //     );
-            // }
-        } catch (error) {
-            if (error instanceof HttpException) {
-                throw error;
-            }
-            this.logger.error(error.message);
-            throw new InternalServerErrorException({
-                message: 'Failed to register farm',
-                code: ResponseCode.FAILED_TO_REGISTER_FARM
-            });
-        }
-
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
 
         try {
-            // const ghnAddress = new AddressGHN();
-            // ghnAddress.province_id = ghn_province_id;
-            // ghnAddress.district_id = ghn_district_id;
-            // ghnAddress.ward_code = ghn_ward_id;
-            // const savedGhnAddress = await queryRunner.manager.save(ghnAddress);
-
             // create address
             const address = await this.deliveryAddressService.addFarmAddress(
                 plainToInstance(CreateFarmAddressDto, {
                     name: registerDto.farm_name,
                     ...registerDto,
                 }),
+                queryRunner.manager
             );
 
             // create farm
             const farm = this.farmRepository.create({
                 ...registerDto,
                 user_id: userId,
-                address,
+                address_id: address.address_id,
             });
             const savedFarm = await queryRunner.manager.save(farm);
 
             await queryRunner.commitTransaction();
-            // this.logger.debug(
-            //     `[Register] Đăng ký farm thành công cho user ${userId}, Farm ID: ${savedFarm.farm_id}`,
-            // );
 
-            // // delete biometric video
-            // await this.fileStorageService.deleteFile(registerDto.biometric_video_url);
-
-            return savedFarm;
+            return plainToInstance(MyFarmDto, { ...savedFarm, address: address }, { excludeExtraneousValues: true });
         } catch (dbError) {
             await queryRunner.rollbackTransaction();
             this.logger.error(dbError.message);
@@ -209,7 +162,7 @@ export class FarmService {
      *
      * @throws {NotFoundException} - If the farm for the given user is not found
      */
-    async getUserFarm(id: number): Promise<Farm> {
+    async getUserFarm(id: number): Promise<MyFarmDto> {
         const farm = await this.farmRepository.findOne({
             where: { user_id: id }
         });
@@ -219,7 +172,14 @@ export class FarmService {
                 code: ResponseCode.FARM_NOT_FOUND,
             });
         }
-        return farm;
+        const address = await this.deliveryAddressService.getAddressById(farm.address_id);
+        if (!address) {
+            throw new InternalServerErrorException({
+                message: `Farm address not found`,
+                code: ResponseCode.INTERNAL_ERROR,
+            });
+        }
+        return plainToInstance(MyFarmDto, { ...farm, address: address }, { excludeExtraneousValues: true });
     }
 
     /**
@@ -230,26 +190,27 @@ export class FarmService {
      *
      * @throws {NotFoundException} - If no matching farm is found for the user
      */
-    async getFarmByOwner(userId: string): Promise<Farm> {
-        if (!isUUID(userId)) throw new NotFoundException({
-            message: `Farm not found`,
-            code: ResponseCode.FARM_NOT_FOUND,
-        });
+    async getFarmByOwner(userId: number): Promise<FarmDto> {
         try {
-            const farm = await this.farmRepository.findOne({
-                where: {
-                    owner: { uuid: userId },
-                    status: In([FarmStatus.VERIFIED, FarmStatus.APPROVED]),
-                },
-                relations: ['address'],
-            });
+            const queryBuilder = this.farmRepository.createQueryBuilder('farm').select([...farmDtoSelectFields, 'farm.address_id'])
+                .where('farm.user_id = :userId', { userId })
+                // todo!("remove this")
+                // .andWhere('farm.status IN (:...statuses)', {
+                //     statuses: [FarmStatus.VERIFIED, FarmStatus.APPROVED],
+                // })
+                .leftJoin('farm.owner', 'user').addSelect(publicUserFields.map((prop) => `user.${prop}`));
+
+            const farm = await queryBuilder.getOne();
+
             if (!farm) {
                 throw new NotFoundException({
                     message: `Farm not found`,
                     code: ResponseCode.FARM_NOT_FOUND,
                 });
             }
-            return farm;
+            const address = await this.deliveryAddressService.getAddressById(farm.address_id);
+
+            return plainToInstance(FarmDto, { ...farm, address: address }, { excludeExtraneousValues: true });
         } catch (error) {
             if (error instanceof HttpException) throw error;
             this.logger.error(error.message);
@@ -268,19 +229,17 @@ export class FarmService {
      *
      * @throws {NotFoundException} - If no farm is found with the given UUID
      */
-    async findFarmById(farmId: string): Promise<Farm> {
-        if (!isUUID(farmId)) throw new NotFoundException({
-            message: `Farm not found`,
-            code: ResponseCode.FARM_NOT_FOUND,
-        });
+    async findFarmById(farmId: number): Promise<FarmDto> {
         try {
-            const farm = await this.farmRepository.findOne({
-                where: {
-                    farm_id: farmId,
-                    status: In([FarmStatus.VERIFIED, FarmStatus.APPROVED]),
-                },
-                relations: ['address'],
-            });
+            const queryBuilder = this.farmRepository.createQueryBuilder('farm').select([...farmDtoSelectFields, 'farm.address_id'])
+                .where('farm.id = :farmId', { farmId })
+                // todo!("remove this")
+                // .andWhere('farm.status IN (:...statuses)', {
+                //     statuses: [FarmStatus.VERIFIED, FarmStatus.APPROVED],
+                // })
+                .leftJoin('farm.owner', 'user').addSelect(publicUserFields.map((prop) => `user.${prop}`));
+
+            const farm = await queryBuilder.getOne();
 
             if (!farm) {
                 throw new NotFoundException({
@@ -288,7 +247,9 @@ export class FarmService {
                     code: ResponseCode.FARM_NOT_FOUND,
                 });
             }
-            return farm;
+            const address = await this.deliveryAddressService.getAddressById(farm.address_id);
+
+            return plainToInstance(FarmDto, { ...farm, address: address }, { excludeExtraneousValues: true });
         } catch (error) {
             if (error instanceof HttpException) throw error;
             this.logger.error(error.message);
@@ -478,6 +439,7 @@ export class FarmService {
     }
 
     /**
+     * DEPRECATED
      * @function getId - Retrieves the numeric ID of a farm by its UUID
      * @param {string} uuid - The UUID of the farm
      *

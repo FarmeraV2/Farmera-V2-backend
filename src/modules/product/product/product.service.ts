@@ -8,7 +8,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository, SelectQueryBuilder } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Product } from '../entities/product.entity';
 import { CreateProductDto } from '../dtos/product/create-product.dto';
 import { ConfigService } from '@nestjs/config';
@@ -28,7 +28,7 @@ import { SearchProductsDto } from '../dtos/product/search-product.dto';
 import { UpdateProductDto } from '../dtos/product/update-product-dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { applyPagination } from 'src/common/utils/pagination.util';
-import { FarmSummaryDtoSelectFields } from 'src/modules/farm/dtos/farm.dto';
+import { farmSummaryDtoSelectFields } from 'src/modules/farm/dtos/farm.dto';
 import { ProductDetailDto, productDetailSelectFields } from '../dtos/product/product-detail.dto';
 
 @Injectable()
@@ -302,7 +302,7 @@ export class ProductService {
         try {
             const queryBuilder = this.productsRepository.createQueryBuilder('product').select(productDetailSelectFields)
                 .where('product.product_id = :productId', { productId })
-                .leftJoin('product.farm', 'farm').addSelect(FarmSummaryDtoSelectFields);
+                .leftJoin('product.farm', 'farm').addSelect(farmSummaryDtoSelectFields);
 
             if (includeCategories)
                 queryBuilder.leftJoin('product.subcategories', 'subcategory').addSelect(subcategorySelectFields);
@@ -372,7 +372,7 @@ export class ProductService {
 
     /**
      * @function getProductsByFarmId - Retrieves products belonging to a specific farm by its UUID
-     * @param {string} uuid - The UUID of the farm
+     * @param {number} farmId - The id of the farm
      * @param {GetProductByFarmDto} [getProductDto] - Optional DTO containing pagination, sorting, and inclusion parameters
      *
      * @returns {Promise<PaginationResult<ProductDto>>} - Returns a paginated list of products with metadata,
@@ -381,14 +381,13 @@ export class ProductService {
      * @throws {BadRequestException} - If the requested page exceeds the total number of available pages
      * @throws {InternalServerErrorException} - If the retrieval process fails due to an unexpected error
      */
-    async getProductsByFarmId(uuid: string, getProductDto?: GetProductByFarmDto): Promise<PaginationResult<ProductDto>> {
+    async getProductsByFarmId(farmId: number, getProductDto?: GetProductByFarmDto): Promise<PaginationResult<ProductDto>> {
         // todo!("optimize more")
         // extract pagination options
         const paginationOptions = plainToInstance(PaginationTransform<ProductSortField>, getProductDto);
         const { sort_by, order } = paginationOptions;
         try {
             // create query builder
-            const farmId = await this.farmService.getId(uuid);
             const qb = this.productsRepository
                 .createQueryBuilder('product')
                 .select(productSelectFields)
