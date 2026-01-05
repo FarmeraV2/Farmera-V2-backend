@@ -106,7 +106,7 @@ export class DeliveryAddressService {
      * @WARNING This function should **NOT** be called directly from controllers or exposed to end users.
      * Always wrap this method inside a service-level function that enforces ownership and validation checks.
      */
-    async addFarmAddress(addressData: CreateFarmAddressDto, manager?: EntityManager): Promise<DeliveryAddressDto> {
+    async addFarmAddress(addressData: CreateFarmAddressDto, manager?: EntityManager): Promise<number> {
         try {
             const repo = manager ? manager.getRepository(DeliveryAddress) : this.deliveryAddressRepository;
             const newAddress = repo.create({
@@ -114,9 +114,9 @@ export class DeliveryAddressService {
                 location: { lat: addressData.latitude, lng: addressData.longitude },
                 owner_type: AddressType.FARM,
             });
-            const result = await this.deliveryAddressRepository.insert(newAddress);
+            const result = await repo.insert(newAddress);
 
-            return await this.getAddressById(result.identifiers[0].address_id);
+            return result.identifiers[0].address_id;
         } catch (error) {
             this.logger.error(error.message);
             throw new InternalServerErrorException({

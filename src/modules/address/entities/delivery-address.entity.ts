@@ -76,7 +76,7 @@ export class DeliveryAddress {
     @UpdateDateColumn({ type: 'timestamptz' })
     updated_at: Date;
 
-    @Column({ enum: AddressType, default: AddressType.CUSTOMER })
+    @Column({ type: 'enum', enum: AddressType, enumName: 'address_type', default: AddressType.CUSTOMER })
     @Exclude()
     owner_type: AddressType;
 

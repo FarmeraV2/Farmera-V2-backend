@@ -8,11 +8,26 @@ import { Farm } from './entities/farm.entity';
 import { HttpModule } from '@nestjs/axios';
 import { AddressModule } from '../address/address.module';
 import { FileStorageModule } from 'src/core/file-storage/file-storage.module';
+import { MulterModule } from '@nestjs/platform-express';
+import { multerAsyncConfig } from 'src/config/multer.config';
+import { AuditModule } from 'src/core/audit/audit.module';
+import { HashService } from 'src/services/hash.service';
+import { Identification } from './entities/identification.entity';
+import { UserModule } from '../user/user.module';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([Farm]), ConfigModule, HttpModule, AddressModule, FileStorageModule],
+    imports: [
+        MulterModule.registerAsync(multerAsyncConfig),
+        TypeOrmModule.forFeature([Farm, Identification]),
+        ConfigModule,
+        HttpModule,
+        AddressModule,
+        FileStorageModule,
+        AuditModule,
+        UserModule,
+    ],
     controllers: [FarmController],
-    providers: [FarmService, BiometricService],
+    providers: [FarmService, BiometricService, HashService],
     exports: [FarmService],
 })
 export class FarmModule { }

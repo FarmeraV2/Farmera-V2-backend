@@ -1,11 +1,12 @@
 import { HttpService } from '@nestjs/axios';
-import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { FptIdrCardFrontData, FptIdrFrontResponse } from '../interfaces/fpt-idr-front.interface';
 import { promises as fs } from 'fs';
 import FormData from 'form-data';
 import { catchError, firstValueFrom, map } from 'rxjs';
-import { FptBiometricResponse } from '../interfaces/fpt-biometric.interfaces';
+import { FptLivenessResponse } from '../interfaces/fpt-liveness.interfaces';
+import { AuditService } from 'src/core/audit/audit.service';
 
 @Injectable()
 export class BiometricService {
@@ -36,6 +37,10 @@ export class BiometricService {
     }
 
     async callFptIdrApiForFront(imageFile: Express.Multer.File): Promise<FptIdrCardFrontData[]> {
+        if (!this.fptApiKey || !this.fptIdrUrl) {
+            throw new Error('FPT API key or API endpoint is missing');
+        }
+
         let fileBuffer: Buffer;
         const tempFilePathFromMulter = imageFile.path;
 
@@ -47,17 +52,17 @@ export class BiometricService {
                 // this.logger.debug(`[IDR] Read file from path: ${tempFilePathFromMulter}`);
             } catch {
                 // this.logger.error(`[IDR] Cannot read uploaded file from path ${tempFilePathFromMulter} for ${imageFile.originalname}: ${readError.message}`, readError.stack);
-                throw new InternalServerErrorException(`Reading file error for file '${imageFile.originalname}'`);
+                throw new Error(`Reading file error for file '${imageFile.originalname}'`);
             }
         } else if (imageFile.buffer && imageFile.size > 0) {
             fileBuffer = imageFile.buffer;
             // this.logger.debug(`[IDR] Using file buffer directly for ${imageFile.originalname}`);
         } else {
-            throw new BadRequestException(`'${imageFile.originalname}' is invalid (missing path or buffer or size = 0).`);
+            throw new Error(`'${imageFile.originalname}' is invalid (missing path or buffer or size = 0).`);
         }
 
         if (!fileBuffer || fileBuffer.length === 0) {
-            throw new InternalServerErrorException(`Invalid buffer for '${imageFile.originalname}'.`);
+            throw new Error(`Invalid buffer for '${imageFile.originalname}'.`);
         }
 
         // create formdata
@@ -72,7 +77,7 @@ export class BiometricService {
             'api-key': this.fptApiKey,
         };
 
-        this.logger.log(`[IDR] Calling FPT IDR API for ${imageFile.originalname}`);
+        // this.logger.log(`[IDR] Calling FPT IDR API for ${imageFile.originalname}`);
 
         // call fpt api
         try {
@@ -84,94 +89,82 @@ export class BiometricService {
 
                         if (!fptData || typeof fptData.errorCode !== 'number') {
                             // this.logger.error('[IDR] Unexpected response structure from FPT (missing errorCode).');
-                            throw new InternalServerErrorException('Unexpected response structure from external service');
+                            throw new Error('Unexpected response structure from external service');
                         }
 
                         // verify & extract data from card
                         if (fptData.errorCode === 0) {
                             if (!fptData.data || !Array.isArray(fptData.data) || fptData.data.length === 0) {
-                                // this.logger.error('[IDR] FPT Success but no card data found in the image.');
-                                throw new BadRequestException('No card data found in the image.');
+                                throw new Error('No card data found in the image.');
                             }
 
                             const cardInfo = fptData.data[0];
-                            // this.logger.debug(`[IDR] Card info extracted: type='${cardInfo.type}', type_new='${cardInfo.type_new}'`);
 
                             const isChipFrontCccd =
                                 (cardInfo.type === 'chip_front' || cardInfo.type === 'new') && cardInfo.type_new === 'cccd_chip_front';
 
                             if (isChipFrontCccd) {
-                                // this.logger.log(`[IDR] Successfully extracted chip_front CCCD for ${imageFile.originalname}.`);
                                 return fptData.data;
                             } else {
-                                // this.logger.error(`[IDR] Image is not a chip_front CCCD. Received type: '${cardInfo.type}', type_new: '${cardInfo.type_new}'.`);
-                                throw new BadRequestException(`Image is not a chip_front.`);
+                                throw new Error(`Image is not a chip_front.`);
                             }
                         } else {
-                            this.logger.error(`[IDR] FPT API returned an error. Code: ${fptData.errorCode}, Message: ${fptData.errorMessage}`);
-                            throw new BadRequestException(`Invalid image`);
+                            throw new Error(`Invalid image`);
                         }
                     }),
                     catchError((error: any) => {
-                        if (error instanceof HttpException) {
-                            throw error;
+                        if (error.response && error.response.data) {
+                            const errData = error.response.data;
+                            this.logger.error(`FPT errorCode: ${errData.errorCode}, message: ${errData.errorMessage}`);
+                            throw new Error(`FPT error: ${errData.errorMessage}`);
+                        } else {
+                            this.logger.error(error.message);
+                            throw new Error(`Unknown error: ${error.message}`);
                         }
-                        this.logger.error(`[IDR] Unknown error during FPT IDR API call for ${imageFile.originalname}.`, error.stack);
-                        throw new InternalServerErrorException(`Unknown error for ${imageFile.originalname}.`);
                     }),
                 ),
             );
         } catch (error) {
             this.logger.error(error.message);
             throw error;
-        } finally {
-            // this.logger.debug(`[IDR] Finished processing for ${imageFile.originalname}. Multer temp file path (if any): ${tempFilePathFromMulter}`);
         }
     }
 
-    async callFptLivenessApi(idCardImageFile: Express.Multer.File, liveVideoFile: Express.Multer.File): Promise<FptBiometricResponse> {
+    async callFptLivenessApi(idCardImageFile: Express.Multer.File, liveVideoFile: Express.Multer.File): Promise<FptLivenessResponse> {
+        if (!this.fptApiKey || !this.fptLivenessUrl) {
+            throw new Error('FPT API key or API endpoint is missing');
+        }
+
         let idCardImageBuffer: Buffer, liveVideoBuffer: Buffer;
 
         const idCardImageTempPathFromMulter = idCardImageFile.path;
         const liveVideoTempPathFromMulter = liveVideoFile.path;
 
-        // this.logger.debug(`[Liveness] Processing ID card image: ${idCardImageFile.originalname}, path: ${idCardImageTempPathFromMulter}, buffer available: ${!!idCardImageFile.buffer}`);
-        // this.logger.debug(`[Liveness] Processing live video: ${liveVideoFile.originalname}, path: ${liveVideoTempPathFromMulter}, buffer available: ${!!liveVideoFile.buffer}`);
-
         // validate image
         if (!idCardImageFile || (!idCardImageTempPathFromMulter && !idCardImageFile.buffer) || idCardImageFile.size === 0) {
-            // this.logger.error("Invalid file for liveness api");
-            throw new BadRequestException('Invalid file');
+            throw new Error('Invalid file');
         }
-        try {
-            if (idCardImageTempPathFromMulter) {
-                idCardImageBuffer = await fs.readFile(idCardImageTempPathFromMulter);
-            } else {
-                idCardImageBuffer = idCardImageFile.buffer;
-            }
-            if (!idCardImageBuffer || idCardImageBuffer.length === 0) throw new Error('Invalid buffer');
-        } catch {
-            // this.logger.error(`[Liveness] Reading file error for ${idCardImageFile.originalname}: ${e.message}`);
-            throw new InternalServerErrorException(`Cannot read file ${idCardImageFile.originalname}.`);
+
+        if (idCardImageTempPathFromMulter) {
+            idCardImageBuffer = await fs.readFile(idCardImageTempPathFromMulter);
+        } else {
+            idCardImageBuffer = idCardImageFile.buffer;
         }
+        if (!idCardImageBuffer || idCardImageBuffer.length === 0) throw new Error('Invalid buffer');
 
         // validate video
         if (!liveVideoFile || (!liveVideoTempPathFromMulter && !liveVideoFile.buffer) || liveVideoFile.size === 0) {
-            throw new BadRequestException('Invalid file video liveness');
-        }
-        try {
-            if (liveVideoTempPathFromMulter) {
-                liveVideoBuffer = await fs.readFile(liveVideoTempPathFromMulter);
-            } else {
-                liveVideoBuffer = liveVideoFile.buffer;
-            }
-            if (!liveVideoBuffer || liveVideoBuffer.length === 0) throw new Error('Buffer video liveness không hợp lệ sau khi đọc.');
-        } catch {
-            // this.logger.error(`[Liveness] Reading error for file video ${liveVideoFile.originalname}: ${e.message}`);
-            throw new InternalServerErrorException(`Cannot read file video ${liveVideoFile.originalname}.`);
+            throw new Error('Invalid file video liveness');
         }
 
-        // create form data
+        if (liveVideoTempPathFromMulter) {
+            liveVideoBuffer = await fs.readFile(liveVideoTempPathFromMulter);
+        } else {
+            liveVideoBuffer = liveVideoFile.buffer;
+        }
+
+        if (!liveVideoBuffer || liveVideoBuffer.length === 0) throw new Error('Buffer video liveness không hợp lệ sau khi đọc.');
+
         const formData = new FormData();
         formData.append('cmnd', idCardImageBuffer, { filename: idCardImageFile.originalname, contentType: idCardImageFile.mimetype });
         formData.append('video', liveVideoBuffer, { filename: liveVideoFile.originalname, contentType: liveVideoFile.mimetype });
@@ -180,49 +173,46 @@ export class BiometricService {
         // call external api
         try {
             const responseData = await firstValueFrom(
-                this.httpService.post<FptBiometricResponse>(this.fptLivenessUrl, formData, { headers }).pipe(
+                this.httpService.post<FptLivenessResponse>(this.fptLivenessUrl, formData, { headers }).pipe(
                     map((response) => {
                         const fptData = response.data;
                         if (!fptData || !fptData.code) {
-                            throw new InternalServerErrorException('Unexpected response structure from external service');
+                            throw new Error('Unexpected response structure from external service');
                         }
                         const topLevelCode = fptData.code;
                         if (topLevelCode !== '200') {
                             const errorMessage = fptData.message || 'Liveness request failed';
-                            // this.logger.error(`errorMessage (FPT Code: ${topLevelCode})`);
-                            throw new BadRequestException(`${errorMessage}`);
+                            throw new Error(`${errorMessage}`);
                         }
                         if (!fptData.liveness || fptData.liveness.code !== '200' || typeof fptData.liveness.is_live !== 'string') {
-                            throw new InternalServerErrorException('Invalid liveness structure');
+                            throw new Error('Invalid liveness structure');
                         }
                         if (fptData.liveness.is_live !== 'true') {
-                            // const livenessMessage = fptData.liveness.message || 'Xác thực người thật thất bại';
-                            // this.logger.error(`${livenessMessage} (Liveness Check)`);
-                            throw new BadRequestException('Failed to authenticate user');
+                            throw new Error('Failed to authenticate user');
                         }
                         if (fptData.face_match_error) {
-                            // this.logger.error(`Không thể so khớp khuôn mặt: ${fptData.face_match_error.data} (FPT Code: ${fptData.face_match_error.code})`);
-                            throw new BadRequestException(`Cannot match the face`);
+                            throw new Error(`Cannot match the face`);
                         }
                         if (!fptData.face_match || fptData.face_match.code !== '200' || typeof fptData.face_match.isMatch !== 'string') {
-                            // this.logger.error('Phản hồi từ FPT Liveness có cấu trúc face_match không hợp lệ.');
-                            throw new InternalServerErrorException('Invalid face_match structure');
+                            throw new Error('Invalid face_match structure');
                         }
                         if (fptData.face_match.isMatch !== 'true') {
-                            const faceMatchMessage = fptData.face_match.message || 'Face not match';
-                            throw new BadRequestException(`${faceMatchMessage}`);
+                            throw new Error(fptData.face_match.message || 'Face not match');
                         }
                         return fptData;
                     }),
                     catchError((error: any) => {
-                        if (error instanceof HttpException) {
-                            throw error;
+                        if (error.response && error.response.data) {
+                            const errData = error.response.data;
+                            this.logger.error(`FPT errorCode: ${errData.errorCode}, message: ${errData.errorMessage}`);
+                            throw new Error(`FPT error: ${errData.errorMessage}`);
+                        } else {
+                            this.logger.error(error.message);
+                            throw new Error(`Unknown error: ${error.message}`);
                         }
-                        throw new InternalServerErrorException(`Unknow error`);
                     }),
                 ),
             );
-            // this.logger.log(`[Liveness] Xác thực Liveness và Face Match thành công cho ${idCardImageFile.originalname}/${liveVideoFile.originalname}.`);
             return responseData;
         } catch (error) {
             this.logger.error(error.message);

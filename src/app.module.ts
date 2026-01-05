@@ -24,6 +24,7 @@ import { FirebaseModule } from './core/firebase/firebase.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { FileStorageModule } from './core/file-storage/file-storage.module';
 import { StringValue } from 'ms';
+import { AuditModule } from './core/audit/audit.module';
 
 @Module({
     imports: [
@@ -85,6 +86,7 @@ import { StringValue } from 'ms';
             }
         ]),
         FileStorageModule,
+        AuditModule,
     ],
     controllers: [AppController],
     providers: [

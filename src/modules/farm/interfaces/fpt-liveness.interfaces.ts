@@ -8,22 +8,24 @@ export interface FptLivenessResult {
     deepfake_prob?: string;
     warning?: string;
 }
+
 export interface FptFaceMatchResult {
     code: string;
     message: string;
     isMatch: string;
-    similarity?: string;
+    similarity: string;
     warning?: string;
 }
+
 export interface FptFaceMatchError {
     code: string;
     data: string;
 }
 
-export interface FptBiometricResponse {
+export interface FptLivenessResponse {
     code: string;
     message: string;
-    liveness?: FptLivenessResult;
+    liveness: FptLivenessResult;
     face_match?: FptFaceMatchResult;
     face_match_error?: FptFaceMatchError;
     data?: string;

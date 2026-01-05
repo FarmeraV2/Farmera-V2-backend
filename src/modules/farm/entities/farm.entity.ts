@@ -45,7 +45,7 @@ export class Farm {
     @Column()
     tax_number: string;
 
-    @Column({ type: 'enum', enum: FarmStatus, default: FarmStatus.PENDING })
+    @Column({ type: 'enum', enum: FarmStatus, enumName: 'farm_status', default: FarmStatus.PENDING })
     status: FarmStatus;
 
     @OneToOne(() => Identification, (identification) => identification.farm, { cascade: true })

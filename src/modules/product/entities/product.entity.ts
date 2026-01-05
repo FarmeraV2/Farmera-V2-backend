@@ -53,7 +53,7 @@ export class Product {
     @Column('text', { array: true, nullable: true })
     video_urls: string[] | null;
 
-    @Column({ type: 'enum', enum: ProductStatus, default: ProductStatus.NOT_YET_OPEN })
+    @Column({ type: 'enum', enum: ProductStatus, enumName: 'product_status', default: ProductStatus.NOT_YET_OPEN })
     status: ProductStatus;
 
     @CreateDateColumn({ type: 'timestamptz' })

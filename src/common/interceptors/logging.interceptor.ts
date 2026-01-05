@@ -17,6 +17,12 @@ export class LoggingInterceptor implements NestInterceptor {
             `Params: ${JSON.stringify(params)}`
         );
 
-        return next.handle();
+        return next.handle().pipe(
+            tap((response) => {
+                this.logger.debug(
+                    `Response: ${JSON.stringify(response)}`
+                );
+            }),
+        );
     }
 }

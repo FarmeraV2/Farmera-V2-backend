@@ -4,16 +4,15 @@ import { ResponseCode } from 'src/common/constants/response-code.const';
 import { StoragePermission } from '../enums/storage-permission.enum';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { UploadFileDto } from '../dtos/upload-file.dto';
-import { getFileExtension } from '../utils/file.util';
 import { Response } from "express";
-import { lookup } from 'mime-types';
 import { Public } from 'src/common/decorators/public.decorator';
-import * as fs from 'fs/promises';
 
 @Controller('file-storage')
 export class FileStorageController {
 
-    constructor(@Inject('FileStorageService') private readonly fileStorageService: FileStorageService) { }
+    constructor(
+        @Inject('FileStorageService') private readonly fileStorageService: FileStorageService
+    ) { }
 
     @Post("signed-url/get")
     async getGetSignedUrl(@Body() getDto: UploadFileDto) {
@@ -55,7 +54,7 @@ export class FileStorageController {
         }),
         ) files: Express.Multer.File[], @Body() uploadFileDto: UploadFileDto
     ) {
-        return await this.fileStorageService.uploadFile(files, uploadFileDto.group_type, uploadFileDto.sub_path)
+        return await this.fileStorageService.uploadFile(files, uploadFileDto.group_type, uploadFileDto.sub_path, true)
     }
 
     @Delete("*url")
@@ -74,60 +73,49 @@ export class FileStorageController {
     @Get('*url')
     @Public()
     async serveFile(@Param('url') url: string | string[], @Res() res: Response) {
+        if (!this.fileStorageService.serveFile) {
+            throw new InternalServerErrorException({
+                message: "Invalid service",
+                code: ResponseCode.INTERNAL_ERROR
+            })
+        }
+
         const filePath = Array.isArray(url) ? url.join('/') : url;
+
         try {
-            const { absolutePath, isVideo, mimeType } = await this.fileStorageService.getFilePath(filePath);
+            const { buffer, filePath: absolutePath, isVideo, mimeType } = await this.fileStorageService.serveFile(filePath);
 
             res.setHeader('Content-Type', mimeType);
             res.setHeader('Accept-Ranges', 'bytes');
             res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
 
-            if (isVideo) {
-                res.sendFile(absolutePath, {
-                    dotfiles: 'deny',
-                    acceptRanges: true,
-                }, (err) => {
-                    if (err) {
-                        if (!res.headersSent) {
-                            res.status(500).json({
-                                message: 'Error streaming file',
-                                code: ResponseCode.INTERNAL_ERROR,
-                            });
-                        }
-                    }
-                });
-            } else {
-                const buffer = await fs.readFile(absolutePath);
+            if (buffer) {
                 res.send(buffer);
             }
-        } catch (error) {
-            if (error instanceof HttpException) {
-                throw error;
+            // todo!("handle video")
+            // else if (isVideo && absolutePath) {
+            //     res.sendFile(absolutePath, { dotfiles: 'deny', acceptRanges: true }, (err) => {
+            //         if (err && !res.headersSent) {
+            //             res.status(500).json({
+            //                 message: 'Error streaming file',
+            //                 code: ResponseCode.INTERNAL_ERROR,
+            //             });
+            //         }
+            //     });
+            // }
+            else {
+                throw new InternalServerErrorException({
+                    message: 'File could not be served',
+                    code: ResponseCode.INTERNAL_ERROR,
+                });
             }
+        } catch (error) {
+            if (error instanceof HttpException) throw error;
 
             throw new InternalServerErrorException({
                 message: 'Failed to serve file',
                 code: ResponseCode.INTERNAL_ERROR,
             });
-        }
-    }
-
-    /**DEPRECATED */
-    async getFile(@Param("url") url: string | string[], @Res() res: Response) {
-        if (this.fileStorageService.getFile) {
-            const filePath = Array.isArray(url) ? url.join('/') : url;
-            const fileBuffer = await this.fileStorageService.getFile(filePath);
-
-            const ext = getFileExtension(filePath);
-            const contentType = lookup(ext) || 'application/octet-stream';
-
-            res.setHeader('Content-Type', contentType);
-            res.send(fileBuffer);
-        } else {
-            throw new InternalServerErrorException({
-                message: "Invalid service",
-                code: ResponseCode.INTERNAL_ERROR
-            })
         }
     }
 }

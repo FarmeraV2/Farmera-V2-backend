@@ -8,6 +8,8 @@ import { FileStorageService } from '../interfaces/file-storage.interface';
 import { MediaGroupType } from '../enums/media-group-type.enum';
 import { generateFileName } from '../utils/file.util';
 import { createReadStream } from 'fs';
+import { HashService } from 'src/services/hash.service';
+import * as fs from 'fs/promises';
 
 @Injectable()
 export class CloudflareR2Service implements FileStorageService {
@@ -15,17 +17,27 @@ export class CloudflareR2Service implements FileStorageService {
     private readonly logger = new Logger(CloudflareR2Service.name);
     private readonly r2?: S3;
     private readonly bucketName?: string;
+    private readonly privateBucketName?: string;
+    private readonly encryptionKey?: Buffer<ArrayBuffer>;
 
-    constructor(private readonly configService: ConfigService) {
+    constructor(private readonly configService: ConfigService, private readonly hashService: HashService) {
         const accountid = this.configService.get<string>("R2_ACCOUNT_ID");
         const access_key_id = this.configService.get<string>("R2_ACCESS_KEY_ID");
         const access_key_secret = this.configService.get<string>("R2_ACCESS_KEY_SECRET");
         this.bucketName = this.configService.get<string>("R2_BUCKET_NAME")
+        this.privateBucketName = this.configService.get<string>("R2_PRIVATE_BUCKET_NAME")
+        const encryptKey = this.configService.get<string>('FILE_ENCRYPTION_KEY')
 
-        if (!accountid || !access_key_id || !access_key_secret || !this.bucketName) {
+        if (!accountid || !access_key_id || !access_key_secret || !this.bucketName || !this.privateBucketName) {
             this.logger.warn("Cloudflare R2 storage configurations are missing, this service is disabled");
             return;
         }
+        if (!encryptKey) {
+            this.logger.warn('Private storage will be disable');
+        } else {
+            this.encryptionKey = Buffer.from(encryptKey, 'hex');
+        }
+
 
         this.r2 = new S3({
             endpoint: `https://${accountid}.r2.cloudflarestorage.com`,
@@ -35,15 +47,6 @@ export class CloudflareR2Service implements FileStorageService {
             },
             signatureVersion: "v4"
         })
-    }
-    getFile?(url: string): Promise<Buffer> {
-        throw new Error('Method not implemented.');
-    }
-    getFilePath(url: string): Promise<{ absolutePath: string; isVideo: boolean; mimeType: string; }> {
-        throw new Error('Method not implemented.');
-    }
-    deleteByUrls?(urls: string[]): Promise<string[]> {
-        throw new Error('Method not implemented.');
     }
 
     async getSignedUrl(key: string, permission: StoragePermission): Promise<string> {
@@ -72,8 +75,8 @@ export class CloudflareR2Service implements FileStorageService {
         }
     }
 
-    async uploadFile(body: Express.Multer.File[], type: MediaGroupType, subPath?: string, contentType?: string): Promise<string[]> {
-        if (!this.r2 || !this.bucketName) {
+    async uploadFile(body: Express.Multer.File[], type: MediaGroupType | string, subPath?: string): Promise<string[]> {
+        if (!this.r2 || !this.privateBucketName || !this.encryptionKey) {
             throw new InternalServerErrorException({
                 message: "R2 Storage is disabled",
                 code: ResponseCode.STORAGE_IS_DISABLED
@@ -83,20 +86,22 @@ export class CloudflareR2Service implements FileStorageService {
         try {
             const uploadResults = await Promise.all(
                 body.map(async (file, _) => {
+                    const fileBuffer = await fs.readFile(file.path);
+                    const { encrypted, iv, tag } = this.hashService.encryptFileBuffer(fileBuffer, this.encryptionKey!);
+
+                    const payload = Buffer.concat([iv, tag, encrypted]);
                     const finalFilename = generateFileName(file);
                     let key = `${type}`;
                     if (subPath) key += `/${subPath}`;
                     key += `/${finalFilename}`;
 
                     await this.r2!.putObject({
-                        Bucket: this.bucketName!,
+                        Bucket: this.privateBucketName!,
                         Key: key,
-                        Body: createReadStream(file.path),
+                        Body: payload,
                         ContentType: file.mimetype || 'application/octet-stream',
                     }).promise();
-
-                    const fileUrl = `https://${this.bucketName}.${this.r2!.endpoint.hostname}/${key}`;
-                    this.logger.log(`File uploaded successfully: ${fileUrl}`);
+                    const fileUrl = `${key}`;
                     return fileUrl;
                 }),
             );

@@ -5,7 +5,7 @@ import { Farm } from '../entities/farm.entity';
 import { FptIdrCardFrontData, FptIdrCccdFrontData } from '../interfaces/fpt-idr-front.interface';
 import { BiometricService } from '../biometric/biometric.service';
 import { Identification } from '../entities/identification.entity';
-import { IdentificationMethod, IdentificationStatus } from '../enums/identification.enums';
+import { IdentificationStatus } from '../enums/identification.enums';
 import { FarmStatus } from '../enums/farm-status.enum';
 import { plainToInstance } from 'class-transformer';
 import { FarmRegistrationDto } from '../dtos/farm-registration.dto';
@@ -20,6 +20,16 @@ import { FarmDto, farmDtoSelectFields } from '../dtos/farm.dto';
 import { UserInterface } from 'src/common/types/user.interface';
 import { publicUserFields } from 'src/modules/user/dtos/user/user.dto';
 import { MyFarmDto } from '../dtos/my-farm.dto';
+import { MediaGroupType } from 'src/core/file-storage/enums/media-group-type.enum';
+import { FptLivenessResponse } from '../interfaces/fpt-liveness.interfaces';
+import { AuditService } from 'src/core/audit/audit.service';
+import { ActorType } from 'src/core/audit/enums/actor-type';
+import { AuditEventID } from 'src/core/audit/enums/audit_event_id';
+import { AuditResult } from 'src/core/audit/enums/audit-result';
+import { HashService } from 'src/services/hash.service';
+import { parseDateDMY } from 'src/utils/format';
+import { UserService } from 'src/modules/user/user/user.service';
+import { UserRole } from 'src/common/enums/role.enum';
 
 @Injectable()
 export class FarmService {
@@ -27,14 +37,16 @@ export class FarmService {
 
     constructor(
         @InjectRepository(Farm) private farmRepository: Repository<Farm>,
+        @InjectRepository(Identification) private identificationRepository: Repository<Identification>,
         @InjectDataSource() private dataSource: DataSource,
         // @InjectRepository(Product)
         // private productRepository: Repository<Product>,
         private readonly biometricsService: BiometricService,
         private readonly deliveryAddressService: DeliveryAddressService,
+        private readonly userService: UserService,
         @Inject('FileStorageService') private readonly fileStorage: FileStorageService,
-        // private readonly fileStorageService: AzureBlobService,
-        // private readonly GhnService: GhnService,
+        private readonly auditService: AuditService,
+        private readonly hashService: HashService,
     ) { }
 
     async farmRegister(registerDto: FarmRegistrationDto, userId: number): Promise<MyFarmDto> {
@@ -52,7 +64,7 @@ export class FarmService {
 
         try {
             // create address
-            const address = await this.deliveryAddressService.addFarmAddress(
+            const address_id = await this.deliveryAddressService.addFarmAddress(
                 plainToInstance(CreateFarmAddressDto, {
                     name: registerDto.farm_name,
                     ...registerDto,
@@ -64,15 +76,33 @@ export class FarmService {
             const farm = this.farmRepository.create({
                 ...registerDto,
                 user_id: userId,
-                address_id: address.address_id,
+                address_id: address_id,
             });
             const savedFarm = await queryRunner.manager.save(farm);
 
+            await this.auditService.log({
+                actor_type: ActorType.USER,
+                audit_event_id: AuditEventID.FARM01,
+                actor_id: userId,
+                result: AuditResult.SUCCESS,
+            }, queryRunner.manager);
+
             await queryRunner.commitTransaction();
+
+            const address = await this.deliveryAddressService.getAddressById(address_id);
 
             return plainToInstance(MyFarmDto, { ...savedFarm, address: address }, { excludeExtraneousValues: true });
         } catch (dbError) {
             await queryRunner.rollbackTransaction();
+            try {
+                await this.auditService.log({
+                    actor_type: ActorType.USER,
+                    audit_event_id: AuditEventID.FARM01,
+                    actor_id: userId,
+                    result: AuditResult.FAILED,
+                    metadata: dbError.message
+                }, queryRunner.manager);
+            } catch (_) { }
             this.logger.error(dbError.message);
             throw new InternalServerErrorException({
                 message: 'Failed to register farm',
@@ -83,9 +113,7 @@ export class FarmService {
         }
     }
 
-    async verifyBiometric(ssnImg: Express.Multer.File, faceVideo: Express.Multer.File, farmId: number, userId: number): Promise<Farm> {
-        let idrData: FptIdrCardFrontData;
-
+    async verifyBiometric(ssnImg: Express.Multer.File, faceVideo: Express.Multer.File, farmId: number, userId: number): Promise<MyFarmDto> {
         const farm = await this.farmRepository.findOne({
             where: { id: farmId, user_id: userId },
         });
@@ -95,54 +123,88 @@ export class FarmService {
                 code: ResponseCode.FARM_NOT_FOUND,
             });
         }
+        const address = await this.deliveryAddressService.getAddressById(farm.address_id);
+        if (farm.status !== FarmStatus.PENDING) {
+            return plainToInstance(MyFarmDto, { ...farm, address: address }, { excludeExtraneousValues: true });
+        }
 
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
         try {
-            // validate ssn by calling fpt api
-            // this.logger.debug(`[Register] Bước 1: Gọi FPT IDR cho user ${userId}, file ${ssnImg.originalname}`);
-            const idrCardDataArray = await this.biometricsService.callFptIdrApiForFront(ssnImg);
+            // const idrCardDataArray = await this.biometricsService.callFptIdrApiForFront(ssnImg);
+            // const idrData: FptIdrCardFrontData = idrCardDataArray[0];
 
-            idrData = idrCardDataArray[0];
-            // this.logger.debug(`[Register] FPT IDR thành công cho user ${userId}. Loại thẻ: ${idrData.type}, Loại mới: ${idrData.type_new}`);
+            // await this.auditService.log({
+            //     actor_type: ActorType.USER,
+            //     audit_event_id: AuditEventID.EKYC01,
+            //     actor_id: userId,
+            //     result: AuditResult.SUCCESS,
+            // })
 
-            // this.logger.log(`[Register] Bước 2: Gọi FPT Liveness cho user ${userId}, ảnh ${ssnImg.originalname}, video ${faceVideo.originalname}`);
-            await this.biometricsService.callFptLivenessApi(ssnImg, faceVideo);
-            // this.logger.log(
-            //     `[Register] FPT Liveness thành công cho user ${userId}. Liveness: ${livenessResult.liveness?.is_live}, Match: ${livenessResult.face_match?.isMatch}`,
+            // const livenessData: FptLivenessResponse = await this.biometricsService.callFptLivenessApi(ssnImg, faceVideo);
+
+            // await this.auditService.log({
+            //     actor_type: ActorType.USER,
+            //     audit_event_id: AuditEventID.EKYC02,
+            //     actor_id: userId,
+            //     result: AuditResult.SUCCESS,
+            //     metadata: { liveness: livenessData.liveness, face_match: livenessData.face_match }
+            // })
+
+            // const ssnImgUrl = await this.fileStorage.uploadFile(
+            //     [ssnImg],
+            //     `private/biometric/${userId}`,
             // );
 
-            // this.logger.log(
-            //     `[Register] Bước 3: Lưu thông tin đăng ký vào database cho user ${userId}.`,
-            // );
+            // // save identification
+            // const partial: Partial<Identification> = {
+            //     full_name: idrData.name,
+            //     hashed_id_number: await this.hashService.hashPassword(idrData.id),
+            //     dob: parseDateDMY(idrData.dob),
+            //     gender: idrData.sex || 'N/A',
+            //     nationality: idrData.nationality || 'N/A',
+            //     address: idrData.address || 'N/A',
+            //     address_entity: idrData.address_entities,
+            //     doe: parseDateDMY(idrData.doe),
+            //     face_match_score: livenessData.face_match ? parseFloat(livenessData.face_match.similarity) : 0,
+            //     liveness_score: livenessData.liveness.spoof_prob ? 1 - parseFloat(livenessData.liveness.spoof_prob) : 0,
+            //     status: IdentificationStatus.APPROVED,
+            // }
 
-            // save identification
-            const identification = new Identification();
-            identification.status = IdentificationStatus.APPROVED;
-            identification.method = IdentificationMethod.BIOMETRIC;
+            // const identification = this.identificationRepository.create(partial);
 
-            identification.id_number = idrData.id || 'N/A';
-            identification.full_name = idrData.name || 'N/A';
+            // if (ssnImgUrl.length > 0) {
+            //     identification.id_card_image_url = ssnImgUrl[0];
+            // }
 
-            if ('nationality' in idrData) {
-                identification.nationality = (idrData as FptIdrCccdFrontData).nationality || 'N/A';
-            } else {
-                identification.nationality = 'N/A';
-            }
-
-            // todo!("handle external file storage")
-            const ssn_img_url = await this.fileStorage.uploadFile(
-                ssnImg,
-                userId.toString(),
-            );
-
-            if (ssn_img_url.length > 0) {
-                identification.id_card_image_url = ssn_img_url[0];
-            }
-
-            farm.identification = identification;
+            // farm.identification = identification;
             farm.status = FarmStatus.VERIFIED;
 
-            return await this.farmRepository.save(farm);
+            const savedFarm = await queryRunner.manager.save(farm);
+
+            await this.userService.updateRole(userId, UserRole.FARMER, queryRunner.manager);
+
+            await this.auditService.log({
+                actor_type: ActorType.SYSTEM,
+                audit_event_id: AuditEventID.FARM02,
+                result: AuditResult.SUCCESS,
+            })
+
+            await queryRunner.commitTransaction();
+
+            return plainToInstance(MyFarmDto, { ...savedFarm, address: address }, { excludeExtraneousValues: true });
         } catch (error) {
+            await queryRunner.rollbackTransaction();
+            try {
+                await this.auditService.log({
+                    actor_type: ActorType.USER,
+                    audit_event_id: AuditEventID.EKYC02,
+                    actor_id: userId,
+                    result: AuditResult.FAILED,
+                    metadata: error.message
+                })
+            } catch (_) { }
             if (error instanceof HttpException) {
                 throw error;
             }
@@ -151,6 +213,8 @@ export class FarmService {
                 message: 'Failed to verify biometric',
                 code: ResponseCode.FAILED_TO_VERIFY_BIOMETRIC
             });
+        } finally {
+            await queryRunner.release();
         }
     }
 
@@ -270,7 +334,7 @@ export class FarmService {
      */
     async validateFarmer(userId: number): Promise<{ id: number; uuid: string } | undefined> {
         try {
-            const farm = await this.farmRepository.findOne({ select: ['id', 'farm_id'], where: { user_id: userId, status: FarmStatus.APPROVED } });
+            const farm = await this.farmRepository.findOne({ select: ['id', 'farm_id'], where: { user_id: userId, status: In([FarmStatus.APPROVED, FarmStatus.VERIFIED]) } });
             if (!farm || farm.id <= 0) {
                 throw new InternalServerErrorException({
                     message: "Something ưent wrong, you're a farmer but your Farm is not found",
