@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, InternalServerErrorException, Param, Post, Put, Query } from '@nestjs/common';
 import { PlotService } from './plot.service';
 import { CreatePlotDto } from '../dtos/plot/create-plot.dto';
 import { Roles } from 'src/common/decorators/role.decorator';

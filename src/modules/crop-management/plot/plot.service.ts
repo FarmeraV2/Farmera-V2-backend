@@ -60,13 +60,17 @@ export class PlotService {
         // pagination
         const { sort_by, order } = paginationOptions;
         // filter
-        const { crop_type } = getPlotsDto;
+        const { crop_type, search } = getPlotsDto;
+
         try {
             const queryBuilder = this.plotRepository.createQueryBuilder("plot").select(plotSelectFields).
                 where("plot.farm_id = :id", { id: farmId });
+            if (search && search.trim() !== '') {
+                queryBuilder.andWhere("plot.plot_name ILIKE :search", { search: `%${search}%` });
+            }
 
             if (crop_type) {
-                queryBuilder.andWhere("plot.crop_type = :type", { type: crop_type })
+                queryBuilder.andWhere("plot.crop_type IN (:...type)", { type: crop_type })
             }
 
             if (sort_by || order) {

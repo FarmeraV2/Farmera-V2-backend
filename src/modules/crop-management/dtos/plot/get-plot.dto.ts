@@ -3,6 +3,7 @@ import { PlotSortFields } from "../../enums/plot-sort-fields.enum";
 import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { CropType } from "../../enums/crop-type.enum";
 import { Type } from "class-transformer";
+import { ParseEnumArray } from "src/common/decorators/parse-enum-array";
 
 export class GetPlotDto extends PaginationOptions<PlotSortFields> {
     @IsOptional()
@@ -15,8 +16,8 @@ export class GetPlotDto extends PaginationOptions<PlotSortFields> {
     search?: string;
 
     @IsOptional()
-    @IsEnum(CropType)
-    crop_type?: CropType;
+    @ParseEnumArray(CropType)
+    crop_type?: CropType[];
 
     @IsOptional()
     @IsBoolean()
