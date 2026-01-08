@@ -54,7 +54,7 @@ export class FileStorageController {
         }),
         ) files: Express.Multer.File[], @Body() uploadFileDto: UploadFileDto
     ) {
-        return await this.fileStorageService.uploadFile(files, uploadFileDto.group_type, uploadFileDto.sub_path, true)
+        return await this.fileStorageService.uploadFile(files, uploadFileDto.group_type, uploadFileDto.sub_path)
     }
 
     @Delete("*url")

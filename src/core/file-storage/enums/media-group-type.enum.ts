@@ -5,5 +5,6 @@ export enum MediaGroupType {
     CATEGORY = 'category',
     REVIEW = 'review',
     ORDER = 'order',
+    CROP = 'crop',
     GENERAL = 'general',
 }

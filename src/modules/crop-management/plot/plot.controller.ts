@@ -19,10 +19,10 @@ export class PlotController {
         return await this.plotService.createPlot(user.farm_id!, createPlotDto);
     }
 
-    @Put(":plotId")
+    @Put()
     @Roles([UserRole.FARMER])
-    async updatePlot(@User() user: UserInterface, @Param("plotId") plotId: number, @Body() updatePlotDto: UpdatePlotDto) {
-        return await this.plotService.updatePlot(user.farm_id!, plotId, updatePlotDto);
+    async updatePlot(@User() user: UserInterface, @Body() updatePlotDto: UpdatePlotDto) {
+        return await this.plotService.updatePlot(user.farm_id!, updatePlotDto);
     }
 
     @Get()

@@ -23,10 +23,11 @@ export class PlotService {
         @InjectRepository(Plot) private readonly plotRepository: Repository<Plot>
     ) { }
 
-    async createPlot(farmId: number, createPlotDto: CreatePlotDto): Promise<Plot> {
+    async createPlot(farmId: number, createPlotDto: CreatePlotDto): Promise<PlotDetailDto> {
         try {
             const plot = this.plotRepository.create({ ...createPlotDto, farm_id: farmId });
-            return await this.plotRepository.save(plot);
+            const result = await this.plotRepository.save(plot);
+            return plainToInstance(PlotDetailDto, result, { excludeExtraneousValues: true });
         }
         catch (error) {
             this.logger.error(error.message);
@@ -37,14 +38,15 @@ export class PlotService {
         }
     }
 
-    async updatePlot(farmId: number, plotId: number, updatePlot: UpdatePlotDto): Promise<Plot> {
+    async updatePlot(farmId: number, updatePlot: UpdatePlotDto): Promise<PlotDetailDto> {
         try {
-            const plot = await this.plotRepository.findOne({ where: { id: plotId, farm_id: farmId } });
+            const plot = await this.plotRepository.findOne({ where: { id: updatePlot.id, farm_id: farmId } });
             if (!plot) throw new NotFoundException({
                 message: "Plot not found",
                 code: ResponseCode.PLOT_NOT_FOUND,
             })
-            return await this.plotRepository.save({ ...plot, ...updatePlot });
+            const result = await this.plotRepository.save({ ...plot, ...updatePlot });
+            return plainToInstance(PlotDetailDto, result, { excludeExtraneousValues: true });
         }
         catch (error) {
             this.logger.error(error.message);
