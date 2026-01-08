@@ -46,6 +46,11 @@ export class TriggerException {
                     message: error.message,
                     code: ResponseCode.INVALID_SEASON_FOR_CROP_TYPE
                 })
+            case 'SS002':
+                throw new BadRequestException({
+                    message: error.message,
+                    code: ResponseCode.INVALID_SEASON_FOR_CROP_TYPE
+                })
             default:
                 this.logger.error("Query error: ", error.message);
                 throw new InternalServerErrorException({
