@@ -24,6 +24,11 @@ export class TriggerException {
                     message: error.message,
                     code: ResponseCode.INVALID_STEP_ORDER,
                 })
+            case 'ST004':
+                throw new BadRequestException({
+                    message: error.message,
+                    code: ResponseCode.SEASON_IS_NOT_STARTED,
+                })
             default:
                 this.logger.error("Query error: ", error.message);
                 throw new InternalServerErrorException({
@@ -49,7 +54,7 @@ export class TriggerException {
             case 'SS002':
                 throw new BadRequestException({
                     message: error.message,
-                    code: ResponseCode.INVALID_SEASON_FOR_CROP_TYPE
+                    code: ResponseCode.PREVIOUS_SEASON_IN_PROGRESS
                 })
             default:
                 this.logger.error("Query error: ", error.message);

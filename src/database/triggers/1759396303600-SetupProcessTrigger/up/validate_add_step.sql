@@ -5,10 +5,17 @@ DECLARE cur_step_order INT;
 DECLARE plot_crop_type crop_type;
 DECLARE step_crop_type crop_type;
 DECLARE prev_step_status step_status;
+DECLARE season_start_date TIMESTAMPTZ;
 BEGIN
-	SELECT crop_type INTO plot_crop_type
+	SELECT crop_type, "start_date" INTO plot_crop_type, season_start_date
 	FROM plot JOIN season ON plot.id = season.plot_id
 	WHERE season.id = NEW.season_id;
+
+	IF (season_start_date > CURRENT_DATE) THEN
+		RAISE EXCEPTION 'Season will be started after (%)',
+			season_start_date
+			USING ERRCODE = 'ST004';
+	END IF;
 
 	SELECT for_crop_type, "order" INTO step_crop_type, cur_step_order
 	FROM step

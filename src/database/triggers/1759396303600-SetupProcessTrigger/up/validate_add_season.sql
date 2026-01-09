@@ -10,20 +10,16 @@ BEGIN
 			USING ERRCODE = 'SS000';
     END IF;
 
-	SELECT status INTO prev_season_status
-	FROM season
-	WHERE season.plot_id = NEW.plot_id
-	ORDER BY season.id
+	SELECT crop_type, season.id, season.status INTO cur_crop_type, season_id, prev_season_status
+	FROM plot LEFT JOIN season ON plot.id = season.plot_id
+	WHERE plot.id = NEW.plot_id;
+	ORDER BY season.id DESC
 	LIMIT 1;
 
-	IF (prev_season_status != 'DONE') THEN
+	IF (prev_season_status IS NOT NULL && prev_season_status != 'DONE') THEN
 		RAISE EXCEPTION 'Previous season is in process'
 		USING ERRCODE = 'SS002';
 	END IF;
-
-	SELECT crop_type, season.id INTO cur_crop_type, season_id
-	FROM plot LEFT JOIN season ON plot.id = season.plot_id
-	WHERE plot.id = NEW.plot_id;
 
 	IF (cur_crop_type = 'SHORT_TERM' AND season_id IS NOT NULL) THEN
 		RAISE EXCEPTION 'Short term crops can not have more than 1 season'
