@@ -12,6 +12,9 @@ export class Season {
     @Column()
     name: string;
 
+    @Column({ nullable: true })
+    image_url?: string;
+
     @Column({ type: "timestamptz" })
     start_date: Date;
 
@@ -28,7 +31,7 @@ export class Season {
     expected_yield: number;
 
     @Column({ nullable: true })
-    actual_yield: number;
+    actual_yield?: number;
 
     @Column()
     yield_unit: string;

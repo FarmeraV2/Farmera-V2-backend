@@ -8,7 +8,7 @@ import { ParseEnumArray } from "src/common/decorators/parse-enum-array";
 export class GetPlotDto extends PaginationOptions<PlotSortFields> {
     @IsOptional()
     @IsEnum(PlotSortFields)
-    sort_by: PlotSortFields = PlotSortFields.ID;
+    sort_by: PlotSortFields = PlotSortFields.UPDATED;
 
     @IsOptional()
     @IsString()

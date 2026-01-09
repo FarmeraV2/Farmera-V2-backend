@@ -9,6 +9,11 @@ export class CreateSeasonDto {
     @IsNotEmpty()
     name: string;
 
+    @IsOptional()
+    @IsString()
+    @IsNotEmpty()
+    image_url?: string;
+
     @IsDateString()
     @IsNotEmpty()
     start_date: Date;

@@ -5,11 +5,11 @@ import { Season } from '../entities/season.entity';
 import { CreateSeasonDto } from '../dtos/season/create-season.dto';
 import { SeasonStatus } from '../enums/season-status.enum';
 import { UpdateSeasonDto } from '../dtos/season/update-season.dto';
-import { PaginationOptions } from 'src/common/dtos/pagination/pagination-option.dto';
+import { PaginationOptions, PaginationTransform } from 'src/common/dtos/pagination/pagination-option.dto';
 import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
 import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
-import { seasonSelectFields } from '../dtos/season/season.dto';
+import { SeasonDetailDto, seasonDetailSelectFields, SeasonDto, seasonSelectFields } from '../dtos/season/season.dto';
 import { TriggerException } from 'src/database/utils/trigger.exception';
 import { StepService } from '../step/step.service';
 import { addStepDto } from '../dtos/season/add-step.dto';
@@ -18,6 +18,11 @@ import { GetStepDto } from '../dtos/step/get-step.dto';
 import { LogService } from '../log/log.service';
 import { Log } from '../entities/log.entity';
 import { AddLogDto } from '../dtos/log/add-log.dto';
+import { GetSeasonDto } from '../dtos/season/get-season.dto';
+import { plainToInstance } from 'class-transformer';
+import { SeasonSortFields } from '../enums/season-sort-fields.enum';
+import { applyPagination } from 'src/common/utils/pagination.util';
+import { PlotService } from '../plot/plot.service';
 
 @Injectable()
 export class SeasonService {
@@ -26,16 +31,35 @@ export class SeasonService {
 
     constructor(
         @InjectRepository(Season) private readonly seasonRepository: Repository<Season>,
+        private readonly plotService: PlotService,
         private readonly stepService: StepService,
         private readonly logService: LogService,
     ) { }
 
-    async createSeason(farmId: number, createSeasonDto: CreateSeasonDto): Promise<Season> {
+    async createSeason(farmId: number, createSeasonDto: CreateSeasonDto): Promise<SeasonDetailDto> {
         try {
             const season = this.seasonRepository.create({ ...createSeasonDto, farm_id: farmId });
-            return await this.seasonRepository.save(season);
+
+            // check start date
+            const currentDate = new Date();
+            if (season.start_date < currentDate) {
+                throw new BadRequestException({
+                    message: `Start date ${season.start_date} cannot be earlier than today ${currentDate}`,
+                    code: ResponseCode.INPUT_DATE_EARLIER_THAN_CURRENT_DATE
+                })
+            }
+
+            // check if previous season is done or not and previous season 
+            // is short or long term, if previous season is short term and
+            // a season is already exist, throw error
+            const plot = await this.plotService.validateAddSeason(season.plot_id);
+            season.image_url = createSeasonDto.image_url ?? plot.image_url;
+
+            const result = await this.seasonRepository.save(season);
+            return plainToInstance(SeasonDetailDto, result, { excludeExtraneousValues: true });
         }
         catch (error) {
+            if (error instanceof HttpException) throw error;
             if (error instanceof QueryFailedError) {
                 TriggerException.throwSeasonException(error);
             }
@@ -90,24 +114,76 @@ export class SeasonService {
         }
     }
 
-    async getSeasons(farmId: number, paginationOptions: PaginationOptions): Promise<PaginationResult<Season>> {
+    async getSeasons(farmId: number, getSeasonDto: GetSeasonDto): Promise<PaginationResult<SeasonDto>> {
+        const paginationOptions = plainToInstance(PaginationTransform<SeasonSortFields>, getSeasonDto)
+        const { season_status, search, plot_id } = getSeasonDto;
+        const { sort_by, order } = paginationOptions;
+
         try {
-            const { page, limit, skip } = paginationOptions;
             const qb = this.seasonRepository.createQueryBuilder("season")
                 .select(seasonSelectFields)
                 .where("season.farm_id = :farmId", { farmId });
 
-            const totalItems = await qb.getCount();
-            const totalPages = Math.ceil(totalItems / limit);
-            if (totalPages > 0 && page > totalPages) {
-                throw new BadRequestException("Invalid page");
+            if (plot_id) {
+                qb.andWhere("season.plot_id = :plotId", { plotId: plot_id });
             }
 
-            const seasons = await qb.skip(skip).take(limit).getMany();
+            if (search && search.trim() !== '') {
+                qb.andWhere("season.name ILIKE :search", { search: `%${search}%` });
+            }
+            if (season_status) {
+                qb.andWhere("season.status IN (:...status)", { status: season_status })
+            }
+
+            if (sort_by || order) {
+                switch (sort_by) {
+                    case SeasonSortFields.SEASON_NAME:
+                        qb.orderBy("season.name", order);
+                        break;
+                    case SeasonSortFields.START_DATE:
+                        qb.orderBy("season.start_date", order);
+                        break;
+                    case SeasonSortFields.UPDATED:
+                        qb.orderBy("season.updated", order);
+                    default:
+                        qb.orderBy("season.id", order)
+                }
+            }
+
+            const totalItems = await applyPagination(qb, paginationOptions);
+
+            const seasons = await qb.getMany();
             const meta = new PaginationMeta({ paginationOptions, totalItems });
-            return new PaginationResult(seasons, meta);
+            return new PaginationResult(plainToInstance(
+                SeasonDto,
+                seasons,
+                { excludeExtraneousValues: true }
+            ), meta);
         }
         catch (error) {
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to get farm's season",
+                code: ResponseCode.FAILED_TO_GET_SEASON
+            });
+        }
+    }
+
+    async getSeasonDetail(seasonId: number): Promise<SeasonDetailDto> {
+        try {
+            const season = await this.seasonRepository.findOne({
+                where: { id: seasonId },
+            });
+            if (!season) {
+                throw new NotFoundException({
+                    message: "season not found",
+                    code: ResponseCode.SEASON_NOT_FOUND,
+                })
+            }
+            return plainToInstance(SeasonDetailDto, season, { excludeExtraneousValues: true });
+        }
+        catch (error) {
+            if (error instanceof HttpException) throw error;
             this.logger.error(error.message);
             throw new InternalServerErrorException("Failed to get farm's season");
         }

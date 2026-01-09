@@ -13,6 +13,8 @@ import { applyPagination } from 'src/common/utils/pagination.util';
 import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
 import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
 import { UpdatePlotDto } from '../dtos/plot/update-plot.dto';
+import { SeasonStatus } from '../enums/season-status.enum';
+import { CropType } from '../enums/crop-type.enum';
 
 @Injectable()
 export class PlotService {
@@ -83,6 +85,8 @@ export class PlotService {
                     case PlotSortFields.PLOT_NAME:
                         queryBuilder.orderBy("plot.plot_name", order);
                         break;
+                    case PlotSortFields.UPDATED:
+                        queryBuilder.orderBy("plot.updated", order);
                     default:
                         queryBuilder.orderBy("plot.id", order)
                 }
@@ -142,5 +146,39 @@ export class PlotService {
                 code: ResponseCode.FAILED_TO_GET_PLOT_DETAIL,
             });
         }
+    }
+
+    async validateAddSeason(plotId: number): Promise<Plot> {
+        const plot = await this.plotRepository
+            .createQueryBuilder("plot")
+            .leftJoin("plot.seasons", "season")
+            .select([
+                "plot.crop_type",
+                "plot.image_url",
+                "season.id",
+                "season.status",
+            ])
+            .where("plot.id = :plotId", { plotId })
+            .orderBy("season.id", "DESC")
+            .getOne();
+
+        if (!plot) throw new Error("plot not found");
+
+        const prevSeason = plot.seasons.length ? plot.seasons[0] : null;
+
+        if (prevSeason && prevSeason.status !== SeasonStatus.DONE) {
+            throw new BadRequestException({
+                message: "Previous season still in progress",
+                code: ResponseCode.PREVIOUS_SEASON_IN_PROGRESS
+            })
+        }
+
+        if (plot.crop_type === CropType.SHORT_TERM && prevSeason !== null) {
+            throw new BadRequestException({
+                message: "Short term crops can not have more than 1 season",
+                code: ResponseCode.INVALID_SEASON_FOR_CROP_TYPE
+            })
+        }
+        return plot;
     }
 }
