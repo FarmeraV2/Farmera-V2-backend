@@ -22,7 +22,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER validate_add_season_trg
+DROP TRIGGER IF EXISTS validate_add_season_trg ON season;
+CREATE TRIGGER validate_add_season_trg
 BEFORE INSERT ON season
 FOR EACH ROW
 EXECUTE FUNCTION validate_add_season_fn();

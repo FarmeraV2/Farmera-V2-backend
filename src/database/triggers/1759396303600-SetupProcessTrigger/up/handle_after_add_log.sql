@@ -22,7 +22,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER handle_after_add_logs_trg
+DROP TRIGGER IF EXISTS handle_after_add_logs_trg ON "log";
+CREATE TRIGGER handle_after_add_logs_trg
 AFTER INSERT ON "log"
 FOR EACH ROW
 EXECUTE FUNCTION handle_after_add_logs_fn();

@@ -33,7 +33,7 @@ export class OrderController {
     
     
     @Post()
-    @Roles([UserRole.BUYER])
+    @Roles([UserRole.BUYER, UserRole.FARMER])
     async createOrder(@User() user: UserInterface, @Body() createBathOrderDto: CreateBathOrderDto) {
         const userId = user.id;
         return await this.orderService.creatBatchOders(userId, createBathOrderDto);

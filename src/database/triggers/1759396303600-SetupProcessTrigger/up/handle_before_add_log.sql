@@ -26,7 +26,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER handle_before_add_logs_trg
+DROP TRIGGER IF EXISTS handle_before_add_logs_trg ON "log";
+CREATE TRIGGER handle_before_add_logs_trg
 BEFORE INSERT ON "log"
 FOR EACH ROW
 EXECUTE FUNCTION handle_before_add_logs_fn();

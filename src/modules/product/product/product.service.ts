@@ -71,26 +71,53 @@ export class ProductService {
      */
     async createProduct(farmId: number, createProductDto: CreateProductDto): Promise<Product> {
         try {
+            this.logger.log(`Creating product for farmId: ${farmId}`);
+            this.logger.debug(`CreateProductDto: ${JSON.stringify(createProductDto)}`);
+
             const { subcategory_ids, ...temp_product } = createProductDto;
+            this.logger.debug(`Subcategory IDs: ${subcategory_ids ? JSON.stringify(subcategory_ids) : 'none'}`);
 
             const product = this.productsRepository.create(temp_product);
             product.farm_id = farmId;
+            this.logger.debug(`Product entity created with farm_id: ${farmId}`);
 
             if (subcategory_ids && subcategory_ids.length > 0) {
+                this.logger.log(`Fetching ${subcategory_ids.length} subcategories: [${subcategory_ids.join(', ')}]`);
                 const subcategories = await this.categoryService.getSubcategoryByIds(subcategory_ids, false);
+                this.logger.debug(`Found ${subcategories.length} subcategories from database`);
+                
                 if (subcategories.length !== subcategory_ids.length) {
+                    const foundIds = subcategories.map(s => s.subcategory_id);
+                    const missingIds = subcategory_ids.filter(id => !foundIds.includes(id));
+                    this.logger.warn(`Missing subcategory IDs: [${missingIds.join(', ')}]`);
                     throw new BadRequestException({
                         message: 'Invalid subcategory ids',
                         code: ResponseCode.INVALID_ID
                     });
                 }
                 product.subcategories = subcategories;
+                this.logger.debug(`Subcategories assigned to product`);
             }
 
-            return await this.productsRepository.save(product);
+            this.logger.log(`Saving product to database...`);
+            const savedProduct = await this.productsRepository.save(product);
+            this.logger.log(`Product created successfully with ID: ${savedProduct.product_id}`);
+            
+            return savedProduct;
         } catch (error) {
             if (error instanceof HttpException) throw error;
-            this.logger.error(error.message);
+            
+            this.logger.error(`Failed to create product for farmId ${farmId}`);
+            this.logger.error(`Error message: ${error.message}`);
+            this.logger.error(`Error stack: ${error.stack}`);
+            
+            if (error.code) {
+                this.logger.error(`Database error code: ${error.code}`);
+            }
+            if (error.detail) {
+                this.logger.error(`Database error detail: ${error.detail}`);
+            }
+            
             throw new InternalServerErrorException({
                 message: `Failed to create product`,
                 code: ResponseCode.FAILED_TO_CREATE_PRODUCT,

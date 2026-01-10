@@ -40,7 +40,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER validate_add_step_trg
+DROP TRIGGER IF EXISTS validate_add_step_trg ON season_detail;
+CREATE TRIGGER validate_add_step_trg
 BEFORE INSERT ON season_detail
 FOR EACH ROW
 EXECUTE FUNCTION validate_add_step_fn();

@@ -3,10 +3,12 @@ import { IsArray, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsPositive, I
 import { PaymentMethod } from '../enums/payment.enum';
 
 export class CreateOrderItemDto {
+    @Type(() => Number)
     @IsInt()
     @IsPositive()
     product_id: number;
 
+    @Type(() => Number)
     @IsInt()
     @IsPositive()
     quantity: number;
@@ -17,6 +19,7 @@ export class CreateOrderItemDto {
 }
 
 export class CreateSingleOrderDto {
+    @Type(() => Number)
     @IsInt()
     @IsPositive()
     farm_id: number;
@@ -30,6 +33,7 @@ export class CreateSingleOrderDto {
     @IsString()
     delivery_note?: string;
 
+    @Type(() => Number)
     @IsNumber()
     @IsPositive()
     shipping_fee: number;
@@ -47,6 +51,7 @@ export class CreateBathOrderDto {
     @IsEnum(PaymentMethod)
     payment_method: PaymentMethod;
     
+    @Type(() => Number)
     @IsOptional()
     @IsInt()
     @IsPositive()

@@ -6,5 +6,6 @@ export enum AuditEventID {
 
     // FARM
     FARM01 = 'FARM01',
-    FARM02 = 'FARM02'
+    FARM02 = 'FARM02',
+    FARM03 = 'FARM03'
 }
