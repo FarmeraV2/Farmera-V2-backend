@@ -8,16 +8,16 @@ export class OrderDetail {
     id: number;
 
     @ManyToOne(() => Order)
-    @JoinColumn({ name: 'order' })
+    @JoinColumn({ name: 'order_id' })
     order: Order;
 
     @Column()
     order_id: number;
 
     @ManyToOne(() => Product)
-    @JoinColumn({ name: 'product' })
+    @JoinColumn({ name: 'product_id' })
     product: Product;
-
+    
     @Column()
     product_id: number;
 
@@ -30,12 +30,11 @@ export class OrderDetail {
     @Column()
     unit: string;
 
-    @Column()
+    @Column('decimal', { precision: 10, scale: 2 }) // Thay vì 'int'
     unit_price: number;
-
-    @Column()
+    
+    @Column('decimal', { precision: 10, scale: 2 })
     total_price: number;
-
     @Column()
     status: string;
 

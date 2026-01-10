@@ -3,6 +3,7 @@ import { SeasonDetail } from './season-detail.entity';
 import { StepType } from '../enums/step-type.enum';
 import { CropType } from '../enums/crop-type.enum';
 
+
 @Entity()
 export class Step {
     @PrimaryGeneratedColumn()
@@ -19,6 +20,7 @@ export class Step {
 
     @Column({ type: 'enum', enumName: 'crop_type', enum: CropType })
     for_crop_type: CropType;
+    
 
     @Column()
     order: number;
@@ -34,6 +36,8 @@ export class Step {
 
     @Column({ type: 'enum', enumName: 'step_type', enum: StepType })
     type: StepType;
+
+
 
     @CreateDateColumn({ type: "timestamptz" })
     created: Date;
