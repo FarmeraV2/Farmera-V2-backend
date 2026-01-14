@@ -80,7 +80,7 @@ export class BlockchainService {
             // todo!("handle gas spent");
 
             return await this.contract.methods
-                .addLog(log.season_id, log.step_id, log.id, hashedData)
+                .addLog(log.season_detail_id, log.id, hashedData)
                 .send({ from: this.web3.eth.defaultAccount });
 
         } catch (error) {
@@ -118,10 +118,10 @@ export class BlockchainService {
         }
     }
 
-    async getHashedLogs(seasonId: number, stepId: number): Promise<{ id: number, hash: string }[]> {
+    async getHashedLogs(seasonDetailId: number): Promise<{ id: number, hash: string }[]> {
         try {
             const result = await this.contract.methods
-                .getLogs(seasonId, stepId)
+                .getLogs(seasonDetailId)
                 .call();
 
             const ids = result[0].map((id: bigint | string) => Number(id));

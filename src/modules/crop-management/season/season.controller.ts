@@ -6,11 +6,8 @@ import { CreateSeasonDto } from '../dtos/season/create-season.dto';
 import { UserInterface } from 'src/common/types/user.interface';
 import { User } from 'src/common/decorators/user.decorator';
 import { UpdateSeasonDto } from '../dtos/season/update-season.dto';
-import { PaginationOptions } from 'src/common/dtos/pagination/pagination-option.dto';
 import { Public } from 'src/common/decorators/public.decorator';
-import { addStepDto } from '../dtos/season/add-step.dto';
-import { GetStepDto } from '../dtos/step/get-step.dto';
-import { AddLogDto } from '../dtos/log/add-log.dto';
+import { AddStepDto } from '../dtos/season/add-step.dto';
 import { GetSeasonDto } from '../dtos/season/get-season.dto';
 
 @Controller('season')
@@ -46,31 +43,26 @@ export class SeasonController {
         return await this.seasonService.getSeasonDetail(seasonId);
     }
 
-    @Post(":seasonId/step")
-    async addStep(@Param("seasonId") seasonId: number, @Body() addStepDto: addStepDto) {
-        return await this.seasonService.addStep(seasonId, addStepDto);
+    @Post("/step")
+    async addSeasonStep(@Body() addStepDto: AddStepDto) {
+        return await this.seasonService.addSeasonStep(addStepDto);
     }
 
     @Public()
     @Get(":seasonId/step")
-    async getSteps(@Param("seasonId") seasonId: number, @Query() getStepDto: GetStepDto) {
-        return await this.seasonService.getSteps(seasonId, getStepDto);
+    async getSeasonSteps(@Param("seasonId") seasonId: number) {
+        return await this.seasonService.getSeasonSteps(seasonId);
     }
 
     @Public()
     @Get(":seasonId/step/:stepId/verify")
-    async verifyStep(@Param("seasonId") seasonId: number, @Param("stepId") stepId: number) {
-        return await this.seasonService.verifyStep(seasonId, stepId);
+    async verifySeasonStep(@Param("seasonId") seasonId: number, @Param("stepId") stepId: number) {
+        return await this.seasonService.verifySeasonStep(seasonId, stepId);
     }
 
     @Public()
-    @Get(":seasonId/step/:stepId/log")
-    async getLogs(@Param("seasonId") seasonId: number, @Param("stepId") stepId: number) {
-        return await this.seasonService.getLogs(seasonId, stepId);
-    }
-
-    @Post(":seasonId/step/:stepId/log")
-    async addLog(@User() user: UserInterface, @Param("seasonId") seasonId: number, @Param("stepId") stepId: number, @Body() addLogDto: AddLogDto) {
-        return await this.seasonService.addLog(seasonId, stepId, user.farm_id!, addLogDto);
+    @Get("step/:stepId/log")
+    async getLogs(@Param("stepId") stepId: number) {
+        return await this.seasonService.getLogs(stepId);
     }
 }

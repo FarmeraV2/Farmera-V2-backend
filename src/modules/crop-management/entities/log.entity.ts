@@ -36,17 +36,11 @@ export class Log {
     created: Date;
 
     @ManyToOne(() => SeasonDetail, (detail) => detail.logs)
-    @JoinColumn([
-        { name: "season_id", referencedColumnName: "season_id" },
-        { name: "step_id", referencedColumnName: "step_id" }
-    ])
+    @JoinColumn({ name: "season_detail_id" })
     season_detail: SeasonDetail
 
     @Column()
-    season_id: number;
-
-    @Column()
-    step_id: number;
+    season_detail_id: number;
 
     @ManyToOne(() => Farm)
     @JoinColumn({ name: "farm_id" })

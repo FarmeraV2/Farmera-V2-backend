@@ -1,24 +1,27 @@
 import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { QueryFailedError, Repository, SelectQueryBuilder } from 'typeorm';
+import { EntityManager, QueryFailedError, Repository, SelectQueryBuilder } from 'typeorm';
 import { Step } from '../entities/step.entity';
 import { SeasonDetail } from '../entities/season-detail.entity';
 import { TriggerException } from 'src/database/utils/trigger.exception';
 import { ResponseCode } from 'src/common/constants/response-code.const';
-import { GetStepDto } from '../dtos/step/get-step.dto';
 import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
 import { PublicStepDto, StepDto } from '../dtos/step/step.dto';
 import { PaginationTransform } from 'src/common/dtos/pagination/pagination-option.dto';
 import { plainToInstance } from 'class-transformer';
 import { applyPagination } from 'src/common/utils/pagination.util';
 import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
-import { addStepDto } from '../dtos/season/add-step.dto';
+import { AddStepDto } from '../dtos/season/add-step.dto';
 import { CreateStepDto } from '../dtos/step/create-step.dto';
 import { ListStepDto } from '../dtos/step/list-step.dto';
 import { StepSortFields } from '../enums/step-sort-fields.enum';
 import { Order } from 'src/common/enums/pagination.enum';
 import { BlockchainService } from 'src/services/blockchain.service';
 import { SeasonDetailDto } from '../dtos/step/season-detail.dto';
+import { StepStatus } from '../enums/step-status.enum';
+import { Season } from '../entities/season.entity';
+import { CropType } from '../enums/crop-type.enum';
+import { StepType } from '../enums/step-type.enum';
 
 @Injectable()
 export class StepService {
@@ -31,10 +34,10 @@ export class StepService {
         private readonly blockchainService: BlockchainService,
     ) { }
 
-    async addStep(seasonId: number, addStepDto: addStepDto): Promise<StepDto> {
+    async addSeasonStep(addStepDto: AddStepDto): Promise<StepDto> {
         try {
-            const result = await this.seasonDetailRepository.insert({ ...addStepDto, season_id: seasonId });
-            const { season_id, step_id } = result.identifiers[0];
+            const result = await this.seasonDetailRepository.insert({ ...addStepDto });
+            const { id } = result.identifiers[0];
             const queryBuilder = this.seasonDetailRepository.createQueryBuilder("season_detail")
                 .addSelect([
                     "step.id",
@@ -42,11 +45,12 @@ export class StepService {
                     "step.description",
                     "step.notes",
                     "step.for_crop_type",
-                    "step.type"
+                    "step.type",
+                    "step.order",
+                    "step.parent_id",
                 ])
                 .leftJoin("season_detail.step", "step")
-                .where("season_detail.season_id = :season_id", { season_id })
-                .andWhere("season_detail.step_id = :step_id", { step_id })
+                .where("season_detail.id = :id", { id })
 
             const res = await queryBuilder.getOne();
             if (!res) {
@@ -62,6 +66,8 @@ export class StepService {
                     step_description: res.step.description,
                     step_for_crop_type: res.step.for_crop_type,
                     step_type: res.step.type,
+                    step_order: res.step.order,
+                    parent_id: res.step.parent?.id,
                     ...res
                 },
                 { excludeExtraneousValues: true }
@@ -79,8 +85,8 @@ export class StepService {
         }
     }
 
-    async getSteps(seasonId: number, getStepDto: GetStepDto): Promise<PaginationResult<StepDto>> {
-        const paginationOptions = plainToInstance(PaginationTransform<string>, getStepDto);
+    async getSeasonSteps(seasonId: number): Promise<StepDto[]> {
+        // const paginationOptions = plainToInstance(PaginationTransform<string>, getStepDto);
         try {
             const queryBuilder = this.seasonDetailRepository.createQueryBuilder("season_detail")
                 .addSelect([
@@ -88,13 +94,15 @@ export class StepService {
                     "step.description",
                     "step.notes",
                     "step.for_crop_type",
-                    "step.type"
+                    "step.type",
+                    "step.order",
+                    "step.parent_id"
                 ])
                 .leftJoin("season_detail.step", "step")
                 .where("season_detail.season_id = :seasonId", { seasonId })
-                .orderBy("season_detail.created")
+                .orderBy("season_detail.updated", "DESC")
 
-            const totalItems = await applyPagination(queryBuilder, paginationOptions);
+            // const totalItems = await applyPagination(queryBuilder, paginationOptions);
 
             const result = await queryBuilder.getMany();
             const steps = plainToInstance(
@@ -104,15 +112,14 @@ export class StepService {
                     step_description: res.step.description,
                     step_for_crop_type: res.step.for_crop_type,
                     step_type: res.step.type,
+                    step_order: res.step.order,
+                    parent_id: res.step.parent?.id,
                     ...res
                 })),
                 { excludeExtraneousValues: true }
             );
 
-            return new PaginationResult(steps, new PaginationMeta({
-                paginationOptions,
-                totalItems
-            }))
+            return steps;
         }
         catch (error) {
             if (error instanceof HttpException) throw error;
@@ -163,13 +170,36 @@ export class StepService {
         }
     }
 
+    async getStep(stepId: number): Promise<Step> {
+        try {
+            const result = await this.stepRepository.findOne({ where: { id: stepId } });
+            if (!result) {
+                throw new NotFoundException({
+                    message: "Step not found",
+                    code: ResponseCode.STEP_NOT_FOUND
+                });
+            }
+            return result;
+        }
+        catch (error) {
+            this.logger.error("Failed to get steps: ", error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to get step",
+                code: ResponseCode.FAILED_TO_GET_STEP
+            })
+        }
+    }
+
     async listPublicSteps(listStepDto: ListStepDto): Promise<PaginationResult<PublicStepDto>> {
         const paginationOptions = plainToInstance(PaginationTransform<StepSortFields>, listStepDto);
         const { sort_by, order } = paginationOptions;
         try {
             const queryBuilder = this.stepRepository.createQueryBuilder("step")
-            this.applySorting(queryBuilder, sort_by, order);
+                .leftJoinAndSelect("step.children", "children")
+                .where("step.parent IS NULL");
+
             this.applyFilter(queryBuilder, listStepDto);
+            this.applySorting(queryBuilder, sort_by, order);
 
             const totalItems = await applyPagination(queryBuilder, paginationOptions);
 
@@ -191,10 +221,10 @@ export class StepService {
         }
     }
 
-    async getStep(seasonId: number, stepId: number): Promise<SeasonDetail> {
+    async getSeasonStep(seasonDetailId: number): Promise<SeasonDetail> {
         try {
             const result = await this.seasonDetailRepository.findOne({
-                where: { season_id: seasonId, step_id: stepId }
+                where: { id: seasonDetailId }
             });
             if (!result) {
                 throw new NotFoundException({
@@ -214,7 +244,7 @@ export class StepService {
         }
     }
 
-    async verifyStep(seasonId: number, stepId: number): Promise<boolean> {
+    async verifySeasonStep(seasonId: number, stepId: number): Promise<boolean> {
         try {
             const step = await this.seasonDetailRepository.findOne({ where: { season_id: seasonId, step_id: stepId } })
             if (!step) {
@@ -239,14 +269,15 @@ export class StepService {
             this.logger.error("Failed to verify step: ", error.message);
             throw new InternalServerErrorException({
                 message: "Failed to verify step",
-                code: ResponseCode.PREVIOUS_VERIFY_STEP
+                code: ResponseCode.FAILED_TO_VERIFY_STEP
             })
         }
     }
 
-    async updateTransactionHash(seasonId: number, stepId: number, transactionHash: string): Promise<boolean> {
+    async updateTransactionHash(seasonId: number, stepId: number, transactionHash: string, manager?: EntityManager): Promise<boolean> {
         try {
-            const result = await this.seasonDetailRepository.update(
+            const repo = manager ? manager.getRepository(SeasonDetail) : this.seasonDetailRepository;
+            const result = await repo.update(
                 { season_id: seasonId, step_id: stepId },
                 { transaction_hash: transactionHash })
             if (result && result.affected && result.affected > 0) {
@@ -262,6 +293,118 @@ export class StepService {
         }
     }
 
+    async validateAddSeasonStep(season: Season, stepId: number): Promise<void> {
+        // validate crop type
+        const step = await this.getStep(stepId);
+        if (step.for_crop_type != season.plot.crop_type) {
+            throw new BadRequestException({
+                message: `Invalid step for ${season.plot.crop_type}`,
+                code: ResponseCode.INVALID_STEP_FOR_CROP_TYPE
+            });
+        }
+
+        const queryBuilder = this.seasonDetailRepository
+            .createQueryBuilder('season_detail')
+            .innerJoin('season_detail.step', 'step')
+            .select('MAX(step."order")', 'prev_step_order')
+            .addSelect('season_detail.step_status', 'prev_step_status')
+            .where('season_detail.season_id = :seasonId', { seasonId: season.id })
+            .groupBy('season_detail.step_status')
+            .limit(1);
+
+        const validator = await queryBuilder.getRawOne();
+
+        const prevStepOrder = validator?.prev_step_order;
+        const prevStepStatus = validator?.prev_step_status;
+
+        console.log(prevStepOrder);
+        console.log(prevStepStatus);
+
+        if (prevStepOrder && !step.repeated && (
+            prevStepOrder >= step.order ||
+            Math.floor(step.order / 10) > Math.floor(prevStepOrder / 10) + 1 ||
+            (!step.parent_id && step.type === StepType.CARE)
+        )) {
+            throw new BadRequestException({
+                message: `Invalid step order`,
+                code: ResponseCode.INVALID_STEP_ORDER,
+            })
+        }
+
+        if (prevStepStatus && prevStepStatus !== StepStatus.DONE) {
+            throw new BadRequestException({
+                message: 'Previous step is in process',
+                code: ResponseCode.PREVIOUS_STEP_IN_PROGRESS,
+            });
+        }
+
+        if (!prevStepOrder) {
+            if (season.plot.crop_type === CropType.SHORT_TERM) {
+                const firstStep = await this.stepRepository.findOne({
+                    select: ["order"],
+                    where: { for_crop_type: CropType.SHORT_TERM },
+                    order: { order: "ASC" }
+                });
+                if (!firstStep) throw new InternalServerErrorException({
+                    message: "Internal server errror",
+                    code: ResponseCode.INTERNAL_ERROR
+                });
+                if (firstStep.order != step.order) throw new BadRequestException({
+                    message: `Invalid first step`,
+                    code: ResponseCode.INVALID_FIRST_STEP,
+                });
+            }
+            else if (season.plot.crop_type === CropType.LONG_TERM) {
+                const firstStep = await this.stepRepository
+                    .createQueryBuilder('step')
+                    .select('step.order')
+                    .where('step.for_crop_type = :crop_type', { crop_type: CropType.LONG_TERM })
+                    .andWhere('step.order % 10 != 0')
+                    .andWhere('step.type = :type', { type: StepType.CARE })
+                    .orderBy('step.order', 'ASC')
+                    .getOne();
+
+                if (!firstStep) throw new InternalServerErrorException({
+                    message: "Internal server errror",
+                    code: ResponseCode.INTERNAL_ERROR
+                });
+                if (step.order > firstStep.order) throw new BadRequestException({
+                    message: `Invalid first step`,
+                    code: ResponseCode.INVALID_FIRST_STEP,
+                });
+            }
+        }
+    }
+
+    async getSeasonDetailForValidateAddLog(seasonDetailId: number): Promise<SeasonDetail> {
+        try {
+            const queryBuilder = this.seasonDetailRepository.createQueryBuilder("season_detail")
+                .addSelect([
+                    "season_detail.step_status",
+                    "step.min_logs",
+                ])
+                .leftJoin("season_detail.step", "step")
+                .where("season_detail.id = :id", { id: seasonDetailId })
+
+            const result = await queryBuilder.getOne();
+            if (!result) {
+                throw new InternalServerErrorException({
+                    message: "Season detail not found",
+                    code: ResponseCode.STEP_NOT_FOUND,
+                })
+            }
+            return result;
+        }
+        catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error("Failed to get step: ", error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to get step",
+                code: ResponseCode.FAILED_TO_GET_STEP
+            })
+        }
+    }
+
     private applySorting(qb: SelectQueryBuilder<Step>, sortBy: StepSortFields, order: Order) {
         switch (sortBy) {
             case StepSortFields.NAME:
@@ -270,12 +413,19 @@ export class StepService {
             case StepSortFields.UPDATED:
                 qb.orderBy('step.updated', order);
                 break;
+            case StepSortFields.ORDER:
+                qb.orderBy('step.order', order);
+                break;
             default:
                 qb.orderBy('step.id', order);
         }
     }
 
     private applyFilter(qb: SelectQueryBuilder<Step>, listStepDto: ListStepDto) {
+        if (listStepDto.search) {
+            const search = listStepDto.search.trim();
+            qb.andWhere("step.name ILIKE :search", { search: `%${search}%` })
+        }
         if (listStepDto.for_crop_type) {
             const type = listStepDto.for_crop_type;
             qb.andWhere("step.for_crop_type = :type", { type })

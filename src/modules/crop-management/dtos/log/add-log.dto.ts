@@ -1,9 +1,13 @@
 import { Type } from "class-transformer";
-import { ArrayMinSize, IsArray, IsEnum, IsNotEmpty, IsObject, IsOptional, IsString, ValidateNested } from "class-validator";
+import { ArrayMinSize, IsArray, IsEnum, IsNotEmpty, IsNumber, IsObject, IsOptional, IsPositive, IsString, ValidateNested } from "class-validator";
 import { LocationRequestDto } from "src/common/dtos/location/location.dto";
 import { LogType } from "../../enums/log-type.enum";
 
 export class AddLogDto {
+    @IsNumber()
+    @IsPositive()
+    season_detail_id: number;
+
     @IsString()
     @IsNotEmpty()
     name: string;

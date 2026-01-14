@@ -3,6 +3,7 @@ import { SeasonStatus } from '../enums/season-status.enum';
 import { Plot } from './plot.entity';
 import { SeasonDetail } from './season-detail.entity';
 import { Farm } from 'src/modules/farm/entities/farm.entity';
+import { CropType } from '../enums/crop-type.enum';
 
 @Entity()
 export class Season {
@@ -38,6 +39,9 @@ export class Season {
 
     @Column({ nullable: true })
     notes?: string;
+
+    @Column({ type: 'enum', enumName: 'crop_type', enum: CropType })
+    crop_type: CropType
 
     @CreateDateColumn({ type: "timestamptz" })
     created: Date;

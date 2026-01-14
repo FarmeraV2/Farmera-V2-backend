@@ -7,10 +7,13 @@ import { Log } from './log.entity';
 
 @Entity()
 export class SeasonDetail {
-    @PrimaryColumn()
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @Column()
     season_id: number;
 
-    @PrimaryColumn()
+    @Column()
     step_id: number;
 
     @Column({ type: 'enum', enumName: 'step_status', enum: StepStatus, default: StepStatus.PENDING })

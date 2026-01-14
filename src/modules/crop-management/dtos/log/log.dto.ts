@@ -15,8 +15,7 @@ export class LogDto {
     @Expose() transaction_hash?: string;
     @Expose() notes?: string;
     @Expose() created: Date;
-    @Expose() season_id: number;
-    @Expose() step_id: number;
+    @Expose() season_detail_id: number;
     @Expose() farm_id: number;
     @Expose() farm_name?: string;
 }

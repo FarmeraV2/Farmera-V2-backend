@@ -1,5 +1,6 @@
 export enum StepSortFields {
     ID = "ID",
     NAME = "NAME",
-    UPDATED = "UPATED"
+    UPDATED = "UPATED",
+    ORDER = "ORDER",
 }

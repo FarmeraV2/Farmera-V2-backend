@@ -1,5 +1,6 @@
 import { Expose } from "class-transformer";
 import { SeasonStatus } from "../../enums/season-status.enum";
+import { CropType } from "../../enums/crop-type.enum";
 
 export class SeasonDto {
     @Expose() id: number;
@@ -10,6 +11,7 @@ export class SeasonDto {
     @Expose() actual_end_date?: Date;
     @Expose() status: SeasonStatus;
     @Expose() plot_id: number;
+    @Expose() crop_type: CropType;
     @Expose() created: Date;
     @Expose() updated: Date;
 }
@@ -27,6 +29,7 @@ export class SeasonDetailDto {
     @Expose() yield_unit: string;
     @Expose() notes?: string;
     @Expose() plot_id: number;
+    @Expose() crop_type: CropType;
     @Expose() created: Date;
     @Expose() updated: Date;
 }

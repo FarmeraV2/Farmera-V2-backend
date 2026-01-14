@@ -5,16 +5,14 @@ import { Season } from '../entities/season.entity';
 import { CreateSeasonDto } from '../dtos/season/create-season.dto';
 import { SeasonStatus } from '../enums/season-status.enum';
 import { UpdateSeasonDto } from '../dtos/season/update-season.dto';
-import { PaginationOptions, PaginationTransform } from 'src/common/dtos/pagination/pagination-option.dto';
+import { PaginationTransform } from 'src/common/dtos/pagination/pagination-option.dto';
 import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
 import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
-import { SeasonDetailDto, seasonDetailSelectFields, SeasonDto, seasonSelectFields } from '../dtos/season/season.dto';
+import { SeasonDetailDto, SeasonDto, seasonSelectFields } from '../dtos/season/season.dto';
 import { TriggerException } from 'src/database/utils/trigger.exception';
 import { StepService } from '../step/step.service';
-import { addStepDto } from '../dtos/season/add-step.dto';
 import { StepDto } from '../dtos/step/step.dto';
-import { GetStepDto } from '../dtos/step/get-step.dto';
 import { LogService } from '../log/log.service';
 import { Log } from '../entities/log.entity';
 import { AddLogDto } from '../dtos/log/add-log.dto';
@@ -23,6 +21,7 @@ import { plainToInstance } from 'class-transformer';
 import { SeasonSortFields } from '../enums/season-sort-fields.enum';
 import { applyPagination } from 'src/common/utils/pagination.util';
 import { PlotService } from '../plot/plot.service';
+import { AddStepDto } from '../dtos/season/add-step.dto';
 
 @Injectable()
 export class SeasonService {
@@ -38,7 +37,13 @@ export class SeasonService {
 
     async createSeason(farmId: number, createSeasonDto: CreateSeasonDto): Promise<SeasonDetailDto> {
         try {
-            const season = this.seasonRepository.create({ ...createSeasonDto, farm_id: farmId });
+            const cropType = await this.plotService.getPlotCropType(createSeasonDto.plot_id);
+
+            const season = this.seasonRepository.create({
+                ...createSeasonDto,
+                crop_type: cropType,
+                farm_id: farmId
+            });
 
             // check start date
             const currentDate = new Date();
@@ -53,6 +58,7 @@ export class SeasonService {
             // is short or long term, if previous season is short term and
             // a season is already exist, throw error
             const plot = await this.plotService.validateAddSeason(season.plot_id);
+
             season.image_url = createSeasonDto.image_url ?? plot.image_url;
 
             const result = await this.seasonRepository.save(season);
@@ -185,28 +191,67 @@ export class SeasonService {
         catch (error) {
             if (error instanceof HttpException) throw error;
             this.logger.error(error.message);
-            throw new InternalServerErrorException("Failed to get farm's season");
+            throw new InternalServerErrorException({
+                message: "Failed to get farm's season",
+                code: ResponseCode.FAILED_TO_GET_SEASON
+            });
         }
     }
 
-    async addStep(seasonId: number, addStepDto: addStepDto): Promise<StepDto> {
-        return await this.stepService.addStep(seasonId, addStepDto);
+    async addSeasonStep(addStepDto: AddStepDto): Promise<StepDto> {
+        try {
+            const season = await this.seasonRepository.createQueryBuilder("season")
+                .select([
+                    "season.start_date",
+                    "season.id"
+                ])
+                .leftJoin("season.plot", "plot")
+                .addSelect("plot.crop_type")
+                .where("season.id = :seasonId", { seasonId: addStepDto.season_id })
+                .getOne();
+
+            if (!season) {
+                throw new InternalServerErrorException();
+            }
+
+            if (season.status === SeasonStatus.DONE || season.status === SeasonStatus.CANCELED) {
+                throw new BadRequestException({
+                    message: `The season has not started yet. Season will be started after ${season.start_date}`,
+                    code: ResponseCode.SEASON_IS_NOT_IN_PROGRESS,
+                });
+            }
+
+            // validate date
+            if (season.start_date > new Date()) {
+                throw new BadRequestException({
+                    message: `The season has not started yet. Season will be started after ${season.start_date}`,
+                    code: ResponseCode.SEASON_IS_NOT_STARTED,
+                });
+            }
+
+            await this.stepService.validateAddSeasonStep(season, addStepDto.step_id);
+
+            return await this.stepService.addSeasonStep(addStepDto);
+        } catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to add step",
+                code: ResponseCode.FAILED_TO_ADD_STEP,
+            })
+        }
     }
 
-    async getSteps(seasonId: number, getStepDto: GetStepDto): Promise<PaginationResult<StepDto>> {
-        return await this.stepService.getSteps(seasonId, getStepDto);
+    async getSeasonSteps(seasonId: number): Promise<StepDto[]> {
+        return await this.stepService.getSeasonSteps(seasonId);
     }
 
-    async verifyStep(seasonId: number, stepId: number): Promise<boolean> {
-        return await this.stepService.verifyStep(seasonId, stepId);
+    async verifySeasonStep(seasonId: number, stepId: number): Promise<boolean> {
+        return await this.stepService.verifySeasonStep(seasonId, stepId);
     }
 
-    async getLogs(seasonId: number, stepId: number): Promise<Log[]> {
-        return await this.logService.getLogs(seasonId, stepId);
-    }
-
-    async addLog(seasonId: number, stepId: number, farmId: number, addLogDto: AddLogDto): Promise<Log> {
-        return await this.logService.addLog(seasonId, stepId, farmId, addLogDto);
+    async getLogs(seasonDetailId: number): Promise<Log[]> {
+        return await this.logService.getLogs(seasonDetailId);
     }
 
     // todo!("handle cron job to update status every day")

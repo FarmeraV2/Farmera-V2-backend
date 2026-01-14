@@ -87,8 +87,10 @@ export class PlotService {
                         break;
                     case PlotSortFields.UPDATED:
                         queryBuilder.orderBy("plot.updated", order);
+                        break;
                     default:
                         queryBuilder.orderBy("plot.id", order)
+                        break;
                 }
             }
 
@@ -166,7 +168,7 @@ export class PlotService {
 
         const prevSeason = plot.seasons.length ? plot.seasons[0] : null;
 
-        if (prevSeason && prevSeason.status !== SeasonStatus.DONE) {
+        if (prevSeason && prevSeason.status !== SeasonStatus.DONE && prevSeason.status !== SeasonStatus.CANCELED) {
             throw new BadRequestException({
                 message: "Previous season still in progress",
                 code: ResponseCode.PREVIOUS_SEASON_IN_PROGRESS
@@ -180,5 +182,25 @@ export class PlotService {
             })
         }
         return plot;
+    }
+
+    async getPlotCropType(plotId: number): Promise<CropType> {
+        try {
+            const plot = await this.plotRepository.findOne({ where: { id: plotId }, select: ["crop_type"] });
+            if (!plot) {
+                throw new NotFoundException({
+                    message: "Plot not found",
+                    code: ResponseCode.PLOT_NOT_FOUND,
+                });
+            }
+            return plot.crop_type;
+        }
+        catch (error) {
+            if (error instanceof HttpException) throw error;
+            throw new InternalServerErrorException({
+                message: "Failed to get plot crop type",
+                code: ResponseCode.INTERNAL_ERROR
+            })
+        }
     }
 }

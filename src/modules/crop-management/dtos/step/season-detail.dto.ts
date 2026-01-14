@@ -3,6 +3,7 @@ import { StepEvaluation } from "../../enums/step-evaluation";
 import { StepStatus } from "../../enums/step-status.enum";
 
 export class SeasonDetailDto {
+    @Expose() id: number;
     @Expose() season_id: number;
     @Expose() step_id: number;
     @Expose() step_status: StepStatus;

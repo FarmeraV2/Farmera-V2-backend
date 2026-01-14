@@ -8,7 +8,7 @@ BEGIN
 
     IF (season_st = 'PENDING') THEN
         UPDATE season
-        SET season.status = 'IN_PROGRESS'
+        SET "status" = 'IN_PROGRESS'
         WHERE season.id = NEW.season_id;
     END IF;
 

@@ -4,21 +4,29 @@ import { CropType } from "../../enums/crop-type.enum";
 import { StepType } from "../../enums/step-type.enum";
 import { StepEvaluation } from "../../enums/step-evaluation";
 
+// step in season detail table
 export class StepDto {
+    @Expose() id: number;
     @Expose() season_id: number;
     @Expose() step_id: number;
-    @Expose() step_status: StepStatus;
-    @Expose() step_evaluation?: StepEvaluation
+    // from step table
     @Expose() step_name: string;
     @Expose() step_description: string;
-    @Expose() step_notes?: string;
     @Expose() step_for_crop_type: CropType;
     @Expose() step_type: StepType;
+    @Expose() step_order: number;
+    // from season_detail table
+    @Expose() step_status: StepStatus;
+    @Expose() step_evaluation?: StepEvaluation
+    @Expose() step_notes?: string;
+    @Expose() parent_id?: number;
     @Expose() created: Date;
     @Expose() updated: Date;
 }
 
+// step for selection
 export class PublicStepDto {
+    @Expose() id: number;
     @Expose() name: string;
     @Expose() description: string;
     @Expose() for_crop_type: CropType;
@@ -27,4 +35,6 @@ export class PublicStepDto {
     @Expose() is_optional: boolean;
     @Expose() min_logs: number;
     @Expose() type: StepType;
+    @Type(() => PublicStepDto)
+    @Expose() children: PublicStepDto;
 }

@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { Log } from '../entities/log.entity';
@@ -16,7 +16,7 @@ import { BlockchainService } from 'src/services/blockchain.service';
 import { HashedLog } from '../dtos/log/hashed-log.dto';
 import { LogType } from '../enums/log-type.enum';
 import { StepService } from '../step/step.service';
-import { SeasonDetail } from '../entities/season-detail.entity';
+import { StepStatus } from '../enums/step-status.enum';
 
 @Injectable()
 export class LogService {
@@ -30,40 +30,45 @@ export class LogService {
         private readonly stepService: StepService,
     ) { }
 
-    async addLog(seasonId: number, stepId: number, farmId: number, addLogDto: AddLogDto): Promise<Log> {
+    async addLog(farmId: number, addLogDto: AddLogDto): Promise<Log> {
         try {
             let savedLog: Log | undefined;
+
+            await this.validateAddLog(addLogDto);
 
             await this.dataSource.transaction(async (transactionalEntityManager) => {
                 const newLog = this.logRepository.create({
                     ...addLogDto,
                     farm_id: farmId,
-                    season_id: seasonId,
-                    step_id: stepId,
                 });
 
                 savedLog = await transactionalEntityManager.save(newLog);
 
-                const trasaction = await this.blockchainService.addLog(savedLog);
+                // const trasaction = await this.blockchainService.addLog(savedLog);
 
-                await transactionalEntityManager.update(
-                    Log,
-                    { id: savedLog.id },
-                    { transaction_hash: trasaction.transactionHash })
+                // await transactionalEntityManager.update(
+                //     Log,
+                //     { id: savedLog.id },
+                //     { transaction_hash: trasaction.transactionHash })
 
-                savedLog.transaction_hash = trasaction.transactionHash;
-                savedLog.verified = trasaction.transactionHash ? true : false;
+                // savedLog.transaction_hash = trasaction.transactionHash;
+                // savedLog.verified = trasaction.transactionHash ? true : false;
+
+                // upload step to blockchain if this is the last step
+                // if (savedLog.type === LogType.DONE) {
+                // const step = await this.stepService.getSeasonStep(addLogDto.season_detail_id);
+                // const transaction = await this.blockchainService.addStep(step);
+                // await this.stepService.updateTransactionHash(
+                //     step.season_id,
+                //     step.step_id,
+                //     transaction.transactionHash,
+                //     transactionalEntityManager
+                // );
+                // }
             });
 
             if (!savedLog) {
                 throw new InternalServerErrorException();
-            }
-
-            // upload step to blockchain if this is the last step
-            if (savedLog.type === LogType.DONE) {
-                const step = await this.stepService.getStep(seasonId, stepId);
-                const transaction = await this.blockchainService.addStep(step);
-                await this.stepService.updateTransactionHash(step.season_id, step.step_id, transaction.transactionHash);
             }
 
             return savedLog;
@@ -72,6 +77,7 @@ export class LogService {
             if (error instanceof QueryFailedError) {
                 TriggerException.throwLogException(error);
             }
+            if (error instanceof HttpException) throw error;
             this.logger.error("Failed to add log: ", error.message);
             throw new InternalServerErrorException({
                 message: "Failed to add log",
@@ -95,15 +101,18 @@ export class LogService {
         }
     }
 
-    async getLogs(seasonId: number, stepId: number): Promise<Log[]> {
+    async getLogs(seasonDetailId: number): Promise<Log[]> {
         try {
             const logs = await this.logRepository.find({
-                where: {
-                    season_id: seasonId,
-                    step_id: stepId,
-                }
+                where: { season_detail_id: seasonDetailId, },
+                order: { id: "DESC" }
             });
-            const hashedLogs = await this.blockchainService.getHashedLogs(seasonId, stepId);
+            let hashedLogs: { id: number, hash: string }[] = [];
+            try {
+                hashedLogs = await this.blockchainService.getHashedLogs(seasonDetailId);
+            } catch (error) {
+                this.logger.error("Failed to hashed logs: ", error.message);
+            }
 
             hashedLogs.map((data) => {
                 const log = logs.find((log) => log.id === data.id);
@@ -157,6 +166,26 @@ export class LogService {
                 message: "Failed to add log",
                 code: ResponseCode.FAILED_TO_GET_LOG
             })
+        }
+    }
+
+    private async validateAddLog(newLog: AddLogDto): Promise<void> {
+        const sd = await this.stepService.getSeasonDetailForValidateAddLog(newLog.season_detail_id);
+
+        if (sd.step_status === StepStatus.DONE) {
+            throw new BadRequestException({
+                message: 'Cannot add logs to a step that is already DONE.',
+                code: ResponseCode.STEP_ALREADY_DONE
+            });
+        }
+        const logNum = await this.logRepository.count({
+            where: { season_detail_id: newLog.season_detail_id }
+        });
+        if (newLog.type === LogType.DONE && logNum < sd.step.min_logs) {
+            throw new BadRequestException({
+                message: `Not enough logs to mark step as DONE. Minimum required: ${sd.step.min_logs}`,
+                code: ResponseCode.NOT_ENOUGH_LOG
+            });
         }
     }
 }
