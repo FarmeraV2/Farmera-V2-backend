@@ -15,7 +15,6 @@ import { StepService } from '../step/step.service';
 import { StepDto } from '../dtos/step/step.dto';
 import { LogService } from '../log/log.service';
 import { Log } from '../entities/log.entity';
-import { AddLogDto } from '../dtos/log/add-log.dto';
 import { GetSeasonDto } from '../dtos/season/get-season.dto';
 import { plainToInstance } from 'class-transformer';
 import { SeasonSortFields } from '../enums/season-sort-fields.enum';
@@ -77,11 +76,14 @@ export class SeasonService {
         }
     }
 
-    async updateSeason(farmId: number, seasonId: number, updateSeasonDto: UpdateSeasonDto): Promise<Season> {
+    async updateSeason(farmId: number, updateSeasonDto: UpdateSeasonDto): Promise<SeasonDetailDto> {
         try {
-            const { name, notes } = updateSeasonDto;
-            const season = await this.seasonRepository.findOneBy({ id: seasonId, farm_id: farmId });
-            if (!season) throw new NotFoundException("Season not found");
+            const { name, notes, actual_end_date, actual_yield } = updateSeasonDto;
+            const season = await this.seasonRepository.findOneBy({ id: updateSeasonDto.id, farm_id: farmId });
+            if (!season) throw new NotFoundException({
+                message: "Season not found",
+                code: ResponseCode.SEASON_NOT_FOUND
+            });
 
             // handle start date earlier than current date
             const today = new Date();
@@ -92,22 +94,23 @@ export class SeasonService {
                 })
             }
 
-            // if the seaon is already started
+            // if the seaon is already started, allow to update actual results
             if (season.status === SeasonStatus.DONE) {
-                throw new BadRequestException({
-                    message: "Cannot update a finished season",
-                    code: ResponseCode.FAILED_TO_UPDATE_SEASON,
-                })
+                const result = await this.seasonRepository.save({ ...season, actual_end_date, actual_yield });
+                return plainToInstance(SeasonDetailDto, result, { excludeExtraneousValues: true });
             }
 
             // only allowing to update name & notes if the season is in progress 
             else if (season.status === SeasonStatus.IN_PROGRESS || season.start_date < new Date()) {
-                return await this.seasonRepository.save({ ...season, name, notes });
+                const result = await this.seasonRepository.save({ ...season, name, notes });
+                return plainToInstance(SeasonDetailDto, result, { excludeExtraneousValues: true });
             }
 
-            // allowing update all fields
+            // allowing update all fields exclude actual values
             else {
-                return await this.seasonRepository.save({ ...season, ...updateSeasonDto });
+                const { actual_end_date, actual_yield, ...res } = updateSeasonDto;
+                const result = await this.seasonRepository.save({ ...season, ...res });
+                return plainToInstance(SeasonDetailDto, result, { excludeExtraneousValues: true });
             }
         }
         catch (error) {

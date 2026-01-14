@@ -21,9 +21,9 @@ export class SeasonController {
         return await this.seasonService.createSeason(user.farm_id!, createSeasonDto);
     }
 
-    @Put(":seasonId")
-    async updateSeason(@Param("seasonId") seasonId: number, @User() user: UserInterface, @Body() updateSeasonDto: UpdateSeasonDto) {
-        return await this.seasonService.updateSeason(user.farm_id!, seasonId, updateSeasonDto);
+    @Put()
+    async updateSeason(@User() user: UserInterface, @Body() updateSeasonDto: UpdateSeasonDto) {
+        return await this.seasonService.updateSeason(user.farm_id!, updateSeasonDto);
     }
 
     @Public()

@@ -1,6 +1,12 @@
-import { IsDateString, IsInt, IsNotEmpty, IsOptional, IsPositive, IsString } from "class-validator";
+import { Type } from "class-transformer";
+import { IsDateString, IsInt, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString } from "class-validator";
 
 export class UpdateSeasonDto {
+    @IsNumber()
+    @IsPositive()
+    @Type(() => Number)
+    id: number;
+
     @IsString()
     @IsNotEmpty()
     name: string;
