@@ -41,4 +41,6 @@ export class SeasonDetail {
 
     @OneToMany(() => Log, (log) => log.season_detail)
     logs?: Log[];
+
+    verified?: boolean;
 }

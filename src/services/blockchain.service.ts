@@ -4,7 +4,9 @@ import { plainToInstance } from "class-transformer";
 import { createHash } from "crypto";
 import { contractAbi } from "src/contracts/ProcessTracking";
 import { HashedLog } from "src/modules/crop-management/dtos/log/hashed-log.dto";
+import { HashedStep } from "src/modules/crop-management/dtos/step/hashed-step.dto";
 import { SeasonDetailDto } from "src/modules/crop-management/dtos/step/season-detail.dto";
+import { StepDto } from "src/modules/crop-management/dtos/step/step.dto";
 import { Log } from "src/modules/crop-management/entities/log.entity";
 import { SeasonDetail } from "src/modules/crop-management/entities/season-detail.entity";
 import Web3 from "web3";
@@ -90,12 +92,12 @@ export class BlockchainService {
         }
     }
 
-    async addStep(step: SeasonDetail): Promise<TransactionReceipt> {
+    async addStep(step: StepDto): Promise<TransactionReceipt> {
         try {
-            const hashedData = this.hashData(SeasonDetailDto, step);
+            const hashedData = this.hashData(HashedStep, step);
 
             return await this.contract.methods
-                .addStep(step.season_id, step.step_id, hashedData)
+                .addStep(step.season_id, step.id, hashedData)
                 .send({ from: this.web3.eth.defaultAccount });
 
         } catch (error) {
@@ -151,16 +153,19 @@ export class BlockchainService {
         }
     }
 
-    async getSteps(seasonId: number): Promise<{ ids: number[], hashes: string[] }> {
+    async getHashedSteps(seasonId: number): Promise<{ id: number, hash: string }[]> {
         try {
             const result = await this.contract.methods
                 .getSteps(seasonId)
                 .call();
 
-            return {
-                ids: result[0].map((id: bigint | string) => Number(id)),
-                hashes: result[1],
-            }
+            const ids = result[0].map((id: bigint | string) => Number(id));
+            const hashes = result[1];
+
+            return ids.map((id: number, index: number) => ({
+                id,
+                hash: hashes[index],
+            }));
 
         } catch (error) {
             this.logger.error(error.message);
@@ -170,7 +175,8 @@ export class BlockchainService {
     }
 
     hashData<T>(cls: new () => T, data: unknown): string {
-        const instance = plainToInstance(cls, data, { excludeExtraneousValues: true });
+        const instance = plainToInstance(cls, data, { excludeExtraneousValues: true, });
+        console.log(instance);
         return createHash('sha256')
             .update(JSON.stringify(instance))
             .digest('hex');

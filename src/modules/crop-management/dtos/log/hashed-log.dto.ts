@@ -9,11 +9,11 @@ export class HashedLog {
     @Expose() type: LogType;
     @Expose() image_urls: string[];
     @Expose() video_urls: string[];
+    @Expose()
     @Type(() => LocationDto)
     location: LocationDto;
     @Expose() notes?: string;
     @Expose() created: Date;
-    @Expose() season_id: number;
-    @Expose() step_id: number;
+    @Expose() season_detail_id: number;
     @Expose() farm_id: number;
 }

@@ -15,11 +15,13 @@ export class StepDto {
     @Expose() step_for_crop_type: CropType;
     @Expose() step_type: StepType;
     @Expose() step_order: number;
+    @Expose() parent_id?: number;
     // from season_detail table
     @Expose() step_status: StepStatus;
     @Expose() step_evaluation?: StepEvaluation
     @Expose() step_notes?: string;
-    @Expose() parent_id?: number;
+    @Expose() transaction_hash?: string;
+    @Expose() verified?: boolean;
     @Expose() created: Date;
     @Expose() updated: Date;
 }

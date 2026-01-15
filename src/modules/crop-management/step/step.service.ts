@@ -22,6 +22,7 @@ import { StepStatus } from '../enums/step-status.enum';
 import { Season } from '../entities/season.entity';
 import { CropType } from '../enums/crop-type.enum';
 import { StepType } from '../enums/step-type.enum';
+import { HashedStep } from '../dtos/step/hashed-step.dto';
 
 @Injectable()
 export class StepService {
@@ -59,19 +60,7 @@ export class StepService {
                     code: ResponseCode.FAILED_TO_ADD_STEP,
                 })
             }
-            return plainToInstance(
-                StepDto,
-                {
-                    step_name: res.step.name,
-                    step_description: res.step.description,
-                    step_for_crop_type: res.step.for_crop_type,
-                    step_type: res.step.type,
-                    step_order: res.step.order,
-                    parent_id: res.step.parent?.id,
-                    ...res
-                },
-                { excludeExtraneousValues: true }
-            );
+            return this.plainStepDto(res);
         }
         catch (error) {
             if (error instanceof QueryFailedError) {
@@ -105,19 +94,23 @@ export class StepService {
             // const totalItems = await applyPagination(queryBuilder, paginationOptions);
 
             const result = await queryBuilder.getMany();
-            const steps = plainToInstance(
-                StepDto,
-                result.map((res): StepDto => ({
-                    step_name: res.step.name,
-                    step_description: res.step.description,
-                    step_for_crop_type: res.step.for_crop_type,
-                    step_type: res.step.type,
-                    step_order: res.step.order,
-                    parent_id: res.step.parent?.id,
-                    ...res
-                })),
-                { excludeExtraneousValues: true }
-            );
+
+            const steps = result.map((res): StepDto => this.plainStepDto(res));
+
+            let hashedSteps: { id: number, hash: string }[] = [];
+            try {
+                hashedSteps = await this.blockchainService.getHashedSteps(seasonId);
+            } catch (error) {
+                this.logger.error("Failed to hashed steps: ", error.message);
+            }
+
+            hashedSteps.map((data) => {
+                const step = steps.find((step) => step.id === data.id);
+                if (step) {
+                    console.log("s:", step);
+                    step.verified = this.blockchainService.hashData(HashedStep, step) === data.hash;
+                }
+            })
 
             return steps;
         }
@@ -221,10 +214,10 @@ export class StepService {
         }
     }
 
-    async getSeasonStep(seasonDetailId: number): Promise<SeasonDetail> {
+    async getSeasonStep(seasonDetailId: number): Promise<StepDto> {
         try {
             const result = await this.seasonDetailRepository.findOne({
-                where: { id: seasonDetailId }
+                where: { id: seasonDetailId }, relations: ["step"]
             });
             if (!result) {
                 throw new NotFoundException({
@@ -232,7 +225,7 @@ export class StepService {
                     code: ResponseCode.FAILED_TO_GET_STEP
                 })
             }
-            return result;
+            return this.plainStepDto(result);
         }
         catch (error) {
             if (error instanceof HttpException) throw error;
@@ -434,5 +427,21 @@ export class StepService {
             const type = listStepDto.type;
             qb.andWhere("step.type = :type", { type })
         }
+    }
+
+    private plainStepDto(s: SeasonDetail) {
+        return plainToInstance(
+            StepDto,
+            {
+                step_name: s.step.name,
+                step_description: s.step.description,
+                step_for_crop_type: s.step.for_crop_type,
+                step_type: s.step.type,
+                step_order: s.step.order,
+                parent_id: s.step.parent?.id,
+                ...s
+            },
+            { excludeExtraneousValues: true }
+        );
     }
 }

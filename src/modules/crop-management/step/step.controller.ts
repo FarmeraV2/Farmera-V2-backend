@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { Roles } from 'src/common/decorators/role.decorator';
 import { UserRole } from 'src/common/enums/role.enum';
 import { StepService } from './step.service';
@@ -28,4 +28,9 @@ export class StepController {
         return await this.stepService.listPublicSteps(listStepDto);
     }
 
+    @Public()
+    @Get(":id")
+    async getSeasonSteps(@Param("id") id: number) {
+        return await this.stepService.getSeasonStep(id);
+    }
 }

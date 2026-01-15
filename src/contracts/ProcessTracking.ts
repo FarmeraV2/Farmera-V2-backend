@@ -4,24 +4,19 @@ export const contractAbi = [
         name: "addLog",
         inputs: [
             {
-                name: "seasonId",
+                name: "seasonStepId",
                 type: "uint64",
-                internalType: "uint64"
-            },
-            {
-                name: "stepId",
-                type: "uint64",
-                internalType: "uint64"
+                "internalType": "uint64"
             },
             {
                 name: "logId",
                 type: "uint64",
-                internalType: "uint64"
+                "internalType": "uint64"
             },
             {
                 name: "hashedData",
                 type: "string",
-                internalType: "string"
+                "internalType": "string"
             }
         ],
         outputs: [],
@@ -34,17 +29,17 @@ export const contractAbi = [
             {
                 name: "seasonId",
                 type: "uint64",
-                internalType: "uint64"
+                "internalType": "uint64"
             },
             {
-                name: "stepId",
+                name: "seasonStepId",
                 type: "uint64",
-                internalType: "uint64"
+                "internalType": "uint64"
             },
             {
                 name: "hashedData",
                 type: "string",
-                internalType: "string"
+                "internalType": "string"
             }
         ],
         outputs: [],
@@ -57,14 +52,14 @@ export const contractAbi = [
             {
                 name: "logId",
                 type: "uint64",
-                internalType: "uint64"
+                "internalType": "uint64"
             }
         ],
         outputs: [
             {
                 name: "",
                 type: "string",
-                internalType: "string"
+                "internalType": "string"
             }
         ],
         stateMutability: "view"
@@ -74,26 +69,21 @@ export const contractAbi = [
         name: "getLogs",
         inputs: [
             {
-                name: "seasonId",
+                name: "seasonStepId",
                 type: "uint64",
-                internalType: "uint64"
-            },
-            {
-                name: "stepId",
-                type: "uint64",
-                internalType: "uint64"
+                "internalType": "uint64"
             }
         ],
         outputs: [
             {
                 name: "",
                 type: "uint64[]",
-                internalType: "uint64[]"
+                "internalType": "uint64[]"
             },
             {
                 name: "",
                 type: "string[]",
-                internalType: "string[]"
+                "internalType": "string[]"
             }
         ],
         stateMutability: "view"
@@ -103,21 +93,16 @@ export const contractAbi = [
         name: "getStep",
         inputs: [
             {
-                name: "seasonId",
+                name: "seasonStepId",
                 type: "uint64",
-                internalType: "uint64"
-            },
-            {
-                name: "stepId",
-                type: "uint64",
-                internalType: "uint64"
+                "internalType": "uint64"
             }
         ],
         outputs: [
             {
                 name: "",
                 type: "string",
-                internalType: "string"
+                "internalType": "string"
             }
         ],
         stateMutability: "view"
@@ -129,19 +114,19 @@ export const contractAbi = [
             {
                 name: "seasonId",
                 type: "uint64",
-                internalType: "uint64"
+                "internalType": "uint64"
             }
         ],
         outputs: [
             {
                 name: "",
                 type: "uint64[]",
-                internalType: "uint64[]"
+                "internalType": "uint64[]"
             },
             {
                 name: "",
                 type: "string[]",
-                internalType: "string[]"
+                "internalType": "string[]"
             }
         ],
         stateMutability: "view"
@@ -153,17 +138,17 @@ export const contractAbi = [
             {
                 name: "logId",
                 type: "uint64",
-                indexed: false,
-                internalType: "uint64"
+                "indexed": false,
+                "internalType": "uint64"
             },
             {
                 name: "hashedData",
                 type: "string",
-                indexed: false,
-                internalType: "string"
+                "indexed": false,
+                "internalType": "string"
             }
         ],
-        anonymous: false
+        "anonymous": false
     },
     {
         type: "event",
@@ -172,23 +157,23 @@ export const contractAbi = [
             {
                 name: "seasonId",
                 type: "uint64",
-                indexed: false,
-                internalType: "uint64"
+                "indexed": false,
+                "internalType": "uint64"
             },
             {
-                name: "stepId",
+                name: "seasonStepId",
                 type: "uint64",
-                indexed: false,
-                internalType: "uint64"
+                "indexed": false,
+                "internalType": "uint64"
             },
             {
                 name: "hashedData",
                 type: "string",
-                indexed: false,
-                internalType: "string"
+                "indexed": false,
+                "internalType": "string"
             }
         ],
-        anonymous: false
+        "anonymous": false
     },
     {
         type: "error",

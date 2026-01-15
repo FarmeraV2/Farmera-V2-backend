@@ -44,27 +44,27 @@ export class LogService {
 
                 savedLog = await transactionalEntityManager.save(newLog);
 
-                // const trasaction = await this.blockchainService.addLog(savedLog);
+                const trasaction = await this.blockchainService.addLog(savedLog);
 
-                // await transactionalEntityManager.update(
-                //     Log,
-                //     { id: savedLog.id },
-                //     { transaction_hash: trasaction.transactionHash })
+                await transactionalEntityManager.update(
+                    Log,
+                    { id: savedLog.id },
+                    { transaction_hash: trasaction.transactionHash })
 
-                // savedLog.transaction_hash = trasaction.transactionHash;
-                // savedLog.verified = trasaction.transactionHash ? true : false;
+                savedLog.transaction_hash = trasaction.transactionHash;
+                savedLog.verified = trasaction.transactionHash ? true : false;
 
                 // upload step to blockchain if this is the last step
-                // if (savedLog.type === LogType.DONE) {
-                // const step = await this.stepService.getSeasonStep(addLogDto.season_detail_id);
-                // const transaction = await this.blockchainService.addStep(step);
-                // await this.stepService.updateTransactionHash(
-                //     step.season_id,
-                //     step.step_id,
-                //     transaction.transactionHash,
-                //     transactionalEntityManager
-                // );
-                // }
+                if (savedLog.type === LogType.DONE) {
+                    const step = await this.stepService.getSeasonStep(addLogDto.season_detail_id);
+                    const transaction = await this.blockchainService.addStep(step);
+                    await this.stepService.updateTransactionHash(
+                        step.season_id,
+                        step.step_id,
+                        transaction.transactionHash,
+                        transactionalEntityManager
+                    );
+                }
             });
 
             if (!savedLog) {
