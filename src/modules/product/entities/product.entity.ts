@@ -10,10 +10,12 @@ import {
     ManyToMany,
     JoinTable,
     OneToMany,
+    OneToOne,
 } from 'typeorm';
 import { ProductStatus } from '../enums/product-status.enum';
 import { Subcategory } from './sub-category.entity';
 import { Review } from 'src/modules/review/entities/review.entity';
+import { Season } from 'src/modules/crop-management/entities/season.entity';
 
 @Entity()
 export class Product {
@@ -79,9 +81,12 @@ export class Product {
     @OneToMany(() => Review, (review) => review.product)
     reviews?: Review[];
 
-    // @OneToMany(() => Process, (process) => process.product)
-    // @JoinColumn({ name: 'process_id' })
-    // processes?: Process[];
+    @OneToOne(() => Season, { nullable: true })
+    @JoinColumn({ name: 'season_id' })
+    season?: Season;
+
+    @Column({ nullable: true })
+    season_id?: number;
 
     //todo!("summary columns for review data")
 }

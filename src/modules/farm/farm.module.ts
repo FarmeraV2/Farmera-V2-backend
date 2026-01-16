@@ -14,11 +14,17 @@ import { AuditModule } from 'src/core/audit/audit.module';
 import { HashService } from 'src/services/hash.service';
 import { Identification } from './entities/identification.entity';
 import { UserModule } from '../user/user.module';
+import { FarmCertificate } from './entities/farm-certificate.entity';
+import { FarmCertificateService } from './farm-certificate/farm-certificate.service';
+import { FarmCertificateController } from './farm-certificate/farm-certificate.controller';
+import { FarmApprovalService } from './farm-approval/farm-approval.service';
+import { FarmApproval } from './entities/farm-approval.entity';
+import { FarmApprovalController } from './farm-approval/farm-approval.controller';
 
 @Module({
     imports: [
         MulterModule.registerAsync(multerAsyncConfig),
-        TypeOrmModule.forFeature([Farm, Identification]),
+        TypeOrmModule.forFeature([Farm, Identification, FarmCertificate, FarmApproval]),
         ConfigModule,
         HttpModule,
         AddressModule,
@@ -26,8 +32,8 @@ import { UserModule } from '../user/user.module';
         AuditModule,
         UserModule,
     ],
-    controllers: [FarmController],
-    providers: [FarmService, BiometricService, HashService],
-    exports: [FarmService],
+    controllers: [FarmController, FarmCertificateController, FarmApprovalController],
+    providers: [FarmService, BiometricService, HashService, FarmCertificateService, FarmApprovalService],
+    exports: [FarmService, FarmApprovalService, FarmCertificateService],
 })
 export class FarmModule { }

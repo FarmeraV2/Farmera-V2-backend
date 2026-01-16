@@ -1,6 +1,7 @@
 import { Expose, Type } from "class-transformer";
 import { DeliveryAddressDto } from "src/modules/address/dtos/delivery-address.dto";
-import { FarmStatus } from "../enums/farm-status.enum";
+import { FarmStatus } from "../../enums/farm-status.enum";
+import { FarmCertificateDto } from "../farm-cert/farm-certificate.dto";
 
 export class MyFarmDto {
     @Expose() id: number;
@@ -19,6 +20,9 @@ export class MyFarmDto {
 
     @Type(() => DeliveryAddressDto)
     @Expose() address: DeliveryAddressDto;
+
+    @Type(() => FarmCertificateDto)
+    @Expose() certificates?: FarmCertificateDto[];
 }
 
 const farmDtoProps = Object.keys(new MyFarmDto());

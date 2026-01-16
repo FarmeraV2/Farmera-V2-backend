@@ -28,7 +28,7 @@ import { SearchProductsDto } from '../dtos/product/search-product.dto';
 import { UpdateProductDto } from '../dtos/product/update-product-dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { applyPagination } from 'src/common/utils/pagination.util';
-import { farmSummaryDtoSelectFields } from 'src/modules/farm/dtos/farm.dto';
+import { farmSummaryDtoSelectFields } from 'src/modules/farm/dtos/farm/farm.dto';
 import { ProductDetailDto, productDetailSelectFields } from '../dtos/product/product-detail.dto';
 
 @Injectable()

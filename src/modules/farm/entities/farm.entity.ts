@@ -8,6 +8,7 @@ import { Plot } from 'src/modules/crop-management/entities/plot.entity';
 import { Season } from 'src/modules/crop-management/entities/season.entity';
 import { Log } from 'src/modules/crop-management/entities/log.entity';
 import { Product } from 'src/modules/product/entities/product.entity';
+import { FarmCertificate } from './farm-certificate.entity';
 
 @Entity()
 export class Farm {
@@ -32,9 +33,6 @@ export class Farm {
 
     @Column('text', { array: true, nullable: true })
     profile_image_urls: string[];
-
-    @Column('text', { array: true, nullable: true })
-    certificate_img_urls: string[];
 
     @Column()
     email: string;
@@ -82,4 +80,7 @@ export class Farm {
     seasons?: Season[]
     @OneToMany(() => Log, (log) => log.farm)
     logs?: Log[]
+
+    @OneToMany(() => FarmCertificate, (cert) => cert.farm)
+    certificate?: FarmCertificate;
 }

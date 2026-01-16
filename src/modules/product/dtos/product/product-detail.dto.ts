@@ -1,6 +1,6 @@
 import { Expose, Type } from "class-transformer";
 import { ProductStatus } from "../../enums/product-status.enum";
-import { FarmSummaryDto } from "src/modules/farm/dtos/farm.dto";
+import { FarmSummaryDto } from "src/modules/farm/dtos/farm/farm.dto";
 import { SubcategoryDto } from "../category/subcategory.dto";
 
 export class ProductDetailDto {

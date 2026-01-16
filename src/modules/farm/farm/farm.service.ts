@@ -2,32 +2,25 @@ import { ConflictException, HttpException, Inject, Injectable, InternalServerErr
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { Farm } from '../entities/farm.entity';
-import { FptIdrCardFrontData, FptIdrCccdFrontData } from '../interfaces/fpt-idr-front.interface';
 import { BiometricService } from '../biometric/biometric.service';
 import { Identification } from '../entities/identification.entity';
-import { IdentificationStatus } from '../enums/identification.enums';
 import { FarmStatus } from '../enums/farm-status.enum';
 import { plainToInstance } from 'class-transformer';
-import { FarmRegistrationDto } from '../dtos/farm-registration.dto';
+import { FarmRegistrationDto } from '../dtos/farm/farm-registration.dto';
 import { DeliveryAddressService } from 'src/modules/address/delivery-address/delivery-address.service';
 import { CreateFarmAddressDto } from 'src/modules/address/dtos/create-address.dto';
-import { isUUID } from 'class-validator';
-import { UpdateFarmDto } from '../dtos/update-farm.dto';
-import { UpdateFarmAvatarDto, UpdateFarmImagesDto } from '../dtos/update-farm-images.dto';
+import { UpdateFarmDto } from '../dtos/farm/update-farm.dto';
+import { UpdateFarmAvatarDto, UpdateFarmImagesDto } from '../dtos/farm/update-farm-images.dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { FileStorageService } from 'src/core/file-storage/interfaces/file-storage.interface';
-import { FarmDto, farmDtoSelectFields } from '../dtos/farm.dto';
-import { UserInterface } from 'src/common/types/user.interface';
+import { FarmDto, farmDtoSelectFields } from '../dtos/farm/farm.dto';
 import { publicUserFields } from 'src/modules/user/dtos/user/user.dto';
-import { MyFarmDto } from '../dtos/my-farm.dto';
-import { MediaGroupType } from 'src/core/file-storage/enums/media-group-type.enum';
-import { FptLivenessResponse } from '../interfaces/fpt-liveness.interfaces';
+import { MyFarmDto } from '../dtos/farm/my-farm.dto';
 import { AuditService } from 'src/core/audit/audit.service';
 import { ActorType } from 'src/core/audit/enums/actor-type';
 import { AuditEventID } from 'src/core/audit/enums/audit_event_id';
 import { AuditResult } from 'src/core/audit/enums/audit-result';
 import { HashService } from 'src/services/hash.service';
-import { parseDateDMY } from 'src/utils/format';
 import { UserService } from 'src/modules/user/user/user.service';
 import { UserRole } from 'src/common/enums/role.enum';
 
@@ -258,10 +251,9 @@ export class FarmService {
         try {
             const queryBuilder = this.farmRepository.createQueryBuilder('farm').select([...farmDtoSelectFields, 'farm.address_id'])
                 .where('farm.user_id = :userId', { userId })
-                // todo!("remove this")
-                // .andWhere('farm.status IN (:...statuses)', {
-                //     statuses: [FarmStatus.VERIFIED, FarmStatus.APPROVED],
-                // })
+                .andWhere('farm.status IN (:...statuses)', {
+                    statuses: [FarmStatus.VERIFIED, FarmStatus.APPROVED],
+                })
                 .leftJoin('farm.owner', 'user').addSelect(publicUserFields.map((prop) => `user.${prop}`));
 
             const farm = await queryBuilder.getOne();
@@ -297,10 +289,9 @@ export class FarmService {
         try {
             const queryBuilder = this.farmRepository.createQueryBuilder('farm').select([...farmDtoSelectFields, 'farm.address_id'])
                 .where('farm.id = :farmId', { farmId })
-                // todo!("remove this")
-                // .andWhere('farm.status IN (:...statuses)', {
-                //     statuses: [FarmStatus.VERIFIED, FarmStatus.APPROVED],
-                // })
+                .andWhere('farm.status IN (:...statuses)', {
+                    statuses: [FarmStatus.VERIFIED, FarmStatus.APPROVED],
+                })
                 .leftJoin('farm.owner', 'user').addSelect(publicUserFields.map((prop) => `user.${prop}`));
 
             const farm = await queryBuilder.getOne();
@@ -381,7 +372,6 @@ export class FarmService {
         await queryRunner.startTransaction();
 
         const oldProfileImageUrlsToDelete: string[] = [];
-        const oldCertificateImageUrlsToDelete: string[] = [];
 
         try {
             const farm = await this.farmRepository.findOne({
@@ -404,17 +394,6 @@ export class FarmService {
             }
 
             farm.profile_image_urls = incomingProfileImageUrls;
-
-            // update certification images
-            const currentCertificateImageUrls = farm.certificate_img_urls || [];
-            const incomingCertificateImageUrls = updateFarmDto.certificate_image_urls || [];
-
-            for (const existingUrl of currentCertificateImageUrls) {
-                if (!incomingCertificateImageUrls.includes(existingUrl)) {
-                    oldCertificateImageUrlsToDelete.push(existingUrl);
-                }
-            }
-            farm.certificate_img_urls = incomingCertificateImageUrls;
 
             farm.updated = new Date();
             const newFarm = await queryRunner.manager.save(Farm, farm);
@@ -522,9 +501,10 @@ export class FarmService {
         return null;
     }
 
-    async updateFarmStatus(farmId: number, status: FarmStatus, manager: EntityManager): Promise<void> {
+    async updateFarmStatus(farmId: number, status: FarmStatus, manager?: EntityManager): Promise<void> {
+        const repo = manager ? manager.getRepository(Farm) : this.farmRepository;
         try {
-            const result = await manager.update(Farm, farmId, { status: status });
+            const result = await repo.update(farmId, { status: status });
             if (!result || !result.affected || result.affected <= 0) {
                 throw new InternalServerErrorException();
             }

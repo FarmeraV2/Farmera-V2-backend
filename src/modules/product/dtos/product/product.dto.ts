@@ -13,6 +13,7 @@ export class ProductDto {
     @Expose() average_rating: number;
     @Expose() thumbnail?: string;
     @Expose() status: ProductStatus;
+    @Expose() season_id?: number;
 
     @Expose()
     @Type(() => SubcategoryDto)
