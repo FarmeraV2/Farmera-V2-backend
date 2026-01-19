@@ -5,10 +5,11 @@ import { Roles } from 'src/common/decorators/role.decorator';
 import { CreateCategoryDto } from '../dtos/category/create-category.dto';
 import { CreateSubcategoryDto } from '../dtos/category/create-sub-category.dto';
 import { Public } from 'src/common/decorators/public.decorator';
+import { GetCategoryDto } from '../dtos/category/search-category.dto';
 
 @Controller('category')
 export class CategoryController {
-    constructor(private readonly categoryService: CategoryService) {}
+    constructor(private readonly categoryService: CategoryService) { }
 
     @Roles([UserRole.ADMIN])
     @Post()
@@ -16,7 +17,7 @@ export class CategoryController {
         return await this.categoryService.createCategory(newCategory);
     }
 
-    // @Roles([UserRole.ADMIN])
+    @Roles([UserRole.ADMIN])
     @Post('subcategory')
     async createSubCategory(@Body() newSubCategory: CreateSubcategoryDto) {
         return await this.categoryService.createSubcategory(newSubCategory);
@@ -46,9 +47,9 @@ export class CategoryController {
         return await this.categoryService.getCategoryById(id, include);
     }
 
-    // @Public()
-    // @Get('all')
-    // async getCategories(@Query() paginationDto: PaginationOptions) {
-    //     return await this.categoryService.getAllCategories(paginationDto);
-    // }
+    @Public()
+    @Get()
+    async getCategories(@Query() getCategoryDto: GetCategoryDto) {
+        return await this.categoryService.searchCategory(getCategoryDto);
+    }
 }

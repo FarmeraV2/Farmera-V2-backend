@@ -29,7 +29,7 @@ export class Product {
     description: string;
 
     @Column({ type: 'bigint' })
-    price_per_unit: number;
+    price_per_unit: bigint;
 
     @Column()
     unit: string;

@@ -6,7 +6,6 @@ import { UserInterface } from 'src/common/types/user.interface';
 import { CreateProductDto } from '../dtos/product/create-product.dto';
 import { Roles } from 'src/common/decorators/role.decorator';
 import { UserRole } from 'src/common/enums/role.enum';
-import { GetProductByFarmDto } from '../dtos/product/get-by-farm.dto';
 import { SearchProductsDto } from '../dtos/product/search-product.dto';
 import { UpdateProductDto } from '../dtos/product/update-product-dto';
 
@@ -48,23 +47,23 @@ export class ProductController {
         return await this.productService.searchAndFilterProducts(searchProductsDTo);
     }
 
-    @Public()
-    @Get('farm/:farm_id')
-    async getProductsByFarm(@Param('farm_id') farmId: number, @Query() getProductByFarmDto?: GetProductByFarmDto) {
-        return await this.productService.getProductsByFarmId(farmId, getProductByFarmDto);
-    }
+    // @Public()
+    // @Get('farm/:farm_id')
+    // async getProductsByFarm(@Param('farm_id') farmId: number, @Query() getProductByFarmDto?: GetProductByFarmDto) {
+    //     return await this.productService.getProductsByFarmId(farmId, getProductByFarmDto);
+    // }
 
-    @Public()
-    @Get('category/sub/:subcategory_id')
-    async getProductsBySubCategory(@Param('subcategory_id') subcategory_id: number, @Query() getProductByFarmDto?: GetProductByFarmDto) {
-        return await this.productService.getProductsByCategory(subcategory_id, false, getProductByFarmDto);
-    }
+    // @Public()
+    // @Get('category/sub/:subcategory_id')
+    // async getProductsBySubCategory(@Param('subcategory_id') subcategory_id: number, @Query() getProductByFarmDto?: GetProductByFarmDto) {
+    //     return await this.productService.getProductsByCategory(subcategory_id, false, getProductByFarmDto);
+    // }
 
-    @Public()
-    @Get('category/:category_id')
-    async getProductsByCategory(@Param('category_id') categoryId: number, @Query() getProductByFarmDto?: GetProductByFarmDto) {
-        return await this.productService.getProductsByCategory(categoryId, true, getProductByFarmDto);
-    }
+    // @Public()
+    // @Get('category/:category_id')
+    // async getProductsByCategory(@Param('category_id') categoryId: number, @Query() getProductByFarmDto?: GetProductByFarmDto) {
+    //     return await this.productService.getProductsByCategory(categoryId, true, getProductByFarmDto);
+    // }
 
     @Public()
     @Get(':product_id')

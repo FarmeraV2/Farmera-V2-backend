@@ -5,4 +5,5 @@ export enum ProductSortField {
     PRICE = 'PRICE',
     AVERAGE_RATING = 'AVERAGE_RATING',
     TOTAL_SOLD = 'TOTAL_SOLD',
+    UPDATED = 'UPDATED',
 }

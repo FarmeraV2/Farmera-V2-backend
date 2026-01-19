@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ArrayNotEmpty, IsArray, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
 
 export class CreateProductDto {
@@ -11,10 +11,9 @@ export class CreateProductDto {
     description: string;
 
     @IsNotEmpty()
-    @Type(() => Number)
-    @IsNumber()
-    @IsPositive()
-    price_per_unit: number;
+    @IsString()
+    // @Transform(({ value }) => BigInt(value))
+    price_per_unit: bigint;
 
     @IsNotEmpty()
     @IsString()

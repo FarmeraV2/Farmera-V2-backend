@@ -20,6 +20,7 @@ import { FarmCertificateController } from './farm-certificate/farm-certificate.c
 import { FarmApprovalService } from './farm-approval/farm-approval.service';
 import { FarmApproval } from './entities/farm-approval.entity';
 import { FarmApprovalController } from './farm-approval/farm-approval.controller';
+import { ProductModule } from '../product/product.module';
 
 @Module({
     imports: [
@@ -31,6 +32,7 @@ import { FarmApprovalController } from './farm-approval/farm-approval.controller
         FileStorageModule,
         AuditModule,
         UserModule,
+        ProductModule,
     ],
     controllers: [FarmController, FarmCertificateController, FarmApprovalController],
     providers: [FarmService, BiometricService, HashService, FarmCertificateService, FarmApprovalService],

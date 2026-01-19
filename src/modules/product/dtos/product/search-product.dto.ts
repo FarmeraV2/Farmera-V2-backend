@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import { PaginationOptions } from 'src/common/dtos/pagination/pagination-option.dto';
 import { ProductStatus } from '../../enums/product-status.enum';
 import { ProductSortField } from '../../enums/product-sort-fields.enum';
+import { ParseNumberArray } from 'src/common/decorators/parse-number-array';
 
 export class SearchProductsDto extends PaginationOptions<ProductSortField> {
     @IsOptional()
@@ -44,9 +45,8 @@ export class SearchProductsDto extends PaginationOptions<ProductSortField> {
     status?: ProductStatus;
 
     @IsOptional()
-    @Type(() => Number)
-    @IsNumber()
-    subcategory_id?: number;
+    @ParseNumberArray()
+    subcategory_ids?: number[];
 
     @IsOptional()
     @Type(() => Boolean)

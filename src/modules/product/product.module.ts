@@ -8,11 +8,11 @@ import { ProductController } from './product/product.controller';
 import { ProductService } from './product/product.service';
 import { ConfigModule } from '@nestjs/config';
 import { Product } from './entities/product.entity';
-import { FarmModule } from '../farm/farm.module';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([Category, Subcategory, Product]), ConfigModule, FarmModule],
+    imports: [TypeOrmModule.forFeature([Category, Subcategory, Product]), ConfigModule],
     controllers: [CategoryController, ProductController],
     providers: [CategoryService, ProductService],
+    exports: [ProductService]
 })
-export class ProductModule {}
+export class ProductModule { }

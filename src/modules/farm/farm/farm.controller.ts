@@ -1,8 +1,7 @@
-import { BadRequestException, Body, Controller, Get, MaxFileSizeValidator, Param, ParseFilePipe, ParseIntPipe, Patch, Post, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, MaxFileSizeValidator, Param, ParseFilePipe, ParseIntPipe, Patch, Post, Query, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FarmService } from './farm.service';
 import { UserInterface } from 'src/common/types/user.interface';
 import { User } from 'src/common/decorators/user.decorator';
-import { Farm } from '../entities/farm.entity';
 import { FarmRegistrationDto } from '../dtos/farm/farm-registration.dto';
 import { Public } from 'src/common/decorators/public.decorator';
 import { UpdateFarmDto } from '../dtos/farm/update-farm.dto';
@@ -11,6 +10,7 @@ import { Roles } from 'src/common/decorators/role.decorator';
 import { UserRole } from 'src/common/enums/role.enum';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { SearchProductsDto } from 'src/modules/product/dtos/product/search-product.dto';
 
 @Controller('farm')
 export class FarmController {
@@ -90,6 +90,13 @@ export class FarmController {
     async updateFarmImages(@Body() updateFarmDto: UpdateFarmImagesDto, @User() user: UserInterface) {
         return await this.farmService.updateFarmImages(user.farm_id!, updateFarmDto);
     }
+
+    @Get('my/product')
+    @Roles([UserRole.FARMER])
+    async getFarmProducts(@User() user: UserInterface, @Query() getProductByFarmDto: SearchProductsDto) {
+        return await this.farmService.getMyFarmProducts(user.farm_id!, getProductByFarmDto);
+    }
+
 
     /*#########################################################################
                                      todo!                                   

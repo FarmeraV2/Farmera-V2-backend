@@ -23,6 +23,10 @@ import { AuditResult } from 'src/core/audit/enums/audit-result';
 import { HashService } from 'src/services/hash.service';
 import { UserService } from 'src/modules/user/user/user.service';
 import { UserRole } from 'src/common/enums/role.enum';
+import { ProductService } from 'src/modules/product/product/product.service';
+import { ProductDto } from 'src/modules/product/dtos/product/product.dto';
+import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
+import { SearchProductsDto } from 'src/modules/product/dtos/product/search-product.dto';
 
 @Injectable()
 export class FarmService {
@@ -32,14 +36,13 @@ export class FarmService {
         @InjectRepository(Farm) private farmRepository: Repository<Farm>,
         @InjectRepository(Identification) private identificationRepository: Repository<Identification>,
         @InjectDataSource() private dataSource: DataSource,
-        // @InjectRepository(Product)
-        // private productRepository: Repository<Product>,
         private readonly biometricsService: BiometricService,
         private readonly deliveryAddressService: DeliveryAddressService,
         private readonly userService: UserService,
         @Inject('FileStorageService') private readonly fileStorage: FileStorageService,
         private readonly auditService: AuditService,
         private readonly hashService: HashService,
+        private readonly productService: ProductService,
     ) { }
 
     async farmRegister(registerDto: FarmRegistrationDto, userId: number): Promise<MyFarmDto> {
@@ -515,6 +518,10 @@ export class FarmService {
                 code: ResponseCode.FAILED_TO_UPDATE_FARM
             })
         }
+    }
+
+    async getMyFarmProducts(farmId: number, getProductDto: SearchProductsDto): Promise<PaginationResult<ProductDto>> {
+        return await this.productService.getProductsByFarmId(farmId, getProductDto);
     }
 
     //   async findFarmsByIds(farmIds: string[]): Promise<Farm[]> {

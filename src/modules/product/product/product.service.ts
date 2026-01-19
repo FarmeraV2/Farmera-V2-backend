@@ -12,11 +12,9 @@ import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Product } from '../entities/product.entity';
 import { CreateProductDto } from '../dtos/product/create-product.dto';
 import { ConfigService } from '@nestjs/config';
-import { FarmService } from 'src/modules/farm/farm/farm.service';
 import { CategoryService } from '../category/category.service';
-import { GetProductByFarmDto } from '../dtos/product/get-by-farm.dto';
 import { plainToInstance } from 'class-transformer';
-import { PaginationTransform } from 'src/common/dtos/pagination/pagination-option.dto';
+import { PaginationOptions, PaginationTransform } from 'src/common/dtos/pagination/pagination-option.dto';
 import { ProductStatus } from '../enums/product-status.enum';
 import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
 import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
@@ -44,7 +42,6 @@ export class ProductService {
         // @InjectRepository(ProductProcessAssignment)
         // private readonly assignmentRepository: Repository<ProductProcessAssignment>,
         // private readonly fileStorageService: AzureBlobService,
-        private readonly farmService: FarmService,
         private readonly categoryService: CategoryService,
         private readonly configService: ConfigService,
         // @InjectDataSource()
@@ -69,11 +66,14 @@ export class ProductService {
      * @throws {BadRequestException} - If provided subcategory IDs are invalid
      * @throws {InternalServerErrorException} - If the product creation or saving process fails due to an unexpected error
      */
-    async createProduct(farmId: number, createProductDto: CreateProductDto): Promise<Product> {
+    async createProduct(farmId: number, createProductDto: CreateProductDto): Promise<ProductDetailDto> {
         try {
             const { subcategory_ids, ...temp_product } = createProductDto;
 
             const product = this.productsRepository.create(temp_product);
+            if (!product.thumbnail && product.image_urls && product.image_urls.length > 0) {
+                product.thumbnail = product.image_urls[0];
+            }
             product.farm_id = farmId;
 
             if (subcategory_ids && subcategory_ids.length > 0) {
@@ -87,7 +87,8 @@ export class ProductService {
                 product.subcategories = subcategories;
             }
 
-            return await this.productsRepository.save(product);
+            const result = await this.productsRepository.save(product);
+            return plainToInstance(ProductDetailDto, result, { excludeExtraneousValues: true });
         } catch (error) {
             if (error instanceof HttpException) throw error;
             this.logger.error(error.message);
@@ -205,69 +206,19 @@ export class ProductService {
      * @throws {BadRequestException} - If an invalid status is provided or the requested page is out of range
      * @throws {InternalServerErrorException} - If the search and filtering process fails due to an unexpected error
      */
-    async searchAndFilterProducts(searchProductsDTo: SearchProductsDto): Promise<PaginationResult<ProductDto>> {
+    async searchAndFilterProducts(searchProductsDto: SearchProductsDto): Promise<PaginationResult<ProductDto>> {
         // todo!("optimize this fk shit")
         // extract pagination options
-        const paginationOptions = plainToInstance(PaginationTransform<ProductSortField>, searchProductsDTo);
-        const { sort_by, order } = paginationOptions;
-        // filter options
-        const { subcategory_id, is_category, search, min_price, max_price, min_rating, max_rating, min_total_sold, status } = searchProductsDTo;
+        const paginationOptions = plainToInstance(PaginationTransform<ProductSortField>, searchProductsDto);
         try {
             const queryBuilder = this.productsRepository.createQueryBuilder('product').select(productSelectFields)
             // todo!("only get available products")
             // .where('product.status != :deletedStatus', { deletedStatus: ProductStatus.DELETED });
 
-            // include category in result
-            if (searchProductsDTo?.include_categories) {
-                queryBuilder.leftJoin('product.subcategories', 'subcategory').addSelect(subcategorySelectFields);
-            } else {
-                queryBuilder.leftJoin('product.subcategories', 'subcategory');
-            }
-
-            // Apply filters
-            if (subcategory_id) {
-                if (is_category) {
-                    queryBuilder.leftJoin('subcategory.category', 'category').andWhere('category.category_id = :id', { subcategory_id });
-                } else {
-                    queryBuilder.andWhere('subcategory.subcategory_id = :id', { subcategory_id });
-                }
-            }
-
-            if (min_price) {
-                queryBuilder.andWhere('product.price_per_unit >= :minPrice', { minPrice: min_price });
-            }
-            if (max_price) {
-                queryBuilder.andWhere('product.price_per_unit <= :maxPrice', { maxPrice: max_price });
-            }
-            if (min_rating) {
-                queryBuilder.andWhere('product.average_rating >= :minRating', { minRating: min_rating });
-            }
-            if (max_rating) {
-                queryBuilder.andWhere('product.average_rating <= :maxRating', { maxRating: max_rating });
-            }
-            if (min_total_sold) {
-                queryBuilder.andWhere('product.total_sold >= :minTotalSold', { minTotalSold: min_total_sold });
-            }
-            if (search) {
-                // todo!("apply pg full text search")
-                queryBuilder.andWhere('("product"."product_name" ILIKE :search)', { search: `%${search.trim()}%` });
-            }
-
-            const allowedStatuses = [ProductStatus.PRE_ORDER, ProductStatus.NOT_YET_OPEN, ProductStatus.OPEN_FOR_SALE, ProductStatus.SOLD_OUT];
-
-            if (status) {
-                if (!allowedStatuses.includes(status)) throw new BadRequestException({
-                    message: 'Invalid status',
-                    code: ResponseCode.INVALID_STATUS
-                });
-                queryBuilder.andWhere('product.status = :status', { status: status });
-            } else {
-                queryBuilder.andWhere('product.status IN (:...allowedStatuses)', { allowedStatuses });
-            }
-
+            // apply filter
+            this.applyFilter(queryBuilder, searchProductsDto);
             // apply sorting
-            if (sort_by || order) this.applySorting(queryBuilder, sort_by, order);
-
+            this.applySorting(queryBuilder, paginationOptions);
             // apply pagination
             const totalItems = await applyPagination(queryBuilder, paginationOptions);
 
@@ -371,23 +322,18 @@ export class ProductService {
     // }
 
     /**
-     * @function getProductsByFarmId - Retrieves products belonging to a specific farm by its UUID
+     * @function getProductsByFarmId - Retrieves products belonging to a specific farm by its id
      * @param {number} farmId - The id of the farm
-     * @param {GetProductByFarmDto} [getProductDto] - Optional DTO containing pagination, sorting, and inclusion parameters
+     * @param {SearchProductsDto} [getProductDto] - Optional DTO containing pagination, sorting, and inclusion parameters
      *
      * @returns {Promise<PaginationResult<ProductDto>>} - Returns a paginated list of products with metadata,
-     * or all products if the `all` flag is set
      *
      * @throws {BadRequestException} - If the requested page exceeds the total number of available pages
      * @throws {InternalServerErrorException} - If the retrieval process fails due to an unexpected error
      */
-    async getProductsByFarmId(farmId: number, getProductDto?: GetProductByFarmDto): Promise<PaginationResult<ProductDto>> {
-        // todo!("optimize more")
-        // extract pagination options
-        const paginationOptions = plainToInstance(PaginationTransform<ProductSortField>, getProductDto);
-        const { sort_by, order } = paginationOptions;
+    async getProductsByFarmId(farmId: number, searchProductsDto: SearchProductsDto): Promise<PaginationResult<ProductDto>> {
+        const paginationOptions = plainToInstance(PaginationTransform<ProductSortField>, searchProductsDto);
         try {
-            // create query builder
             const qb = this.productsRepository
                 .createQueryBuilder('product')
                 .select(productSelectFields)
@@ -396,22 +342,20 @@ export class ProductService {
                     deletedStatus: ProductStatus.DELETED,
                 });
 
-            // include optional fields
-            if (getProductDto?.include_categories) qb.leftJoin('product.subcategories', 'subcategory').addSelect(subcategorySelectFields);
-
-            // apply sorting
-            if (sort_by || order) this.applySorting(qb, sort_by, order);
+            this.applyFilter(qb, searchProductsDto);
+            this.applySorting(qb, paginationOptions);
 
             // apply pagination
             const totalItems = await applyPagination(qb, paginationOptions);
 
             // get result
             const products = await qb.getMany();
+
             const meta = new PaginationMeta({
                 paginationOptions,
                 totalItems,
             });
-            return new PaginationResult(plainToInstance(ProductDto, products), meta);
+            return new PaginationResult(plainToInstance(ProductDto, products, { excludeExtraneousValues: true }), meta);
         } catch (err) {
             if (err instanceof HttpException) throw err;
             this.logger.error(err.message);
@@ -434,52 +378,52 @@ export class ProductService {
      * @throws {BadRequestException} - If the requested page exceeds the total number of available pages
      * @throws {InternalServerErrorException} - If the retrieval process fails due to an unexpected error
      */
-    async getProductsByCategory(id: number, isCategory: boolean, getProductDto?: GetProductByFarmDto): Promise<PaginationResult<ProductDto>> {
-        try {
-            // extract pagination options
-            const paginationOptions = plainToInstance(PaginationTransform<ProductSortField>, getProductDto);
-            const { sort_by, order } = paginationOptions;
+    // async getProductsByCategory(id: number, isCategory: boolean, getProductDto?: GetProductByFarmDto): Promise<PaginationResult<ProductDto>> {
+    //     try {
+    //         // extract pagination options
+    //         const paginationOptions = plainToInstance(PaginationTransform<ProductSortField>, getProductDto);
+    //         const { sort_by, order } = paginationOptions;
 
-            const qb = this.productsRepository.createQueryBuilder('product').select(productSelectFields);
+    //         const qb = this.productsRepository.createQueryBuilder('product').select(productSelectFields);
 
-            if (getProductDto?.include_categories) {
-                qb.leftJoin('product.subcategories', 'subcategory').addSelect(subcategorySelectFields);
-            } else {
-                qb.leftJoin('product.subcategories', 'subcategory');
-            }
+    //         if (getProductDto?.include_categories) {
+    //             qb.leftJoin('product.subcategories', 'subcategory').addSelect(subcategorySelectFields);
+    //         } else {
+    //             qb.leftJoin('product.subcategories', 'subcategory');
+    //         }
 
-            qb.andWhere('product.status != :deletedStatus', {
-                deletedStatus: ProductStatus.DELETED,
-            });
+    //         qb.andWhere('product.status != :deletedStatus', {
+    //             deletedStatus: ProductStatus.DELETED,
+    //         });
 
-            if (isCategory) {
-                qb.leftJoin('subcategory.category', 'category').andWhere('category.category_id = :id', { id });
-            } else {
-                qb.andWhere('subcategory.subcategory_id = :id', { id });
-            }
+    //         if (isCategory) {
+    //             qb.leftJoin('subcategory.category', 'category').andWhere('category.category_id = :id', { id });
+    //         } else {
+    //             qb.andWhere('subcategory.subcategory_id = :id', { id });
+    //         }
 
-            // apply sorting
-            if (sort_by || order) this.applySorting(qb, sort_by, order);
+    //         // apply sorting
+    //         if (sort_by || order) this.applySorting(qb, sort_by, order);
 
-            // apply pagination
-            const totalItems = await applyPagination(qb, paginationOptions);
+    //         // apply pagination
+    //         const totalItems = await applyPagination(qb, paginationOptions);
 
-            // get result
-            const products = await qb.getMany();
-            const meta = new PaginationMeta({
-                paginationOptions,
-                totalItems,
-            });
-            return new PaginationResult(products, meta);
-        } catch (err) {
-            if (err instanceof HttpException) throw err;
-            this.logger.error(err.message);
-            throw new InternalServerErrorException({
-                message: 'Failed to get product by categories',
-                code: ResponseCode.FAILED_TO_GET_PRODUCT,
-            });
-        }
-    }
+    //         // get result
+    //         const products = await qb.getMany();
+    //         const meta = new PaginationMeta({
+    //             paginationOptions,
+    //             totalItems,
+    //         });
+    //         return new PaginationResult(products, meta);
+    //     } catch (err) {
+    //         if (err instanceof HttpException) throw err;
+    //         this.logger.error(err.message);
+    //         throw new InternalServerErrorException({
+    //             message: 'Failed to get product by categories',
+    //             code: ResponseCode.FAILED_TO_GET_PRODUCT,
+    //         });
+    //     }
+    // }
 
     /*#########################################################################
                                Private functions                             
@@ -488,11 +432,11 @@ export class ProductService {
     /**
      * @function applySorting - Applies sorting conditions to a product query builder
      * @param {SelectQueryBuilder<Product>} qb - The query builder instance for the Product entity
-     * @param {ProductSortField} sortBy - The field by which products should be sorted
-     * @param {Order} order - The sorting order (ASC or DESC)
+     * @param {PaginationOptions<ProductSortField>} paginationOptions - Pagination options (sort & order)
      */
-    private applySorting(qb: SelectQueryBuilder<Product>, sortBy: ProductSortField, order: Order) {
-        switch (sortBy) {
+    private applySorting(qb: SelectQueryBuilder<Product>, paginationOptions: PaginationOptions<ProductSortField>) {
+        const { sort_by, order } = paginationOptions;
+        switch (sort_by) {
             case ProductSortField.PRODUCT_NAME:
                 qb.orderBy('product.product_name', order);
                 break;
@@ -511,8 +455,61 @@ export class ProductService {
             case ProductSortField.CREATED:
                 qb.orderBy('product.product_id', order);
                 break;
+            case ProductSortField.UPDATED:
+                qb.orderBy('product.updated', order);
+                break;
             default:
                 qb.orderBy('product.product_id', order);
+        }
+    }
+
+    private applyFilter(qb: SelectQueryBuilder<Product>, searchProductsDto: SearchProductsDto) {
+        const { subcategory_ids, is_category, search, min_price, max_price, min_rating, max_rating, min_total_sold, status, include_categories } = searchProductsDto;
+        // include category in result
+        if (include_categories) {
+            qb.leftJoin('product.subcategories', 'subcategory').addSelect(subcategorySelectFields);
+        } else {
+            qb.leftJoin('product.subcategories', 'subcategory');
+        }
+
+        if (subcategory_ids) {
+            if (is_category) {
+                qb.leftJoin('subcategory.category', 'category').andWhere('category.category_id IN (:...ids)', { ids: subcategory_ids });
+            } else {
+                qb.andWhere('subcategory.subcategory_id IN (:...ids)', { ids: subcategory_ids });
+            }
+        }
+
+        if (min_price) {
+            qb.andWhere('product.price_per_unit >= :minPrice', { minPrice: min_price });
+        }
+        if (max_price) {
+            qb.andWhere('product.price_per_unit <= :maxPrice', { maxPrice: max_price });
+        }
+        if (min_rating) {
+            qb.andWhere('product.average_rating >= :minRating', { minRating: min_rating });
+        }
+        if (max_rating) {
+            qb.andWhere('product.average_rating <= :maxRating', { maxRating: max_rating });
+        }
+        if (min_total_sold) {
+            qb.andWhere('product.total_sold >= :minTotalSold', { minTotalSold: min_total_sold });
+        }
+        if (search) {
+            // todo!("apply pg full text search")
+            qb.andWhere('("product"."product_name" ILIKE :search)', { search: `%${search.trim()}%` });
+        }
+
+        const allowedStatuses = [ProductStatus.PRE_ORDER, ProductStatus.NOT_YET_OPEN, ProductStatus.OPEN_FOR_SALE, ProductStatus.SOLD_OUT];
+
+        if (status) {
+            if (!allowedStatuses.includes(status)) throw new BadRequestException({
+                message: 'Invalid status',
+                code: ResponseCode.INVALID_STATUS
+            });
+            qb.andWhere('product.status = :status', { status: status });
+        } else {
+            qb.andWhere('product.status IN (:...allowedStatuses)', { allowedStatuses });
         }
     }
 
