@@ -5,10 +5,8 @@ import { createHash } from "crypto";
 import { contractAbi } from "src/contracts/ProcessTracking";
 import { HashedLog } from "src/modules/crop-management/dtos/log/hashed-log.dto";
 import { HashedStep } from "src/modules/crop-management/dtos/step/hashed-step.dto";
-import { SeasonDetailDto } from "src/modules/crop-management/dtos/step/season-detail.dto";
 import { StepDto } from "src/modules/crop-management/dtos/step/step.dto";
 import { Log } from "src/modules/crop-management/entities/log.entity";
-import { SeasonDetail } from "src/modules/crop-management/entities/season-detail.entity";
 import Web3 from "web3";
 
 export interface TransactionLog {
@@ -176,7 +174,6 @@ export class BlockchainService {
 
     hashData<T>(cls: new () => T, data: unknown): string {
         const instance = plainToInstance(cls, data, { excludeExtraneousValues: true, });
-        console.log(instance);
         return createHash('sha256')
             .update(JSON.stringify(instance))
             .digest('hex');

@@ -20,6 +20,7 @@ import { BlockchainService } from 'src/services/blockchain.service';
     TypeOrmModule.forFeature([Plot, Season, SeasonDetail, Step, Log])
   ],
   providers: [PlotService, SeasonService, StepService, LogService, BlockchainService],
-  controllers: [PlotController, SeasonController, StepController, LogController]
+  controllers: [PlotController, SeasonController, StepController, LogController],
+  exports: [SeasonService]
 })
 export class CropManagementModule { }

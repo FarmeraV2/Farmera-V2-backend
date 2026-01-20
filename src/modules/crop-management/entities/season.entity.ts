@@ -40,6 +40,9 @@ export class Season {
     @Column({ nullable: true })
     notes?: string;
 
+    @Column({ default: false })
+    is_assigned: boolean;
+
     @Column({ type: 'enum', enumName: 'crop_type', enum: CropType })
     crop_type: CropType
 

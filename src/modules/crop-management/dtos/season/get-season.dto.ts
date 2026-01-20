@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString } from "class-validator";
+import { IsBooleanString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString } from "class-validator";
 import { PaginationOptions } from "src/common/dtos/pagination/pagination-option.dto";
 import { SeasonStatus } from "../../enums/season-status.enum";
 import { ParseEnumArray } from "src/common/decorators/parse-enum-array";
@@ -23,6 +23,10 @@ export class GetSeasonDto extends PaginationOptions {
     @IsOptional()
     @ParseEnumArray(SeasonStatus)
     season_status?: SeasonStatus[];
+
+    @IsOptional()
+    @IsBooleanString()
+    is_assigned?: boolean;
 
     @IsOptional()
     @IsNumber()

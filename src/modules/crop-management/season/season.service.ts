@@ -1,6 +1,6 @@
 import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { QueryFailedError, Repository } from 'typeorm';
+import { EntityManager, QueryFailedError, Repository } from 'typeorm';
 import { Season } from '../entities/season.entity';
 import { CreateSeasonDto } from '../dtos/season/create-season.dto';
 import { SeasonStatus } from '../enums/season-status.enum';
@@ -125,7 +125,7 @@ export class SeasonService {
 
     async getSeasons(farmId: number, getSeasonDto: GetSeasonDto): Promise<PaginationResult<SeasonDto>> {
         const paginationOptions = plainToInstance(PaginationTransform<SeasonSortFields>, getSeasonDto)
-        const { season_status, search, plot_id } = getSeasonDto;
+        const { season_status, search, plot_id, is_assigned } = getSeasonDto;
         const { sort_by, order } = paginationOptions;
 
         try {
@@ -142,6 +142,9 @@ export class SeasonService {
             }
             if (season_status) {
                 qb.andWhere("season.status IN (:...status)", { status: season_status })
+            }
+            if (is_assigned != null && is_assigned != undefined) {
+                qb.andWhere("season.is_assigned = :isAssigned", { isAssigned: is_assigned })
             }
 
             if (sort_by || order) {
@@ -225,12 +228,12 @@ export class SeasonService {
             }
 
             // validate date
-            if (season.start_date > new Date()) {
-                throw new BadRequestException({
-                    message: `The season has not started yet. Season will be started after ${season.start_date}`,
-                    code: ResponseCode.SEASON_IS_NOT_STARTED,
-                });
-            }
+            // if (season.start_date > new Date()) {
+            //     throw new BadRequestException({
+            //         message: `The season has not started yet. Season will be started after ${season.start_date}`,
+            //         code: ResponseCode.SEASON_IS_NOT_STARTED,
+            //     });
+            // }
 
             await this.stepService.validateAddSeasonStep(season, addStepDto.step_id);
 
@@ -256,6 +259,49 @@ export class SeasonService {
     async getLogs(seasonDetailId: number): Promise<Log[]> {
         return await this.logService.getLogs(seasonDetailId);
     }
+
+    async getSeasonToAssign(seasonId: number): Promise<Season> {
+        try {
+            const season = await this.seasonRepository.findOne({
+                where: { id: seasonId },
+                select: ["id", "status"]
+            });
+            if (!season) throw new NotFoundException({
+                message: "Season not found",
+                code: ResponseCode.SEASON_NOT_FOUND
+            })
+            return season;
+        }
+        catch (error) {
+            if (error instanceof HttpException) throw error;
+            throw new InternalServerErrorException({
+                message: "Failed to get season to assign",
+                code: ResponseCode.FAILED_TO_GET_SEASON
+            })
+        }
+    }
+
+    async updateAssigned(seasonId: number, manager?: EntityManager): Promise<boolean> {
+        const repo = manager ? manager.getRepository(Season) : this.seasonRepository;
+        try {
+            const result = await repo.update(
+                { id: seasonId },
+                { is_assigned: true },
+            );
+            if (result.affected === 0) {
+                throw new Error();
+            }
+            return true;
+        } catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to update season",
+                code: ResponseCode.FAILED_TO_UPDATE_SEASON
+            });
+        }
+    }
+
 
     // todo!("handle cron job to update status every day")
     // @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)

@@ -8,9 +8,10 @@ import { ProductController } from './product/product.controller';
 import { ProductService } from './product/product.service';
 import { ConfigModule } from '@nestjs/config';
 import { Product } from './entities/product.entity';
+import { CropManagementModule } from '../crop-management/crop-management.module';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([Category, Subcategory, Product]), ConfigModule],
+    imports: [TypeOrmModule.forFeature([Category, Subcategory, Product]), ConfigModule, CropManagementModule],
     controllers: [CategoryController, ProductController],
     providers: [CategoryService, ProductService],
     exports: [ProductService]

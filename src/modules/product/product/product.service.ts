@@ -8,7 +8,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 import { Product } from '../entities/product.entity';
 import { CreateProductDto } from '../dtos/product/create-product.dto';
 import { ConfigService } from '@nestjs/config';
@@ -19,7 +19,6 @@ import { ProductStatus } from '../enums/product-status.enum';
 import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
 import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
 import { ProductSortField } from '../enums/product-sort-fields.enum';
-import { Order } from 'src/common/enums/pagination.enum';
 import { ProductDto, productSelectFields } from '../dtos/product/product.dto';
 import { subcategorySelectFields } from '../dtos/category/subcategory.dto';
 import { SearchProductsDto } from '../dtos/product/search-product.dto';
@@ -28,6 +27,11 @@ import { ResponseCode } from 'src/common/constants/response-code.const';
 import { applyPagination } from 'src/common/utils/pagination.util';
 import { farmSummaryDtoSelectFields } from 'src/modules/farm/dtos/farm/farm.dto';
 import { ProductDetailDto, productDetailSelectFields } from '../dtos/product/product-detail.dto';
+import { FarmProductDetailDto, farmProductDetailSelectFields } from '../dtos/product/farm-product-detail.dto';
+import { FarmProductDto, farmProductSelectFields } from '../dtos/product/farm-product.dto';
+import { SeasonService } from 'src/modules/crop-management/season/season.service';
+import { SeasonStatus } from 'src/modules/crop-management/enums/season-status.enum';
+import { UpdateProductStatusDto } from '../dtos/product/update-product-status.dto';
 
 @Injectable()
 export class ProductService {
@@ -44,8 +48,9 @@ export class ProductService {
         // private readonly fileStorageService: AzureBlobService,
         private readonly categoryService: CategoryService,
         private readonly configService: ConfigService,
+        private readonly seasonService: SeasonService,
         // @InjectDataSource()
-        // private readonly dataSource: DataSource,
+        private readonly dataSource: DataSource,
         // private readonly blockchainService: BlockchainService,
     ) {
         const appUrl = this.configService.get<string>('APP_URL');
@@ -75,6 +80,7 @@ export class ProductService {
                 product.thumbnail = product.image_urls[0];
             }
             product.farm_id = farmId;
+            product.low_stock_threshold = Math.floor(product.stock_quantity * 10 / 100);
 
             if (subcategory_ids && subcategory_ids.length > 0) {
                 const subcategories = await this.categoryService.getSubcategoryByIds(subcategory_ids, false);
@@ -108,7 +114,20 @@ export class ProductService {
      * @throws {InternalServerErrorException} - If the deletion process fails due to an unexpected error
      */
     async deleteProduct(productId: number): Promise<boolean> {
+        const validStatusToDelete = [ProductStatus.NOT_YET_OPEN, ProductStatus.SOLD_OUT];
         try {
+            const product = await this.productsRepository.findOne({
+                where: { product_id: productId },
+                select: ["status"]
+            })
+            if (!product) throw new NotFoundException({
+                message: "Product not found",
+                code: ResponseCode.PRODUCT_NOT_FOUND
+            })
+            if (!validStatusToDelete.includes(product.status)) throw new BadRequestException({
+                message: "Invalid product to delete",
+                code: ResponseCode.INVALID_PRODUCT_TO_DELETE
+            })
             const deleteResult = await this.productsRepository.update({ product_id: productId }, { status: ProductStatus.DELETED });
             if (deleteResult.affected === 0) {
                 return false;
@@ -322,7 +341,7 @@ export class ProductService {
     // }
 
     /**
-     * @function getProductsByFarmId - Retrieves products belonging to a specific farm by its id
+     * @function getFarmProducts - Retrieves products belonging to a specific farm by its id
      * @param {number} farmId - The id of the farm
      * @param {SearchProductsDto} [getProductDto] - Optional DTO containing pagination, sorting, and inclusion parameters
      *
@@ -331,18 +350,18 @@ export class ProductService {
      * @throws {BadRequestException} - If the requested page exceeds the total number of available pages
      * @throws {InternalServerErrorException} - If the retrieval process fails due to an unexpected error
      */
-    async getProductsByFarmId(farmId: number, searchProductsDto: SearchProductsDto): Promise<PaginationResult<ProductDto>> {
+    async getFarmProducts(farmId: number, searchProductsDto: SearchProductsDto): Promise<PaginationResult<FarmProductDto>> {
         const paginationOptions = plainToInstance(PaginationTransform<ProductSortField>, searchProductsDto);
         try {
             const qb = this.productsRepository
                 .createQueryBuilder('product')
-                .select(productSelectFields)
+                .select(farmProductSelectFields)
                 .where('product.farm_id = :farmId', { farmId })
                 .andWhere('product.status != :deletedStatus', {
                     deletedStatus: ProductStatus.DELETED,
                 });
 
-            this.applyFilter(qb, searchProductsDto);
+            this.applyFilter(qb, searchProductsDto, false);
             this.applySorting(qb, paginationOptions);
 
             // apply pagination
@@ -355,7 +374,7 @@ export class ProductService {
                 paginationOptions,
                 totalItems,
             });
-            return new PaginationResult(plainToInstance(ProductDto, products, { excludeExtraneousValues: true }), meta);
+            return new PaginationResult(plainToInstance(FarmProductDto, products, { excludeExtraneousValues: true }), meta);
         } catch (err) {
             if (err instanceof HttpException) throw err;
             this.logger.error(err.message);
@@ -425,6 +444,119 @@ export class ProductService {
     //     }
     // }
 
+    async getFarmProductById(productId: number): Promise<FarmProductDetailDto> {
+        try {
+            const queryBuilder = this.productsRepository.createQueryBuilder('product').select(farmProductDetailSelectFields)
+                .where('product.product_id = :productId', { productId })
+
+            const product = await queryBuilder.getOne();
+
+            if (!product) {
+                throw new InternalServerErrorException({
+                    message: 'Product not found',
+                    code: ResponseCode.PRODUCT_NOT_FOUND,
+                });
+            }
+            return plainToInstance(FarmProductDetailDto, product, { excludeExtraneousValues: true });
+        } catch (err) {
+            if (err instanceof HttpException) throw err;
+            this.logger.error(err.message);
+            throw new InternalServerErrorException({
+                message: `Failed to get product ${productId}`,
+                code: ResponseCode.FAILED_TO_GET_PRODUCT,
+            });
+        }
+    }
+
+    async assignSeason(productId: number, seasonId: number): Promise<FarmProductDetailDto> {
+        try {
+            const product = await this.productsRepository.findOneBy({ product_id: productId });
+            if (!product) {
+                throw new NotFoundException({
+                    message: "Product not found",
+                    code: ResponseCode.PRODUCT_NOT_FOUND
+                })
+            }
+            const season = await this.seasonService.getSeasonToAssign(seasonId);
+            if (season.status != SeasonStatus.DONE) throw new BadRequestException({
+                message: "Season is not completed",
+                code: ResponseCode.SEASON_IS_NOT_COMPLETED_TO_ASSIGN
+            })
+            product.season_id = season.id;
+            const result = await this.dataSource.transaction(async (manager) => {
+                const result = await manager.save(product);
+                await this.seasonService.updateAssigned(season.id, manager);
+                return result;
+            });
+            return plainToInstance(FarmProductDetailDto, result, { excludeExtraneousValues: true });
+        } catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: `Failed to assign season`,
+                code: ResponseCode.FAILED_TO_ASSIGN_SEASON,
+            });
+        }
+    }
+
+    async updateProductStatus(productId: number, dto: UpdateProductStatusDto): Promise<boolean> {
+        try {
+            const newStatus = dto.status;
+            const validStatus = [
+                ProductStatus.OPEN_FOR_SALE,
+                ProductStatus.CLOSED,
+            ];
+            if (!validStatus.includes(newStatus))
+                throw new BadRequestException({
+                    message: "Invalid status",
+                    code: ResponseCode.INVALID_STATUS,
+                });
+
+            const product = await this.productsRepository.findOne({
+                where: { product_id: productId },
+                select: ['status', "season_id"],
+            });
+            if (!product)
+                throw new NotFoundException({
+                    message: "Product not found",
+                    code: ResponseCode.PRODUCT_NOT_FOUND,
+                });
+
+            if (!product.season_id) {
+                throw new BadRequestException({
+                    message: "Invalid product",
+                    code: ResponseCode.INVALID_PRODUCT_TO_UPDATE_STATUS
+                })
+            }
+
+            if (newStatus === ProductStatus.OPEN_FOR_SALE) {
+                const season = await this.seasonService.getSeasonToAssign(product.season_id);
+                if (!season || season.status !== SeasonStatus.DONE) {
+                    throw new BadRequestException({
+                        message: "Invalid product",
+                        code: ResponseCode.SEASON_IS_NOT_COMPLETED_TO_ASSIGN
+                    })
+                }
+            }
+
+            const result = await this.productsRepository.update(
+                { product_id: productId },
+                { status: newStatus },
+            );
+            if (result.affected === 0) {
+                throw new Error();
+            }
+            return true;
+        } catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to update product status",
+                code: ResponseCode.FAILED_TO_UPDATE_PRODUCT
+            });
+        }
+    }
+
     /*#########################################################################
                                Private functions                             
     #########################################################################*/
@@ -463,7 +595,7 @@ export class ProductService {
         }
     }
 
-    private applyFilter(qb: SelectQueryBuilder<Product>, searchProductsDto: SearchProductsDto) {
+    private applyFilter(qb: SelectQueryBuilder<Product>, searchProductsDto: SearchProductsDto, allowedStatusOnly: boolean = true) {
         const { subcategory_ids, is_category, search, min_price, max_price, min_rating, max_rating, min_total_sold, status, include_categories } = searchProductsDto;
         // include category in result
         if (include_categories) {
@@ -500,79 +632,24 @@ export class ProductService {
             qb.andWhere('("product"."product_name" ILIKE :search)', { search: `%${search.trim()}%` });
         }
 
-        const allowedStatuses = [ProductStatus.PRE_ORDER, ProductStatus.NOT_YET_OPEN, ProductStatus.OPEN_FOR_SALE, ProductStatus.SOLD_OUT];
-
-        if (status) {
-            if (!allowedStatuses.includes(status)) throw new BadRequestException({
-                message: 'Invalid status',
-                code: ResponseCode.INVALID_STATUS
-            });
-            qb.andWhere('product.status = :status', { status: status });
-        } else {
-            qb.andWhere('product.status IN (:...allowedStatuses)', { allowedStatuses });
+        if (allowedStatusOnly) {
+            const allowedStatuses = [ProductStatus.PRE_ORDER, ProductStatus.NOT_YET_OPEN, ProductStatus.OPEN_FOR_SALE, ProductStatus.SOLD_OUT];
+            if (status && status.length > 0) {
+                const isValid = status.every(s => allowedStatuses.includes(s));
+                if (!isValid)
+                    throw new BadRequestException({
+                        message: 'Invalid status',
+                        code: ResponseCode.INVALID_STATUS
+                    });
+                qb.andWhere('product.status IN (:...status)', { status: status });
+            } else {
+                qb.andWhere('product.status IN (:...allowedStatuses)', { allowedStatuses });
+            }
+        }
+        else if (status && status.length > 0) {
+            qb.andWhere('product.status IN (:...status)', { status: status });
         }
     }
-
-    // async updateProductStatus(
-    //     userId: string,
-    //     productId: number,
-    //     newStatus: ProductStatus,
-    // ): Promise<boolean> {
-    //     try {
-    //         // check valid status
-    //         const validStatus = [
-    //             ProductStatus.PRE_ORDER,
-    //             ProductStatus.SOLD_OUT,
-    //             ProductStatus.CLOSED,
-    //             ProductStatus.DELETED,
-    //         ];
-    //         if (!validStatus.includes(newStatus))
-    //             throw new BadRequestException('Trạng thái cập nhật không hợp lệ');
-
-    //         // check valid user
-    //         if (!(await this.isProductUserValid(userId, productId)))
-    //             throw new UnauthorizedException(
-    //                 'Người dùng không có quyền thao tác trên sản phẩm',
-    //             );
-
-    //         // update status
-    //         const productCurrentStatus = await this.productsRepository.findOne({
-    //             where: { product_id: productId },
-    //             select: ['status'],
-    //         });
-    //         if (!productCurrentStatus)
-    //             throw new NotFoundException(
-    //                 `Không tìm thấy sản phẩm ID: ${productId}.`,
-    //             );
-    //         if (
-    //             ProductStatusOrder[productCurrentStatus.status] >
-    //             ProductStatusOrder[newStatus]
-    //         )
-    //             throw new BadRequestException('Trạng thái không hợp lệ');
-
-    //         const result = await this.productsRepository.update(
-    //             { product_id: productId },
-    //             { status: newStatus },
-    //         );
-    //         if (result.affected === 0) {
-    //             throw new NotFoundException(
-    //                 `Không tìm thấy sản phẩm ID: ${productId}.`,
-    //             );
-    //         }
-    //         return true;
-    //     } catch (err) {
-    //         if (
-    //             err instanceof UnauthorizedException ||
-    //             err instanceof BadRequestException ||
-    //             err instanceof NotFoundException
-    //         )
-    //             throw err;
-    //         this.logger.error(err.message);
-    //         throw new InternalServerErrorException(
-    //             'Không thể cập nhật trạng thái sản phẩm',
-    //         );
-    //     }
-    // }
 
     // async openProductForSale(userId: string, productId: number): Promise<string> {
     //     try {

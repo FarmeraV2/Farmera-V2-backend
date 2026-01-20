@@ -40,6 +40,9 @@ export class Product {
     @Column()
     stock_quantity: number;
 
+    @Column()
+    low_stock_threshold: number;
+
     @Column({ default: 0 })
     total_sold: number;
 

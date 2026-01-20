@@ -106,10 +106,6 @@ export class StepService {
 
             hashedSteps.map((data) => {
                 const step = steps.find((step) => step.id === data.id);
-                if (step) {
-                    console.log("s:", step);
-                    step.verified = this.blockchainService.hashData(HashedStep, step) === data.hash;
-                }
             })
 
             return steps;
@@ -309,9 +305,6 @@ export class StepService {
 
         const prevStepOrder = validator?.prev_step_order;
         const prevStepStatus = validator?.prev_step_status;
-
-        console.log(prevStepOrder);
-        console.log(prevStepStatus);
 
         if (prevStepOrder && !step.repeated && (
             prevStepOrder >= step.order ||

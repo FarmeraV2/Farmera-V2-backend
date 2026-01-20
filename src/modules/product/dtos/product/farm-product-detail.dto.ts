@@ -1,9 +1,7 @@
-import { Expose, Type } from "class-transformer";
+import { Expose } from "class-transformer";
 import { ProductStatus } from "../../enums/product-status.enum";
-import { FarmSummaryDto } from "src/modules/farm/dtos/farm/farm.dto";
-import { SubcategoryDto } from "../category/subcategory.dto";
 
-export class ProductDetailDto {
+export class FarmProductDetailDto {
     @Expose() product_id: number;
     @Expose() product_name: string;
     @Expose() description: string;
@@ -11,6 +9,7 @@ export class ProductDetailDto {
     @Expose() unit: string;
     @Expose() weight_per_unit: number;
     @Expose() stock_quantity: number;
+    @Expose() low_stock_threshold: number;
     @Expose() total_sold: number;
     @Expose() average_rating: number;
     @Expose() thumbnail: string;
@@ -21,18 +20,10 @@ export class ProductDetailDto {
     @Expose() updated: Date;
     @Expose() qr_code?: string;
     @Expose() season_id?: number;
-
-    @Expose()
-    @Type(() => FarmSummaryDto)
-    farm: FarmSummaryDto;
-
-    @Expose()
-    @Type(() => SubcategoryDto)
-    subcategories?: SubcategoryDto[];
 }
 
-const dtoProps = Object.keys(new ProductDetailDto());
-export const productDetailSelectFields = dtoProps
+const farmProductDetailDtoProps = Object.keys(new FarmProductDetailDto());
+export const farmProductDetailSelectFields = farmProductDetailDtoProps
     .map((prop) => {
         if (prop === 'subcategories' || prop === 'farm') return null;
         return `product.${prop}`;

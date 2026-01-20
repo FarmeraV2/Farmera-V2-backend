@@ -24,9 +24,10 @@ import { HashService } from 'src/services/hash.service';
 import { UserService } from 'src/modules/user/user/user.service';
 import { UserRole } from 'src/common/enums/role.enum';
 import { ProductService } from 'src/modules/product/product/product.service';
-import { ProductDto } from 'src/modules/product/dtos/product/product.dto';
 import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
 import { SearchProductsDto } from 'src/modules/product/dtos/product/search-product.dto';
+import { FarmProductDetailDto } from 'src/modules/product/dtos/product/farm-product-detail.dto';
+import { FarmProductDto } from 'src/modules/product/dtos/product/farm-product.dto';
 
 @Injectable()
 export class FarmService {
@@ -520,8 +521,12 @@ export class FarmService {
         }
     }
 
-    async getMyFarmProducts(farmId: number, getProductDto: SearchProductsDto): Promise<PaginationResult<ProductDto>> {
-        return await this.productService.getProductsByFarmId(farmId, getProductDto);
+    async getMyFarmProducts(farmId: number, getProductDto: SearchProductsDto): Promise<PaginationResult<FarmProductDto>> {
+        return await this.productService.getFarmProducts(farmId, getProductDto);
+    }
+
+    async getMyFarmProductById(productId: number): Promise<FarmProductDetailDto> {
+        return await this.productService.getFarmProductById(productId);
     }
 
     //   async findFarmsByIds(farmIds: string[]): Promise<Farm[]> {

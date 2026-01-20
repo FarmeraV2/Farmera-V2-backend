@@ -14,7 +14,6 @@ export class ProductDto {
     @Expose() thumbnail?: string;
     @Expose() status: ProductStatus;
     @Expose() season_id?: number;
-    updated: Date;
 
     @Expose()
     @Type(() => SubcategoryDto)
