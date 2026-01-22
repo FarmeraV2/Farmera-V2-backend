@@ -16,6 +16,7 @@ import { ProductStatus } from '../enums/product-status.enum';
 import { Subcategory } from './sub-category.entity';
 import { Review } from 'src/modules/review/entities/review.entity';
 import { Season } from 'src/modules/crop-management/entities/season.entity';
+import { Qr } from 'src/modules/qr/entities/qr.entity';
 
 @Entity()
 export class Product {
@@ -38,7 +39,7 @@ export class Product {
     weight_per_unit: number; // in grams
 
     @Column()
-    stock_quantity: number;
+    stock_quantity: number; // in unit
 
     @Column()
     low_stock_threshold: number;
@@ -67,8 +68,8 @@ export class Product {
     @UpdateDateColumn({ type: 'timestamptz' })
     updated: Date;
 
-    @Column({ nullable: true })
-    qr_code?: string;
+    @OneToMany(() => Qr, (qr) => qr.product, { nullable: true })
+    qr?: Qr;
 
     @ManyToOne(() => Farm, (farm) => farm.products)
     @JoinColumn({ name: 'farm_id' })

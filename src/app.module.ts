@@ -25,6 +25,7 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { FileStorageModule } from './core/file-storage/file-storage.module';
 import { StringValue } from 'ms';
 import { AuditModule } from './core/audit/audit.module';
+import { QrModule } from './modules/qr/qr.module';
 
 @Module({
     imports: [
@@ -87,6 +88,7 @@ import { AuditModule } from './core/audit/audit.module';
         ]),
         FileStorageModule,
         AuditModule,
+        QrModule,
     ],
     controllers: [AppController],
     providers: [
