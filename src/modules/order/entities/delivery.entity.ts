@@ -1,24 +1,24 @@
 import { Entity, JoinColumn, PrimaryGeneratedColumn, Column, OneToOne, UpdateDateColumn, CreateDateColumn } from 'typeorm';
 import { Order } from './order.entity';
-import { DeliveryPaymentType, DeliveryRequiredNote, DeliveryStatus } from '../enums/delivery-status';
+import { DeliveryPaymentType, DeliveryRequiredNote, DeliveryStatus } from '../enums/delivery-status.enum';
 
 @Entity()
 export class Delivery {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @OneToOne(() => Order, { nullable: true })
-    @JoinColumn({ name: 'order' })
+    @OneToOne(() => Order)
+    @JoinColumn({ name: 'order_id' })
     order: Order;
 
-    @Column({ nullable: true })
+    @Column()
     order_id: number;
 
     @Column({ type: 'enum', enum: DeliveryStatus, default: DeliveryStatus.PREPARING })
     status: DeliveryStatus;
 
     @Column({ type: 'decimal', precision: 10, scale: 2 })
-    shipping_fee: number; // Cước phí vận chuyển cho 1 đơn hàng
+    real_shipping_fee: number; // Cước phí vận chuyển cho 1 đơn hàng, cước phí được tính khi tạo đơn hàng thành công
 
     @Column({nullable: true})
     cod_amount: number; // Số tiền thu hộ (COD) cho đơn hàng
@@ -28,6 +28,9 @@ export class Delivery {
 
     @Column({nullable: true})
     tracking_number: string;
+
+    @Column({nullable: true})
+    ghn_order_code: string; // Mã đơn hàng GHN
 
     @Column({nullable: true})
     content: string;  // Mô tả hàng hóa (giá trị default hoặc cửa hàng tự thêm)

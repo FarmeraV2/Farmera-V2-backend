@@ -30,6 +30,21 @@ export class GlobalExceptionFilter implements ExceptionFilter {
                 const r = res as Record<string, any>;
                 message = r.message || message;
                 code = r.code || code;
+                
+                // Preserve additional fields like details, errors, etc.
+                const additionalFields: Record<string, any> = {};
+                Object.keys(r).forEach(key => {
+                    if (key !== 'message' && key !== 'code' && key !== 'statusCode') {
+                        additionalFields[key] = r[key];
+                    }   
+                });
+                
+                return response.status(status).json({
+                    statusCode: status,
+                    code,
+                    message,
+                    ...additionalFields
+                });
             } else if (typeof res === "string") {
                 message = res;
             }

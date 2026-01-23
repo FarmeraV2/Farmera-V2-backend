@@ -16,7 +16,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER handle_after_update_step_trg
+DROP TRIGGER IF EXISTS handle_after_update_step_trg ON season_detail;
+CREATE TRIGGER handle_after_update_step_trg
 AFTER UPDATE ON season_detail
 FOR EACH ROW
 EXECUTE FUNCTION handle_after_update_step_fn();

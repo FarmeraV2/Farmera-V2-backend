@@ -18,7 +18,6 @@ export class FarmProductDetailDto {
     @Expose() status: ProductStatus;
     @Expose() created: Date;
     @Expose() updated: Date;
-    @Expose() qr_code?: string;
     @Expose() season_id?: number;
 }
 

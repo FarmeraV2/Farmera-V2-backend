@@ -26,10 +26,11 @@ export class Plot {
     @Column({ nullable: true })
     notes?: string;
 
+
     @Column()
     image_url: string;
 
-    @Column({ default: false })
+    @Column()
     is_deleted: boolean;
 
     @CreateDateColumn({ type: "timestamptz" })
