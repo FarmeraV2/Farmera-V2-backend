@@ -4,7 +4,7 @@ import { QrStatus } from "../enums/qr-status";
 export class QrDto {
     @Expose() id: number;
     @Expose() qr_code: string;
-    @Expose() product_id: number;
+    @Expose() order_detail_id: number;
     @Expose() status: QrStatus;
     @Expose() created: Date;
     @Expose() updated: Date;

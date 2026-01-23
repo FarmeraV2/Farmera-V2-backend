@@ -16,7 +16,6 @@ import { ProductStatus } from '../enums/product-status.enum';
 import { Subcategory } from './sub-category.entity';
 import { Review } from 'src/modules/review/entities/review.entity';
 import { Season } from 'src/modules/crop-management/entities/season.entity';
-import { Qr } from 'src/modules/qr/entities/qr.entity';
 
 @Entity()
 export class Product {
@@ -67,9 +66,6 @@ export class Product {
 
     @UpdateDateColumn({ type: 'timestamptz' })
     updated: Date;
-
-    @OneToMany(() => Qr, (qr) => qr.product, { nullable: true })
-    qr?: Qr;
 
     @ManyToOne(() => Farm, (farm) => farm.products)
     @JoinColumn({ name: 'farm_id' })

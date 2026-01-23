@@ -29,14 +29,12 @@ export class QrService {
         this.appUrl = appUrl;
     }
 
-    async createProductQr(productId: number, amount: number): Promise<void> {
+    async createProductQr(orderDetailId: number): Promise<void> {
         try {
-            const qrs = Array.from({ length: amount }, () =>
-                this.qrRepository.create({
-                    product_id: productId,
-                    qr_code: uuidv4(),
-                }),
-            );
+            const qrs = this.qrRepository.create({
+                order_detail_id: orderDetailId,
+                qr_code: uuidv4(),
+            });
             await this.qrRepository.save(qrs);
         }
         catch (error) {
@@ -48,12 +46,32 @@ export class QrService {
         }
     }
 
-    async getProductQrs(productId: number): Promise<QrDto[]> {
+    // async getProductQrs(productId: number): Promise<QrDto[]> {
+    //     try {
+    //         const qrs = await this.qrRepository.find({
+    //             select: ["id", "qr_code", "order_detail_id", "created", "updated", "activated"],
+    //             where: {
+    //                 product_id: productId
+    //             },
+    //             order: { id: "DESC" }
+    //         })
+    //         return qrs;
+    //     }
+    //     catch (error) {
+    //         this.logger.error(`Failed to get qrs: ${error.message}`);
+    //         throw new InternalServerErrorException({
+    //             message: "Failed to get QR",
+    //             code: ResponseCode.FAILED_TO_GET_QR
+    //         })
+    //     }
+    // }
+
+    async getQrByOrderDetailId(orderDetailId: number): Promise<QrDto[]> {
         try {
             const qrs = await this.qrRepository.find({
-                select: ["id", "qr_code", "product_id", "created", "updated", "activated"],
+                select: ["id", "qr_code", "order_detail_id", "created", "updated", "activated"],
                 where: {
-                    product_id: productId
+                    order_detail_id: orderDetailId
                 },
                 order: { id: "DESC" }
             })

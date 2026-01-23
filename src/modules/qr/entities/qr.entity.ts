@@ -1,7 +1,8 @@
 import { Product } from 'src/modules/product/entities/product.entity';
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { QrStatus } from '../enums/qr-status';
 import { User } from 'src/modules/user/entities/user.entity';
+import { OrderDetail } from 'src/modules/order/entities/order_detail.entity';
 
 @Entity()
 export class Qr {
@@ -11,12 +12,19 @@ export class Qr {
     @Column()
     qr_code: string;
 
-    @ManyToOne(() => Product)
-    @JoinColumn({ name: "product_id" })
-    product: Product;
+    // @ManyToOne(() => Product)
+    // @JoinColumn({ name: "product_id" })
+    // product: Product;
+
+    // @Column()
+    // product_id: number;
+
+    @OneToOne(() => OrderDetail)
+    @JoinColumn({ name: "id" })
+    oderDetail: OrderDetail;
 
     @Column()
-    product_id: number;
+    order_detail_id: number;
 
     @Column({ type: "enum", enum: QrStatus, enumName: "qr_status", default: QrStatus.CREATED })
     status: QrStatus;
@@ -32,7 +40,4 @@ export class Qr {
 
     @Column({ default: 0 })
     scan_count: number;
-
-    @Column({ nullable: true })
-    order_id: number;
 }

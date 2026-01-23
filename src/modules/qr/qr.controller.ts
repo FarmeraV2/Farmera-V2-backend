@@ -13,9 +13,9 @@ export class QrController {
     constructor(private readonly qrService: QrService) { }
 
     @Roles([UserRole.FARMER, UserRole.ADMIN])
-    @Get("product/:productId")
-    async getProductQrs(@Param("productId") productId: number) {
-        return this.qrService.getProductQrs(productId);
+    @Get("order_detail/:id")
+    async getProductQrs(@Param("id") id: number) {
+        return this.qrService.getQrByOrderDetailId(id);
     }
 
     @Get(':token/image')
