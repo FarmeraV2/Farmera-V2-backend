@@ -50,7 +50,7 @@ export class Order {
     payment_id: number;
     
     @ManyToOne(() => DeliveryAddress, (delivery_address) => delivery_address.orders)
-    @JoinColumn({ name: 'address_id' })
+    @JoinColumn({ name: 'delivery_address_id' })
     delivery_address: DeliveryAddress;
 
     @Column({ nullable: true })
@@ -61,5 +61,8 @@ export class Order {
     
     @OneToMany(() => OrderDetail, (orderDetail) => orderDetail.order, { cascade: true })
     order_details: OrderDetail[];
+    
+    @Column({ type: 'text', nullable: true })
+    delivery_note?: string;
 
 }

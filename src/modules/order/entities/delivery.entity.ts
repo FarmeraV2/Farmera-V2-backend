@@ -30,6 +30,9 @@ export class Delivery {
     tracking_number: string;
 
     @Column({nullable: true})
+    ghn_order_code: string; // Mã đơn hàng GHN
+
+    @Column({nullable: true})
     content: string;  // Mô tả hàng hóa (giá trị default hoặc cửa hàng tự thêm)
 
     @Column({nullable: true})

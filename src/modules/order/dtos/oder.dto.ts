@@ -4,6 +4,9 @@ import { PaginationOptions } from 'src/common/dtos/pagination/pagination-option.
 import { OrderStatus } from '../enums/order-status.enum';
 import { OrderSortField } from '../enums/order-sort-fields.enum';
 import { ProductDto } from 'src/modules/product/dtos/product/product.dto';
+import { FarmDto } from 'src/modules/farm/dtos/farm.dto';
+import { PaymentDto } from './payment.dto';
+import { DeliveryDto } from './delivery.dto';
 
 export class GetMyOrdersDto extends PaginationOptions<OrderSortField> {
     @IsOptional()
@@ -56,6 +59,9 @@ export class OrderDto {
     id: number;
 
     @Expose()
+    store_id: number;
+
+    @Expose()
     total_amount: number;
 
     @Expose()
@@ -75,11 +81,17 @@ export class OrderDto {
     order_details: OrderDetailDto[];
 
     @Expose()
-    payment: any; // Có thể tạo PaymentDto nếu cần
+    @Type(() => PaymentDto)
+    payment: PaymentDto;
 
     @Expose()
-    delivery: any; // Có thể tạo DeliveryDto nếu cần
+    @Type(() => DeliveryDto)
+    delivery: DeliveryDto;
 
     @Expose()
-    farm: any; // Có thể tạo FarmDto nếu cần
+    @Type(() => FarmDto)
+    farm: FarmDto;
+
+    @Expose()
+    delivery_note: string;
 }

@@ -229,4 +229,67 @@ export class DeliveryAddressService {
             });
         }
     }
+
+    async getDefaultAddress(userId: number): Promise<DeliveryAddressDto | null> {
+        try {
+            const queryBuilder = this.deliveryAddressRepository.createQueryBuilder('delivery_address')
+                .select(deliveryAddressSelectFields)
+                .where("delivery_address.user_id = :userId", { userId })
+                .leftJoin("delivery_address.province", "province").addSelect(newProvinceSelectFields)
+                .leftJoin("delivery_address.ward", "ward").addSelect(newWardSelectFields)
+                .leftJoin("delivery_address.old_province", "old_province").addSelect(oldProvinceSelectFields)
+                .leftJoin("delivery_address.old_district", "old_district").addSelect(oldDistrictSelectFields)
+                .leftJoin("delivery_address.old_ward", "old_ward").addSelect(oldWardSelectFields);
+
+            const deliveryAddress = await queryBuilder.getOne();
+
+            if (!deliveryAddress) {
+                this.logger.log(`No default address found for user ${userId}`);
+                return null;
+            }
+
+            return plainToInstance(DeliveryAddressDto, deliveryAddress, { excludeExtraneousValues: true });
+        } catch (error) {
+            this.logger.error(`Failed to get default address for user ${userId}: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: 'Failed to get default address',
+                code: ResponseCode.FAILED_TO_GET_USER_ADDRESS
+            });
+        }
+    }
+
+    /**
+     * @function validateAndGetDeliveryAddress - Validates and retrieves delivery address for a user
+     * @param {number} userId - ID of the user
+     * @param {number} addressId - Optional address ID, if not provided will get default address
+     *
+     * @returns {Promise<DeliveryAddressDto>} - The delivery address
+     *
+     * @throws {BadRequestException} - If no address found
+     * @throws {NotFoundException} - If provided address ID not found
+     */
+    async validateAndGetDeliveryAddress(userId: number, addressId?: number): Promise<DeliveryAddressDto> {
+        let deliveryAddressId = addressId;
+        
+        if (!deliveryAddressId) {
+            const defaultAddress = await this.getDefaultAddress(userId);
+            if (!defaultAddress) {
+                throw new BadRequestException({
+                    message: 'No delivery address found. Please add an address first.',
+                    code: ResponseCode.ADDRESS_NOT_FOUND
+                });
+            }
+            return defaultAddress;
+        }
+        
+        const deliveryAddress = await this.getAddressById(deliveryAddressId);
+        if (!deliveryAddress) {
+            throw new NotFoundException({
+                message: 'Delivery address not found',
+                code: ResponseCode.DELIVERY_ADDRESS_NOT_FOUND
+            });
+        }
+
+        return deliveryAddress;
+    }
 }
