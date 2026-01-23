@@ -451,7 +451,7 @@ export class OrderService {
                     const payosResult = await this.paymentService.createPayOSPayment(
                         savedSharedPayment.id,
                         grandTotal,
-                        `Thanh toan ${createdOrders.length} don hang (${createdOrders.map(o => `#${o.id}`).join(', ')})`
+                        `Thanh toan don hang Farmera`
                     );
 
                     paymentInfo = {
