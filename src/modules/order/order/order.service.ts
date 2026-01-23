@@ -159,6 +159,7 @@ export class OrderService {
                 'order_details.product.farm',
                 'payment',
                 'delivery',
+                'delivery_address',
                 'farm',
                 'user'
             ]
@@ -436,7 +437,7 @@ export class OrderService {
                 createdOrders.map(order =>
                     this.orderRepository.findOne({
                         where: { id: order.id },
-                        relations: ['order_details', 'order_details.product', 'payment', 'farm']
+                        relations: ['order_details', 'order_details.product', 'payment', 'delivery_address', 'farm']
                     })
                 )
             );
@@ -517,6 +518,7 @@ export class OrderService {
         // Lấy địa chỉ người nhận to address
         const deliveryAddress = await this.validateAndGetDeliveryAddress(userId, delivery_address_id);
 
+        this.logger.log(`Delivery address for user 11111111111111 ${userId}: ${JSON.stringify(deliveryAddress)}`);
         // Lấy địa chỉ cửa hàng from address
         const farm = await this.farmService.findFarmById(farm_id);
         if (!farm?.address) {
@@ -582,13 +584,25 @@ export class OrderService {
         const selectedCarrier = shipping_carrier || 'GHN';
 
         // TODO: Tích hợp API GHN/GHTK
+        if(farmAddress.old_district?.ghn_code == null || farmAddress.old_ward?.ghn_code == null) {
+            throw new BadRequestException({
+                message: 'Farm address does not support delivery by GHN',
+                code: ResponseCode.INVALID_ADDRESS_DATA
+            });
+        }
+        if(deliveryAddress.old_district?.ghn_code == null || deliveryAddress.old_ward?.ghn_code == null) {
+            throw new BadRequestException({
+                message: 'Delivery address does not support delivery by GHN',
+                code: ResponseCode.INVALID_ADDRESS_DATA
+            });
+        }
         if (selectedCarrier === 'GHN') {
             try {
                 const ghnRequest: CalculateShippingFeeDto = {
-                    from_district_id: Number(farmAddress.old_district?.ghn_code) || 0,
-                    from_ward_code: farmAddress.old_ward?.ghn_code?.toString() || '',
-                    to_district_id: Number(deliveryAddress.old_district?.ghn_code) || 0,
-                    to_ward_code: deliveryAddress.old_ward?.ghn_code?.toString() || '',
+                    from_district_id: Number(farmAddress.old_district.ghn_code) || 0,
+                    from_ward_code: farmAddress.old_ward.ghn_code?.toString() || '',
+                    to_district_id: Number(deliveryAddress.old_district.ghn_code) || 0,
+                    to_ward_code: deliveryAddress.old_ward.ghn_code?.toString() || '',
                     weight: totalWeight,
                     length: 0,
                     width: 0,
@@ -605,6 +619,10 @@ export class OrderService {
                 // estimatedTime = ghnResult.expected_delivery_time;
             } catch (error) {
                 this.logger.warn(`Failed to calculate GHN fee: ${error.message}. Using default fee.`);
+                throw new BadRequestException({
+                    message: `Failed to calculate shipping fee via GHN: ${error.message}`,
+                    code: ResponseCode.FAILED_TO_CALCULATE_SHIPPING_FEE
+                });
             }
         }
 
@@ -675,6 +693,7 @@ export class OrderService {
                 'order_details.product.farm',
                 'payment',
                 'delivery',
+                'delivery_address',
                 'farm'
             ],
             order: orderBy,
@@ -1019,6 +1038,7 @@ export class OrderService {
                     'order_details.product',
                     'payment',
                     'delivery',
+                    'delivery_address',
                     'farm'
                 ]
             });

@@ -7,6 +7,7 @@ import { ProductDto } from 'src/modules/product/dtos/product/product.dto';
 import { FarmDto } from 'src/modules/farm/dtos/farm/farm.dto';
 import { PaymentDto } from './payment.dto';
 import { DeliveryDto } from './delivery.dto';
+import { DeliveryAddressDto } from 'src/modules/address/dtos/delivery-address.dto';
 
 export class GetMyOrdersDto extends PaginationOptions<OrderSortField> {
     @IsOptional()
@@ -94,4 +95,8 @@ export class OrderDto {
 
     @Expose()
     delivery_note: string;
+
+    @Expose()
+    @Type(() => DeliveryAddressDto)
+    delivery_address: DeliveryAddressDto;
 }

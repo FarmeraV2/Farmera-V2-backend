@@ -20,7 +20,6 @@ export class FarmDto {
     @Expose() description: string;
     @Expose() avatar_url: string;
     @Expose() profile_image_urls: string[];
-    @Expose() certificate_img_urls: string[];
     @Expose() email: string;
     @Expose() phone: string;
     @Expose() tax_number: string;

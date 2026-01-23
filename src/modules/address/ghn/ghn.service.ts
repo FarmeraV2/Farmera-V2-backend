@@ -461,6 +461,8 @@ export class GHNService {
                         if (error instanceof AxiosError) {
                             let statusCodeToThrow = 500;
                             let errorMessageToThrow = 'Lỗi không mong đợi khi giao tiếp với dịch vụ GHN.';
+                            let shouldRetryWithHangNang = false;
+                            
                             if (error.response) {
                                 const status = error.response.status;
                                 let specificGhnMessage: string | null = null;
@@ -468,6 +470,11 @@ export class GHNService {
                                     const responseData = error.response.data as any;
                                     // GHN có thể trả về lỗi trong `message` hoặc `error_message` hoặc các trường khác
                                     specificGhnMessage = responseData.message || responseData.error_message || responseData.code_message_value || (typeof responseData === 'string' ? responseData : null);
+                                    
+                                    // Check if error is about missing ServiceID
+                                    if (specificGhnMessage && specificGhnMessage.includes("ServiceID") && specificGhnMessage.includes("required")) {
+                                        shouldRetryWithHangNang = true;
+                                    }
                                 } else if (typeof error.response.data === 'string') {
                                     specificGhnMessage = error.response.data;
                                 }
@@ -493,6 +500,14 @@ export class GHNService {
                                 statusCodeToThrow = 500;
                                 errorMessageToThrow = `Lỗi khi chuẩn bị yêu cầu đến dịch vụ GHN: ${error.message}`;
                             }
+                            
+                            // If should retry with HANG_NANG, throw a special error
+                            if (shouldRetryWithHangNang) {
+                                const retryError: any = new BadRequestException(errorMessageToThrow);
+                                retryError.shouldRetryWithHangNang = true;
+                                throw retryError;
+                            }
+                            
                             switch (statusCodeToThrow) {
                                 case 400: throw new BadRequestException(errorMessageToThrow);
                                 case 502: throw new HttpException(errorMessageToThrow, 502);
@@ -506,7 +521,56 @@ export class GHNService {
             );
             return response;
         } catch (error) {
-            this.logger.error(`[GHN Fee] Failed to calculate shipping fee: ${error.message}`, error.stack);
+            // Retry with HANG_NANG if needed
+            if (error.shouldRetryWithHangNang && dto.service_type_id !== GhnServiceTypeId.HANG_NANG) {
+                this.logger.warn(`[GHN Fee] Retrying with service_type_id = HANG_NANG (5)`);
+                const retryDto = {
+                    ...dto,
+                    service_type_id: GhnServiceTypeId.HANG_NANG
+                };
+                
+                try {
+                    const retryResponse = await firstValueFrom(
+                        this.httpService.post<GhnFeeResponseDto>(this.ghnUrlCalculateDeliveryFee, retryDto, { headers }).pipe(
+                            map(axiosResponse => {
+                                this.logger.debug(`[GHN Fee] Raw response from GHN (retry): ${JSON.stringify(axiosResponse.data)}`);
+                                const ghnData = axiosResponse.data;
+
+                                if (!ghnData || typeof ghnData.code !== 'number') {
+                                    this.logger.error('[GHN Fee] Unexpected response structure from GHN (missing code).');
+                                    throw new InternalServerErrorException('Phản hồi không mong đợi từ dịch vụ tính phí GHN.');
+                                }
+
+                                if (ghnData.code === 200) {
+                                    if (!ghnData.data) {
+                                        this.logger.warn('[GHN Fee] GHN Success but no fee data found.');
+                                        throw new BadRequestException('Không thể tính phí vận chuyển từ GHN (không có dữ liệu phí).');
+                                    }
+                                    this.logger.log(`[GHN Fee] Successfully calculated fee with HANG_NANG.`);
+                                    return ghnData.data;
+                                } else {
+                                    const errorMessage = ghnData.message || `GHN API returned an error.`;
+                                    this.logger.error(`[GHN Fee] GHN API error. Code: ${ghnData.code}, Message: ${errorMessage}`);
+                                    throw new BadRequestException(`${errorMessage} (GHN Code: ${ghnData.code})`);
+                                }
+                            }),
+                            catchError((retryError: any) => {
+                                if (retryError instanceof HttpException) {
+                                    throw retryError;
+                                }
+                                this.logger.error(`[GHN Fee] Retry with HANG_NANG also failed: ${retryError.message}`);
+                                throw new BadRequestException('Không thể tính phí vận chuyển từ GHN.');
+                            }),
+                        ),
+                    );
+                    return retryResponse;
+                } catch (retryError) {
+                    this.logger.error(`[GHN Fee] Failed to calculate shipping fee after retry: ${retryError.message}`);
+                    throw retryError;
+                }
+            }
+            
+            this.logger.error(`[GHN Fee] Failed to calculate shipping fee: ${error.message}`);
             throw error;
         }
     }
