@@ -1018,6 +1018,7 @@ export class OrderService {
 
             if (ghnResult.expected_delivery_time) {
                 deliveryData.ship_date = new Date(ghnResult.expected_delivery_time);
+                deliveryData.expected_delivery_time = new Date(ghnResult.expected_delivery_time);
             }
 
             const delivery = queryRunner.manager.create(Delivery, deliveryData);
@@ -1050,7 +1051,18 @@ export class OrderService {
             if (queryRunner.isTransactionActive) {
                 await queryRunner.rollbackTransaction();
             }
-            throw error;
+            
+            if (error instanceof BadRequestException ||
+                error instanceof NotFoundException ||
+                error instanceof ForbiddenException ||
+                error instanceof InternalServerErrorException) {
+                throw error;
+            }
+            
+            throw new InternalServerErrorException({
+                message: `Failed to confirm order delivery: ${error.message}`,
+                code: ResponseCode.FAILED_TO_CONFIRM_ORDER_DELIVERY
+            });
         } finally {
             await queryRunner.release();
         }
@@ -1227,6 +1239,105 @@ export class OrderService {
         };
 
         return statusMap[ghnStatus] || DeliveryStatus.PREPARING;
+    }
+
+    async updateDeliveryFromGHN(deliveryId: number): Promise<Delivery> {
+        const delivery = await this.deliveryRepository.findOne({
+            where: { id: deliveryId },
+            relations: ['order']
+        });
+
+        if (!delivery) {
+            throw new NotFoundException({
+                message: 'Delivery not found',
+                code: ResponseCode.NOT_FOUND
+            });
+        }
+
+        if (!delivery.ghn_order_code) {
+            throw new BadRequestException({
+                message: 'Delivery does not have a GHN order code',
+                code: ResponseCode.INVALID_GHN_REQUEST
+            });
+        }
+
+        try {
+            const ghnOrderDetail = await this.GHNService.getOrderDetailByGHN(delivery.ghn_order_code);
+            
+            const updates: Partial<Delivery> = {};
+            let hasChanges = false;
+
+            if (ghnOrderDetail.status) {
+                const mappedStatus = this.mapGhnStatusToDeliveryStatus(ghnOrderDetail.status as GhnOrderStatus);
+                if (mappedStatus !== delivery.status) {
+                    updates.status = mappedStatus;
+                    hasChanges = true;
+                    this.logger.log(`Updating delivery ${deliveryId} status from ${delivery.status} to ${mappedStatus} (GHN status: ${ghnOrderDetail.status})`);
+                }
+            }
+
+            if (ghnOrderDetail.cod_amount !== undefined && ghnOrderDetail.cod_amount !== delivery.cod_amount) {
+                updates.cod_amount = ghnOrderDetail.cod_amount;
+                hasChanges = true;
+            }
+
+            if (ghnOrderDetail.leadtime && (!delivery.ship_date || new Date(ghnOrderDetail.leadtime).getTime() !== delivery.ship_date.getTime())) {
+                updates.ship_date = new Date(ghnOrderDetail.leadtime);
+                updates.expected_delivery_time = new Date(ghnOrderDetail.leadtime);
+                hasChanges = true;
+            }
+
+            if (ghnOrderDetail.note && ghnOrderDetail.note !== delivery.note) {
+                updates.note = ghnOrderDetail.note;
+                hasChanges = true;
+            }
+
+            if (hasChanges) {
+                await this.deliveryRepository.update(deliveryId, updates);
+                if (updates.status && delivery.order_id) {
+                    let orderStatus: OrderStatus | null = null;
+                    
+                    switch (updates.status) {
+                        case DeliveryStatus.DELIVERED:
+                            orderStatus = OrderStatus.DELIVERED;
+                            break;
+                        case DeliveryStatus.CANCELED:
+                        case DeliveryStatus.FAILED:
+                            orderStatus = OrderStatus.CANCELLED;
+                            break;
+                        case DeliveryStatus.SHIPPED:
+                            orderStatus = OrderStatus.SHIPPING;
+                            break;
+                    }
+
+                    if (orderStatus) {
+                        await this.orderRepository.update(delivery.order_id, { status: orderStatus });
+                    }
+                }
+                const updatedDelivery = await this.deliveryRepository.findOne({
+                    where: { id: deliveryId },
+                    relations: ['order']
+                });
+                return updatedDelivery!;
+            } else {
+                this.logger.log(`No changes detected for delivery ${deliveryId}`);
+                return delivery;
+            }
+
+        } catch (error) {
+            this.logger.error(`Failed to update delivery from GHN: ${error.message}`, error.stack);
+            
+            if (error instanceof BadRequestException ||
+                error instanceof NotFoundException ||
+                error instanceof InternalServerErrorException) {
+                throw error;
+            }
+            
+            throw new InternalServerErrorException({
+                message: `Failed to update delivery from GHN: ${error.message}`,
+                code: ResponseCode.FAILED_TO_UPDATE_DELIVERY
+            });
+        }
     }
 
 
