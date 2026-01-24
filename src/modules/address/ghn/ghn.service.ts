@@ -10,6 +10,7 @@ import { GhnServiceTypeId } from "../enums/ghn.enum";
 import { CreateGhnOrderDto } from "../dtos/ghn-create-delivery.dto";
 import { GhnCreatedOrderDataDto, GhnCreateOrderResponseDto } from "../dtos/ghn-order-response.dto";
 import { OldAddressService } from "../old-address/old-address.service";
+import { GhnOrderDetailDataDto, GhnOrderDetailResponseDto } from "../dtos/ghn-order-detail.dto";
 
 
 @Injectable()
@@ -23,6 +24,7 @@ export class GHNService {
     private ghnUrlCalculateDeliveryFee: string;
     private ghnUrlCreateOrder: string;
     private ghnUrlCancelOrder: string;
+    private ghnUrlGetOrderDetail: string;
     constructor(
         private readonly httpService: HttpService,
         private readonly configService: ConfigService,
@@ -36,7 +38,8 @@ export class GHNService {
         const GHN_URL_CALCULATE_DELIVERY_FEE = this.configService.get<string>('GHN_CALCULATE_DELIVERY_FEE_URL');
         const GHN_URL_CREATE_ORDER = this.configService.get<string>('GHN_CREATE_ORDER_URL');
         const GHN_URL_CANCEL_ORDER = this.configService.get<string>('GHN_CANCEL_ORDER_URL');
-        if (!GHN_TOKEN || !GHN_SHOP_ID || !GHN_URL_GET_PROVINCE || !GHN_URL_GET_DISTRICT || !GHN_URL_GET_WARD || !GHN_URL_CALCULATE_DELIVERY_FEE || !GHN_URL_CREATE_ORDER || !GHN_URL_CANCEL_ORDER) {
+        const GHN_URL_GET_ORDER_DETAIL = this.configService.get<string>('GHN_GET_ORDER_DETAIL_URL');
+        if (!GHN_TOKEN || !GHN_SHOP_ID || !GHN_URL_GET_PROVINCE || !GHN_URL_GET_DISTRICT || !GHN_URL_GET_WARD || !GHN_URL_CALCULATE_DELIVERY_FEE || !GHN_URL_CREATE_ORDER || !GHN_URL_CANCEL_ORDER || !GHN_URL_GET_ORDER_DETAIL) {
             throw new Error('Missing GHN configuration');
         }
         this.ghnToken = GHN_TOKEN;
@@ -47,6 +50,7 @@ export class GHNService {
         this.ghnUrlCalculateDeliveryFee = GHN_URL_CALCULATE_DELIVERY_FEE;
         this.ghnUrlCreateOrder = GHN_URL_CREATE_ORDER;
         this.ghnUrlCancelOrder = GHN_URL_CANCEL_ORDER;
+        this.ghnUrlGetOrderDetail = GHN_URL_GET_ORDER_DETAIL;
     }
     
     
@@ -461,6 +465,8 @@ export class GHNService {
                         if (error instanceof AxiosError) {
                             let statusCodeToThrow = 500;
                             let errorMessageToThrow = 'Lỗi không mong đợi khi giao tiếp với dịch vụ GHN.';
+                            let shouldRetryWithHangNang = false;
+                            
                             if (error.response) {
                                 const status = error.response.status;
                                 let specificGhnMessage: string | null = null;
@@ -468,6 +474,11 @@ export class GHNService {
                                     const responseData = error.response.data as any;
                                     // GHN có thể trả về lỗi trong `message` hoặc `error_message` hoặc các trường khác
                                     specificGhnMessage = responseData.message || responseData.error_message || responseData.code_message_value || (typeof responseData === 'string' ? responseData : null);
+                                    
+                                    // Check if error is about missing ServiceID
+                                    if (specificGhnMessage && specificGhnMessage.includes("ServiceID") && specificGhnMessage.includes("required")) {
+                                        shouldRetryWithHangNang = true;
+                                    }
                                 } else if (typeof error.response.data === 'string') {
                                     specificGhnMessage = error.response.data;
                                 }
@@ -493,6 +504,14 @@ export class GHNService {
                                 statusCodeToThrow = 500;
                                 errorMessageToThrow = `Lỗi khi chuẩn bị yêu cầu đến dịch vụ GHN: ${error.message}`;
                             }
+                            
+                            // If should retry with HANG_NANG, throw a special error
+                            if (shouldRetryWithHangNang) {
+                                const retryError: any = new BadRequestException(errorMessageToThrow);
+                                retryError.shouldRetryWithHangNang = true;
+                                throw retryError;
+                            }
+                            
                             switch (statusCodeToThrow) {
                                 case 400: throw new BadRequestException(errorMessageToThrow);
                                 case 502: throw new HttpException(errorMessageToThrow, 502);
@@ -506,7 +525,56 @@ export class GHNService {
             );
             return response;
         } catch (error) {
-            this.logger.error(`[GHN Fee] Failed to calculate shipping fee: ${error.message}`, error.stack);
+            // Retry with HANG_NANG if needed
+            if (error.shouldRetryWithHangNang && dto.service_type_id !== GhnServiceTypeId.HANG_NANG) {
+                this.logger.warn(`[GHN Fee] Retrying with service_type_id = HANG_NANG (5)`);
+                const retryDto = {
+                    ...dto,
+                    service_type_id: GhnServiceTypeId.HANG_NANG
+                };
+                
+                try {
+                    const retryResponse = await firstValueFrom(
+                        this.httpService.post<GhnFeeResponseDto>(this.ghnUrlCalculateDeliveryFee, retryDto, { headers }).pipe(
+                            map(axiosResponse => {
+                                this.logger.debug(`[GHN Fee] Raw response from GHN (retry): ${JSON.stringify(axiosResponse.data)}`);
+                                const ghnData = axiosResponse.data;
+
+                                if (!ghnData || typeof ghnData.code !== 'number') {
+                                    this.logger.error('[GHN Fee] Unexpected response structure from GHN (missing code).');
+                                    throw new InternalServerErrorException('Phản hồi không mong đợi từ dịch vụ tính phí GHN.');
+                                }
+
+                                if (ghnData.code === 200) {
+                                    if (!ghnData.data) {
+                                        this.logger.warn('[GHN Fee] GHN Success but no fee data found.');
+                                        throw new BadRequestException('Không thể tính phí vận chuyển từ GHN (không có dữ liệu phí).');
+                                    }
+                                    this.logger.log(`[GHN Fee] Successfully calculated fee with HANG_NANG.`);
+                                    return ghnData.data;
+                                } else {
+                                    const errorMessage = ghnData.message || `GHN API returned an error.`;
+                                    this.logger.error(`[GHN Fee] GHN API error. Code: ${ghnData.code}, Message: ${errorMessage}`);
+                                    throw new BadRequestException(`${errorMessage} (GHN Code: ${ghnData.code})`);
+                                }
+                            }),
+                            catchError((retryError: any) => {
+                                if (retryError instanceof HttpException) {
+                                    throw retryError;
+                                }
+                                this.logger.error(`[GHN Fee] Retry with HANG_NANG also failed: ${retryError.message}`);
+                                throw new BadRequestException('Không thể tính phí vận chuyển từ GHN.');
+                            }),
+                        ),
+                    );
+                    return retryResponse;
+                } catch (retryError) {
+                    this.logger.error(`[GHN Fee] Failed to calculate shipping fee after retry: ${retryError.message}`);
+                    throw retryError;
+                }
+            }
+            
+            this.logger.error(`[GHN Fee] Failed to calculate shipping fee: ${error.message}`);
             throw error;
         }
     }
@@ -624,6 +692,110 @@ export class GHNService {
             return response;
         } catch (error) {
             this.logger.error(`[GHN Create Order] Failed to create GHN order: ${error.message}`, error.stack);
+            throw error;
+        }
+    }
+
+    async getOrderDetailByGHN(orderCode: string): Promise<GhnOrderDetailDataDto> {
+        const headers = {
+            'Content-Type': 'application/json',
+            'Token': this.ghnToken,
+        };
+
+        const payload = {
+            order_code: orderCode
+        };
+
+        this.logger.log(`[GHN Order Detail] Getting order detail for: ${orderCode}`);
+
+        try {
+            const response = await firstValueFrom(
+                this.httpService.post<GhnOrderDetailResponseDto>(
+                    this.ghnUrlGetOrderDetail,
+                    payload,
+                    { headers }
+                ).pipe(
+                    map(axiosResponse => {
+                        this.logger.debug(`[GHN Order Detail] Raw response: ${JSON.stringify(axiosResponse.data)}`);
+                        const ghnData = axiosResponse.data;
+
+                        if (!ghnData || typeof ghnData.code !== 'number') {
+                            this.logger.error('[GHN Order Detail] Unexpected response structure (missing code).');
+                            throw new InternalServerErrorException('Unexpected response from GHN order detail service.');
+                        }
+
+                        if (ghnData.code === 200) {
+                            if (!ghnData.data) {
+                                this.logger.warn('[GHN Order Detail] Success but no order data found.');
+                                throw new BadRequestException('Order detail not found from GHN.');
+                            }
+                            this.logger.log(`[GHN Order Detail] Successfully retrieved order detail.`);
+                            return ghnData.data;
+                        } else {
+                            const errorMessage = ghnData.message || 'GHN API returned an error.';
+                            this.logger.error(`[GHN Order Detail] Error. Code: ${ghnData.code}, Message: ${errorMessage}`);
+                            throw new BadRequestException(`${errorMessage} (GHN Code: ${ghnData.code})`);
+                        }
+                    }),
+                    catchError((error: any) => {
+                        if (error instanceof HttpException) {
+                            throw error;
+                        }
+                        if (error instanceof AxiosError) {
+                            let statusCodeToThrow = 500;
+                            let errorMessageToThrow = 'Unexpected error communicating with GHN service.';
+                            
+                            if (error.response) {
+                                const status = error.response.status;
+                                let specificGhnMessage: string | null = null;
+                                
+                                if (error.response.data && typeof error.response.data === 'object') {
+                                    const responseData = error.response.data as any;
+                                    specificGhnMessage = responseData.message || responseData.error_message || null;
+                                } else if (typeof error.response.data === 'string') {
+                                    specificGhnMessage = error.response.data;
+                                }
+
+                                this.logger.error(`[GHN Order Detail] Axios error. Status: ${status}, Data: ${JSON.stringify(error.response.data)}`);
+
+                                if (status === 400) {
+                                    statusCodeToThrow = 400;
+                                    errorMessageToThrow = specificGhnMessage || 'Invalid data sent to GHN.';
+                                } else if (status === 401 || status === 403) {
+                                    statusCodeToThrow = 500;
+                                    errorMessageToThrow = 'Authentication error with GHN service.';
+                                } else if (status === 404) {
+                                    statusCodeToThrow = 404;
+                                    errorMessageToThrow = specificGhnMessage || 'Order not found in GHN.';
+                                } else {
+                                    statusCodeToThrow = 500;
+                                    errorMessageToThrow = `GHN service error (Status ${status}). ${specificGhnMessage || 'No details.'}`;
+                                }
+                            } else if (error.request) {
+                                this.logger.error('[GHN Order Detail] No response from GHN service.', error.stack);
+                                statusCodeToThrow = 502;
+                                errorMessageToThrow = 'Unable to connect to GHN service.';
+                            } else {
+                                this.logger.error(`[GHN Order Detail] Error setting up request: ${error.message}`, error.stack);
+                                statusCodeToThrow = 500;
+                                errorMessageToThrow = `Error preparing request to GHN: ${error.message}`;
+                            }
+                            
+                            switch (statusCodeToThrow) {
+                                case 400: throw new BadRequestException(errorMessageToThrow);
+                                case 404: throw new HttpException(errorMessageToThrow, 404);
+                                case 502: throw new HttpException(errorMessageToThrow, 502);
+                                default: throw new InternalServerErrorException(errorMessageToThrow);
+                            }
+                        }
+                        this.logger.error(`[GHN Order Detail] Unknown error.`, error.stack);
+                        throw new InternalServerErrorException('Unknown error getting order detail from GHN.');
+                    }),
+                ),
+            );
+            return response;
+        } catch (error) {
+            this.logger.error(`[GHN Order Detail] Failed to get order detail: ${error.message}`);
             throw error;
         }
     }

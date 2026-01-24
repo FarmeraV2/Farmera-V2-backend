@@ -53,6 +53,9 @@ export class Delivery {
     @Column({ type: 'timestamptz', nullable: true })
     ship_date: Date;
 
+    @Column({ type: 'timestamptz', nullable: true })
+    expected_delivery_time: Date;
+
     @CreateDateColumn({ type: 'timestamptz' })
     created: Date;
 

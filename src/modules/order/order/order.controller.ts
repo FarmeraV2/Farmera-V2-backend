@@ -100,4 +100,13 @@ export class OrderController {
             return { success: false, error: error.message };
         }
     }
+
+    @Post('delivery/:delivery_id/sync-from-ghn')
+    @Roles([UserRole.FARMER, UserRole.BUYER])
+    async updateDeliveryFromGHN(
+        @User() user: UserInterface,
+        @Param('delivery_id', ParseIntPipe) deliveryId: number
+    ) {
+        return await this.orderService.updateDeliveryFromGHN(deliveryId);
+    }
 }
