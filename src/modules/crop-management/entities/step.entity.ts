@@ -18,10 +18,6 @@ export class Step {
     @Column({ nullable: true })
     notes?: string;
 
-    @Column({ type: 'enum', enumName: 'crop_type', enum: CropType })
-    for_crop_type: CropType;
-    
-
     @Column()
     order: number;
 
@@ -37,7 +33,8 @@ export class Step {
     @Column({ type: 'enum', enumName: 'step_type', enum: StepType })
     type: StepType;
 
-
+    @Column({ nullable: true })
+    interval_date: number;
 
     @CreateDateColumn({ type: "timestamptz" })
     created: Date;
@@ -47,14 +44,4 @@ export class Step {
 
     @OneToMany(() => SeasonDetail, (detail) => detail.step)
     season_details: SeasonDetail[];
-
-    @ManyToOne(() => Step, (step) => step.children, { nullable: true })
-    @JoinColumn({ name: "parent_id" })
-    parent?: Step;
-
-    @Column({ nullable: true })
-    parent_id?: number;
-
-    @OneToMany(() => Step, (step) => step.parent)
-    children?: Step[];
 }

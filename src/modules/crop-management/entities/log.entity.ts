@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { SeasonDetail } from './season-detail.entity';
 import { Farm } from 'src/modules/farm/entities/farm.entity';
 import { LogType } from '../enums/log-type.enum';
@@ -51,4 +51,14 @@ export class Log {
 
     //
     verified: boolean = false;
+
+    @ManyToOne(() => Log, (log) => log.children, { nullable: true })
+    @JoinColumn({ name: "parent_id" })
+    parent?: Log;
+
+    @Column({ nullable: true })
+    parent_id?: number;
+
+    @OneToMany(() => Log, (step) => step.parent)
+    children?: Log[];
 }

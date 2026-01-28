@@ -14,9 +14,6 @@ export class Plot {
     @Column()
     crop_name: string;
 
-    @Column({ type: 'enum', enumName: 'crop_type', enum: CropType })
-    crop_type: CropType
-
     @Column({ nullable: true })
     area?: number;
 
@@ -26,9 +23,8 @@ export class Plot {
     @Column({ nullable: true })
     notes?: string;
 
-
-    @Column()
-    image_url: string;
+    @Column('text', { array: true })
+    image_urls: string[];
 
     @Column()
     is_deleted: boolean;
