@@ -18,6 +18,9 @@ export class Crop {
     @Column('text', { array: true })
     image_urls: string[];
 
+    @Column({ nullable: true })
+    max_seasons: number;
+
     @CreateDateColumn()
     created: Date;
 

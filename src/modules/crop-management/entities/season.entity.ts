@@ -43,9 +43,6 @@ export class Season {
     @Column({ default: false })
     is_assigned: boolean;
 
-    @Column({ type: 'enum', enumName: 'crop_type', enum: CropType })
-    crop_type: CropType
-
     @CreateDateColumn({ type: "timestamptz" })
     created: Date;
 

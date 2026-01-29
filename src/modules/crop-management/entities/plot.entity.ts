@@ -1,7 +1,8 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { CropType } from '../enums/crop-type.enum';
 import { Season } from './season.entity';
 import { Farm } from 'src/modules/farm/entities/farm.entity';
+import { Crop } from './crop.entity';
 
 @Entity()
 export class Plot {
@@ -26,7 +27,7 @@ export class Plot {
     @Column('text', { array: true })
     image_urls: string[];
 
-    @Column()
+    @Column({ default: false })
     is_deleted: boolean;
 
     @CreateDateColumn({ type: "timestamptz" })
@@ -44,4 +45,11 @@ export class Plot {
 
     @OneToMany(() => Season, (season) => season.plot)
     seasons: Season[];
+
+    @OneToOne(() => Crop)
+    @JoinColumn({ name: "crop_id" })
+    crop: Crop;
+
+    @Column()
+    crop_id: number;
 }

@@ -1,7 +1,7 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryColumn, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { SeasonDetail } from './season-detail.entity';
 import { StepType } from '../enums/step-type.enum';
-import { CropType } from '../enums/crop-type.enum';
+import { Crop } from './crop.entity';
 
 
 @Entity()
@@ -44,4 +44,11 @@ export class Step {
 
     @OneToMany(() => SeasonDetail, (detail) => detail.step)
     season_details: SeasonDetail[];
+
+    @ManyToOne(() => Crop)
+    @JoinColumn({ name: "crop_id" })
+    crop: Crop;
+
+    @Column()
+    crop_id: number;
 }
