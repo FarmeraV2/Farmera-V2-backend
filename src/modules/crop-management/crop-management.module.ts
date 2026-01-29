@@ -14,13 +14,16 @@ import { LogService } from './log/log.service';
 import { LogController } from './log/log.controller';
 import { Step } from './entities/step.entity';
 import { BlockchainService } from 'src/services/blockchain.service';
+import { CropService } from './crop/crop.service';
+import { CropController } from './crop/crop.controller';
+import { Crop } from './entities/crop.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Plot, Season, SeasonDetail, Step, Log])
+    TypeOrmModule.forFeature([Plot, Season, SeasonDetail, Step, Log, Crop])
   ],
-  providers: [PlotService, SeasonService, StepService, LogService, BlockchainService],
-  controllers: [PlotController, SeasonController, StepController, LogController],
+  providers: [PlotService, SeasonService, StepService, LogService, BlockchainService, CropService],
+  controllers: [PlotController, SeasonController, StepController, LogController, CropController],
   exports: [SeasonService]
 })
 export class CropManagementModule { }

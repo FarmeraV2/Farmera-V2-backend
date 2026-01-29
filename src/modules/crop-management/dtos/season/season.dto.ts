@@ -11,7 +11,6 @@ export class SeasonDto {
     @Expose() actual_end_date?: Date;
     @Expose() status: SeasonStatus;
     @Expose() plot_id: number;
-    @Expose() crop_type: CropType;
     @Expose() created: Date;
     @Expose() updated: Date;
 }
@@ -29,7 +28,6 @@ export class SeasonDetailDto {
     @Expose() yield_unit: string;
     @Expose() notes?: string;
     @Expose() plot_id: number;
-    @Expose() crop_type: CropType;
     @Expose() created: Date;
     @Expose() updated: Date;
 }

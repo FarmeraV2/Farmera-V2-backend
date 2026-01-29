@@ -332,7 +332,7 @@ export class FarmService {
             const farm = await this.farmRepository.findOne({ select: ['id', 'farm_id'], where: { user_id: userId, status: In([FarmStatus.APPROVED, FarmStatus.VERIFIED]) } });
             if (!farm || farm.id <= 0) {
                 throw new InternalServerErrorException({
-                    message: "Something ưent wrong, you're a farmer but your Farm is not found",
+                    message: "Something went wrong, you're a farmer but your Farm is not found",
                     code: ResponseCode.INTERNAL_ERROR
                 });
             }

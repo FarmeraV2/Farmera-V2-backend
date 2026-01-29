@@ -9,7 +9,7 @@ export class Crop {
     @Column()
     name: string;
 
-    @Column({ type: "enum", "enum": CropType, "enumName": "crop_type" })
+    @Column({ type: "enum", enum: CropType, enumName: "crop_type" })
     crop_type: CropType;
 
     @Column()

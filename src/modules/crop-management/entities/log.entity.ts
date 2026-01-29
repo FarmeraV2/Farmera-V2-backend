@@ -49,16 +49,9 @@ export class Log {
     @Column()
     farm_id: number;
 
+    @Column({ default: false })
+    is_active: boolean;
+
     //
     verified: boolean = false;
-
-    @ManyToOne(() => Log, (log) => log.children, { nullable: true })
-    @JoinColumn({ name: "parent_id" })
-    parent?: Log;
-
-    @Column({ nullable: true })
-    parent_id?: number;
-
-    @OneToMany(() => Log, (step) => step.parent)
-    children?: Log[];
 }

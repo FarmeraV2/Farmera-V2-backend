@@ -23,9 +23,9 @@ export class StepController {
     }
 
     @Public()
-    @Get("public")
-    async getSteps(@Query() listStepDto: ListStepDto) {
-        return await this.stepService.listPublicSteps(listStepDto);
+    @Get("crop/:cropId")
+    async getSteps(@Query() listStepDto: ListStepDto, @Param("cropId") cropId: number) {
+        return await this.stepService.listPublicStepsByCropId(listStepDto, cropId);
     }
 
     @Public()

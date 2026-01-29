@@ -30,6 +30,7 @@ export class PlotDetailDto {
     @Expose() image_url: string;
     @Expose() created: Date
     @Expose() updated: Date
+    @Expose() crop_id: number;
 }
 
 const plotDetailDtoProps = Object.keys(new PlotDetailDto());

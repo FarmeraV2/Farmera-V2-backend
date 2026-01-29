@@ -12,10 +12,8 @@ export class StepDto {
     // from step table
     @Expose() step_name: string;
     @Expose() step_description: string;
-    @Expose() step_for_crop_type: CropType;
     @Expose() step_type: StepType;
     @Expose() step_order: number;
-    @Expose() parent_id?: number;
     // from season_detail table
     @Expose() step_status: StepStatus;
     @Expose() step_evaluation?: StepEvaluation
@@ -31,12 +29,9 @@ export class PublicStepDto {
     @Expose() id: number;
     @Expose() name: string;
     @Expose() description: string;
-    @Expose() for_crop_type: CropType;
     @Expose() order: number;
     @Expose() repeated: boolean;
     @Expose() is_optional: boolean;
     @Expose() min_logs: number;
     @Expose() type: StepType;
-    @Type(() => PublicStepDto)
-    @Expose() children: PublicStepDto;
 }

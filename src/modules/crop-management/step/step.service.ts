@@ -22,8 +22,6 @@ import { StepStatus } from '../enums/step-status.enum';
 import { Season } from '../entities/season.entity';
 import { CropType } from '../enums/crop-type.enum';
 import { StepType } from '../enums/step-type.enum';
-import { HashedStep } from '../dtos/step/hashed-step.dto';
-
 @Injectable()
 export class StepService {
 
@@ -45,10 +43,8 @@ export class StepService {
                     "step.name",
                     "step.description",
                     "step.notes",
-                    "step.for_crop_type",
                     "step.type",
                     "step.order",
-                    "step.parent_id",
                 ])
                 .leftJoin("season_detail.step", "step")
                 .where("season_detail.id = :id", { id })
@@ -82,10 +78,8 @@ export class StepService {
                     "step.name",
                     "step.description",
                     "step.notes",
-                    "step.for_crop_type",
                     "step.type",
                     "step.order",
-                    "step.parent_id"
                 ])
                 .leftJoin("season_detail.step", "step")
                 .where("season_detail.season_id = :seasonId", { seasonId })
@@ -106,6 +100,9 @@ export class StepService {
 
             hashedSteps.map((data) => {
                 const step = steps.find((step) => step.id === data.id);
+                if (step) {
+                    step.verified = true
+                }
             })
 
             return steps;
@@ -179,13 +176,12 @@ export class StepService {
         }
     }
 
-    async listPublicSteps(listStepDto: ListStepDto): Promise<PaginationResult<PublicStepDto>> {
+    async listPublicStepsByCropId(listStepDto: ListStepDto, cropId: number): Promise<PaginationResult<PublicStepDto>> {
         const paginationOptions = plainToInstance(PaginationTransform<StepSortFields>, listStepDto);
         const { sort_by, order } = paginationOptions;
         try {
             const queryBuilder = this.stepRepository.createQueryBuilder("step")
-                .leftJoinAndSelect("step.children", "children")
-                .where("step.parent IS NULL");
+                .where("step.crop_id = :id", { id: cropId })
 
             this.applyFilter(queryBuilder, listStepDto);
             this.applySorting(queryBuilder, sort_by, order);
@@ -285,12 +281,6 @@ export class StepService {
     async validateAddSeasonStep(season: Season, stepId: number): Promise<void> {
         // validate crop type
         const step = await this.getStep(stepId);
-        if (step.for_crop_type != season.plot.crop_type) {
-            throw new BadRequestException({
-                message: `Invalid step for ${season.plot.crop_type}`,
-                code: ResponseCode.INVALID_STEP_FOR_CROP_TYPE
-            });
-        }
 
         const queryBuilder = this.seasonDetailRepository
             .createQueryBuilder('season_detail')
@@ -308,8 +298,7 @@ export class StepService {
 
         if (prevStepOrder && !step.repeated && (
             prevStepOrder >= step.order ||
-            Math.floor(step.order / 10) > Math.floor(prevStepOrder / 10) + 1 ||
-            (!step.parent_id && step.type === StepType.CARE)
+            Math.floor(step.order / 10) > Math.floor(prevStepOrder / 10) + 1
         )) {
             throw new BadRequestException({
                 message: `Invalid step order`,
@@ -324,42 +313,42 @@ export class StepService {
             });
         }
 
-        if (!prevStepOrder) {
-            if (season.plot.crop_type === CropType.SHORT_TERM) {
-                const firstStep = await this.stepRepository.findOne({
-                    select: ["order"],
-                    where: { for_crop_type: CropType.SHORT_TERM },
-                    order: { order: "ASC" }
-                });
-                if (!firstStep) throw new InternalServerErrorException({
-                    message: "Internal server errror",
-                    code: ResponseCode.INTERNAL_ERROR
-                });
-                if (firstStep.order != step.order) throw new BadRequestException({
-                    message: `Invalid first step`,
-                    code: ResponseCode.INVALID_FIRST_STEP,
-                });
-            }
-            else if (season.plot.crop_type === CropType.LONG_TERM) {
-                const firstStep = await this.stepRepository
-                    .createQueryBuilder('step')
-                    .select('step.order')
-                    .where('step.for_crop_type = :crop_type', { crop_type: CropType.LONG_TERM })
-                    .andWhere('step.order % 10 != 0')
-                    .andWhere('step.type = :type', { type: StepType.CARE })
-                    .orderBy('step.order', 'ASC')
-                    .getOne();
+        // if (!prevStepOrder) {
+        //     if (season.plot.crop_type === CropType.SHORT_TERM) {
+        //         const firstStep = await this.stepRepository.findOne({
+        //             select: ["order"],
+        //             where: { for_crop_type: CropType.SHORT_TERM },
+        //             order: { order: "ASC" }
+        //         });
+        //         if (!firstStep) throw new InternalServerErrorException({
+        //             message: "Internal server errror",
+        //             code: ResponseCode.INTERNAL_ERROR
+        //         });
+        //         if (firstStep.order != step.order) throw new BadRequestException({
+        //             message: `Invalid first step`,
+        //             code: ResponseCode.INVALID_FIRST_STEP,
+        //         });
+        //     }
+        //     else if (season.plot.crop_type === CropType.LONG_TERM) {
+        //         const firstStep = await this.stepRepository
+        //             .createQueryBuilder('step')
+        //             .select('step.order')
+        //             .where('step.for_crop_type = :crop_type', { crop_type: CropType.LONG_TERM })
+        //             .andWhere('step.order % 10 != 0')
+        //             .andWhere('step.type = :type', { type: StepType.CARE })
+        //             .orderBy('step.order', 'ASC')
+        //             .getOne();
 
-                if (!firstStep) throw new InternalServerErrorException({
-                    message: "Internal server errror",
-                    code: ResponseCode.INTERNAL_ERROR
-                });
-                if (step.order > firstStep.order) throw new BadRequestException({
-                    message: `Invalid first step`,
-                    code: ResponseCode.INVALID_FIRST_STEP,
-                });
-            }
-        }
+        //         if (!firstStep) throw new InternalServerErrorException({
+        //             message: "Internal server errror",
+        //             code: ResponseCode.INTERNAL_ERROR
+        //         });
+        //         if (step.order > firstStep.order) throw new BadRequestException({
+        //             message: `Invalid first step`,
+        //             code: ResponseCode.INVALID_FIRST_STEP,
+        //         });
+        //     }
+        // }
     }
 
     async getSeasonDetailForValidateAddLog(seasonDetailId: number): Promise<SeasonDetail> {
@@ -412,10 +401,6 @@ export class StepService {
             const search = listStepDto.search.trim();
             qb.andWhere("step.name ILIKE :search", { search: `%${search}%` })
         }
-        if (listStepDto.for_crop_type) {
-            const type = listStepDto.for_crop_type;
-            qb.andWhere("step.for_crop_type = :type", { type })
-        }
         if (listStepDto.type) {
             const type = listStepDto.type;
             qb.andWhere("step.type = :type", { type })
@@ -428,10 +413,8 @@ export class StepService {
             {
                 step_name: s.step.name,
                 step_description: s.step.description,
-                step_for_crop_type: s.step.for_crop_type,
                 step_type: s.step.type,
                 step_order: s.step.order,
-                parent_id: s.step.parent?.id,
                 ...s
             },
             { excludeExtraneousValues: true }

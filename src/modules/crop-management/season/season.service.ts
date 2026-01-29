@@ -36,11 +36,8 @@ export class SeasonService {
 
     async createSeason(farmId: number, createSeasonDto: CreateSeasonDto): Promise<SeasonDetailDto> {
         try {
-            const cropType = await this.plotService.getPlotCropType(createSeasonDto.plot_id);
-
             const season = this.seasonRepository.create({
                 ...createSeasonDto,
-                crop_type: cropType,
                 farm_id: farmId
             });
 
@@ -58,7 +55,7 @@ export class SeasonService {
             // a season is already exist, throw error
             const plot = await this.plotService.validateAddSeason(season.plot_id);
 
-            season.image_url = createSeasonDto.image_url ?? plot.image_url;
+            season.image_url = createSeasonDto.image_url ?? (plot.image_urls && plot.image_urls.length > 0 ? plot.image_urls[0] : undefined);
 
             const result = await this.seasonRepository.save(season);
             return plainToInstance(SeasonDetailDto, result, { excludeExtraneousValues: true });
@@ -183,9 +180,10 @@ export class SeasonService {
 
     async getSeasonDetail(seasonId: number): Promise<SeasonDetailDto> {
         try {
-            const season = await this.seasonRepository.findOne({
-                where: { id: seasonId },
-            });
+            const queryBuilder = this.seasonRepository.createQueryBuilder("season")
+                .select(seasonSelectFields)
+                .where("season.id = :seasonId", { seasonId });
+            const season = await queryBuilder.getOne();
             if (!season) {
                 throw new NotFoundException({
                     message: "season not found",
@@ -212,7 +210,6 @@ export class SeasonService {
                     "season.id"
                 ])
                 .leftJoin("season.plot", "plot")
-                .addSelect("plot.crop_type")
                 .where("season.id = :seasonId", { seasonId: addStepDto.season_id })
                 .getOne();
 

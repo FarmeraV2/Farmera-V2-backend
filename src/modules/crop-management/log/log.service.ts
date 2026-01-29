@@ -107,6 +107,9 @@ export class LogService {
                 where: { season_detail_id: seasonDetailId, },
                 order: { id: "DESC" }
             });
+            if (logs.length === 0) {
+                return logs;
+            }
             let hashedLogs: { id: number, hash: string }[] = [];
             try {
                 hashedLogs = await this.blockchainService.getHashedLogs(seasonDetailId);

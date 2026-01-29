@@ -1,5 +1,4 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-import { CropType } from '../enums/crop-type.enum';
 import { Season } from './season.entity';
 import { Farm } from 'src/modules/farm/entities/farm.entity';
 import { Crop } from './crop.entity';
@@ -24,8 +23,8 @@ export class Plot {
     @Column({ nullable: true })
     notes?: string;
 
-    @Column('text', { array: true })
-    image_urls: string[];
+    @Column('text', { array: true, nullable: true })
+    image_urls?: string[];
 
     @Column({ default: false })
     is_deleted: boolean;
