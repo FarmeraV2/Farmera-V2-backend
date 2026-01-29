@@ -23,8 +23,8 @@ export class Plot {
     @Column({ nullable: true })
     notes?: string;
 
-    @Column('text', { array: true, nullable: true })
-    image_urls?: string[];
+    @Column('text', { array: true })
+    image_urls: string[];
 
     @Column({ default: false })
     is_deleted: boolean;

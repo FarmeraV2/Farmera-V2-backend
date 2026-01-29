@@ -9,7 +9,7 @@ import { PaginationTransform } from 'src/common/dtos/pagination/pagination-optio
 import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
 import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
-import { SeasonDetailDto, SeasonDto, seasonSelectFields } from '../dtos/season/season.dto';
+import { SeasonDetailDto, seasonDetailSelectFields, SeasonDto, seasonSelectFields } from '../dtos/season/season.dto';
 import { TriggerException } from 'src/database/utils/trigger.exception';
 import { StepService } from '../step/step.service';
 import { StepDto } from '../dtos/step/step.dto';
@@ -181,7 +181,7 @@ export class SeasonService {
     async getSeasonDetail(seasonId: number): Promise<SeasonDetailDto> {
         try {
             const queryBuilder = this.seasonRepository.createQueryBuilder("season")
-                .select(seasonSelectFields)
+                .select(seasonDetailSelectFields)
                 .where("season.id = :seasonId", { seasonId });
             const season = await queryBuilder.getOne();
             if (!season) {

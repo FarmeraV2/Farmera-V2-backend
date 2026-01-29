@@ -1,6 +1,5 @@
 import { Expose } from "class-transformer";
 import { SeasonStatus } from "../../enums/season-status.enum";
-import { CropType } from "../../enums/crop-type.enum";
 
 export class SeasonDto {
     @Expose() id: number;

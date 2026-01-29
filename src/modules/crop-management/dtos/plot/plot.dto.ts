@@ -1,6 +1,5 @@
 import { Expose, Type } from "class-transformer";
 import { LocationDto } from "src/common/dtos/location/location.dto";
-import { CropType } from "../../enums/crop-type.enum";
 
 export class PlotDto {
     @Expose() id: number;
@@ -14,6 +13,9 @@ export class PlotDto {
 const plotDtoProps = Object.keys(new PlotDto());
 export const plotSelectFields = plotDtoProps
     .map((prop) => {
+        if (prop === 'image_url') {
+            return `plot.image_urls`;
+        }
         return `plot.${prop}`;
     })
 
@@ -21,13 +23,12 @@ export class PlotDetailDto {
     @Expose() id: number;
     @Expose() plot_name: string;
     @Expose() crop_name: string;
-    @Expose() crop_type: CropType
     @Expose() area: number;
     @Expose()
     @Type(() => LocationDto)
     location: LocationDto
     @Expose() notes: string;
-    @Expose() image_url: string;
+    @Expose() image_urls: string[];
     @Expose() created: Date
     @Expose() updated: Date
     @Expose() crop_id: number;

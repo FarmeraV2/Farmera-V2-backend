@@ -48,9 +48,15 @@ export class CropService {
             const totalItems = await applyPagination(queryBuilder, getCropsDto);
             const crops = await queryBuilder.getMany();
             const meta = new PaginationMeta({ paginationOptions, totalItems });
+
             return new PaginationResult(plainToInstance(
                 CropDto,
-                crops,
+                crops.map((crop) => {
+                    return {
+                        ...crop,
+                        image_url: crop.image_urls?.length ? crop.image_urls[0] : null
+                    }
+                }),
                 { excludeExtraneousValues: true }
             ), meta);
         }

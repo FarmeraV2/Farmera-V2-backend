@@ -104,7 +104,9 @@ export class PlotService {
                 paginationOptions,
                 totalItems,
             });
-            return new PaginationResult(plainToInstance(PlotDto, plots), meta);
+            return new PaginationResult(plainToInstance(PlotDto, plots.map((plot) => {
+                return { ...plot, image_url: plot.image_urls?.length ? plot.image_urls[0] : null }
+            }), { excludeExtraneousValues: true }), meta);
         }
         catch (error) {
             this.logger.error(error.message);
