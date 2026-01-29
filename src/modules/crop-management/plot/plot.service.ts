@@ -104,9 +104,7 @@ export class PlotService {
                 paginationOptions,
                 totalItems,
             });
-            return new PaginationResult(plainToInstance(PlotDto, plots.map((plot) => {
-                return { ...plot, image_url: plot.image_urls?.length ? plot.image_urls[0] : null }
-            }), { excludeExtraneousValues: true }), meta);
+            return new PaginationResult(plainToInstance(PlotDto, plots, { excludeExtraneousValues: true }), meta);
         }
         catch (error) {
             this.logger.error(error.message);
@@ -163,7 +161,7 @@ export class PlotService {
             .leftJoin("plot.crop", "crop")
             .select([
                 "plot.id",
-                "plot.image_urls",
+                "plot.image_url",
                 "crop.id",
                 "crop.crop_type",
                 "crop.max_seasons",

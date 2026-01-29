@@ -23,8 +23,8 @@ export class Plot {
     @Column({ nullable: true })
     notes?: string;
 
-    @Column('text', { array: true })
-    image_urls: string[];
+    @Column()
+    image_url: string;
 
     @Column({ default: false })
     is_deleted: boolean;
@@ -45,10 +45,10 @@ export class Plot {
     @OneToMany(() => Season, (season) => season.plot)
     seasons: Season[];
 
-    @OneToOne(() => Crop)
+    @ManyToOne(() => Crop)
     @JoinColumn({ name: "crop_id" })
     crop: Crop;
 
-    @Column()
+    @Column({ nullable: true })
     crop_id: number;
 }

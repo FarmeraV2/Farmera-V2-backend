@@ -13,9 +13,6 @@ export class PlotDto {
 const plotDtoProps = Object.keys(new PlotDto());
 export const plotSelectFields = plotDtoProps
     .map((prop) => {
-        if (prop === 'image_url') {
-            return `plot.image_urls`;
-        }
         return `plot.${prop}`;
     })
 
@@ -28,7 +25,7 @@ export class PlotDetailDto {
     @Type(() => LocationDto)
     location: LocationDto
     @Expose() notes: string;
-    @Expose() image_urls: string[];
+    @Expose() image_url: string;
     @Expose() created: Date
     @Expose() updated: Date
     @Expose() crop_id: number;

@@ -55,7 +55,7 @@ export class SeasonService {
             // a season is already exist, throw error
             const plot = await this.plotService.validateAddSeason(season.plot_id);
 
-            season.image_url = createSeasonDto.image_url ?? (plot.image_urls && plot.image_urls.length > 0 ? plot.image_urls[0] : undefined);
+            season.image_url = createSeasonDto.image_url ?? plot.image_url;
 
             const result = await this.seasonRepository.save(season);
             return plainToInstance(SeasonDetailDto, result, { excludeExtraneousValues: true });

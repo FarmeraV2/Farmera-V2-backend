@@ -20,8 +20,7 @@ import { BlockchainService } from 'src/services/blockchain.service';
 import { SeasonDetailDto } from '../dtos/step/season-detail.dto';
 import { StepStatus } from '../enums/step-status.enum';
 import { Season } from '../entities/season.entity';
-import { CropType } from '../enums/crop-type.enum';
-import { StepType } from '../enums/step-type.enum';
+
 @Injectable()
 export class StepService {
 
