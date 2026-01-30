@@ -185,6 +185,7 @@ export class OrderService {
     async creatBatchOders(userId: number, CreateBatchOrderDto: CreateBatchOrderDto): Promise<{
         orders: OrderDto[];
         total_amount: number;
+        status: string;
         payment_info?: {
             checkout_url: string;
             qr_code: string;
@@ -451,7 +452,7 @@ export class OrderService {
                     const payosResult = await this.paymentService.createPayOSPayment(
                         savedSharedPayment.id,
                         grandTotal,
-                        `Thanh toan don hang Farmera`
+                        `Thanh toan don hang`
                     );
 
                     paymentInfo = {
@@ -476,6 +477,7 @@ export class OrderService {
             return {
                 orders: orderDtoResults,
                 total_amount: grandTotal,
+                status: payment_method === PaymentMethod.PAYOS ? 'PENDING_PAYMENT_PAYOS' : 'PENDING_PAYMENT_COD',
                 payment_info: paymentInfo
             };
 
@@ -579,52 +581,52 @@ export class OrderService {
         }
 
         //Tính phí vận chuyển
-        let shippingFee = 0;
+        let shippingFee = 30000;
         let estimatedTime = '2-3 ngày';
         const selectedCarrier = shipping_carrier || 'GHN';
 
         // TODO: Tích hợp API GHN/GHTK
-        if(farmAddress.old_district?.ghn_code == null || farmAddress.old_ward?.ghn_code == null) {
-            throw new BadRequestException({
-                message: 'Farm address does not support delivery by GHN',
-                code: ResponseCode.INVALID_ADDRESS_DATA
-            });
-        }
-        if(deliveryAddress.old_district?.ghn_code == null || deliveryAddress.old_ward?.ghn_code == null) {
-            throw new BadRequestException({
-                message: 'Delivery address does not support delivery by GHN',
-                code: ResponseCode.INVALID_ADDRESS_DATA
-            });
-        }
-        if (selectedCarrier === 'GHN') {
-            try {
-                const ghnRequest: CalculateShippingFeeDto = {
-                    from_district_id: Number(farmAddress.old_district.ghn_code) || 0,
-                    from_ward_code: farmAddress.old_ward.ghn_code?.toString() || '',
-                    to_district_id: Number(deliveryAddress.old_district.ghn_code) || 0,
-                    to_ward_code: deliveryAddress.old_ward.ghn_code?.toString() || '',
-                    weight: totalWeight,
-                    length: 0,
-                    width: 0,
-                    height: 0,
-                    insurance_value: totalPrice,
-                    coupon: '',
-                    cod_amount: 0,
-                    content: 'San pham nong san',
-                    items: productItems
-                };
+        // if(farmAddress.old_district?.ghn_code == null || farmAddress.old_ward?.ghn_code == null) {
+        //     throw new BadRequestException({
+        //         message: 'Farm address does not support delivery by GHN',
+        //         code: ResponseCode.INVALID_ADDRESS_DATA
+        //     });
+        // }
+        // if(deliveryAddress.old_district?.ghn_code == null || deliveryAddress.old_ward?.ghn_code == null) {
+        //     throw new BadRequestException({
+        //         message: 'Delivery address does not support delivery by GHN',
+        //         code: ResponseCode.INVALID_ADDRESS_DATA
+        //     });
+        // }
+        // if (selectedCarrier === 'GHN') {
+        //     try {
+        //         const ghnRequest: CalculateShippingFeeDto = {
+        //             from_district_id: Number(farmAddress.old_district.ghn_code) || 0,
+        //             from_ward_code: farmAddress.old_ward.ghn_code?.toString() || '',
+        //             to_district_id: Number(deliveryAddress.old_district.ghn_code) || 0,
+        //             to_ward_code: deliveryAddress.old_ward.ghn_code?.toString() || '',
+        //             weight: totalWeight,
+        //             length: 0,
+        //             width: 0,
+        //             height: 0,
+        //             insurance_value: totalPrice,
+        //             coupon: '',
+        //             cod_amount: 0,
+        //             content: 'San pham nong san',
+        //             items: productItems
+        //         };
 
-                const ghnResult = await this.GHNService.calculateShippingFeeViaGHN(ghnRequest);
-                shippingFee = ghnResult.total;
-                // estimatedTime = ghnResult.expected_delivery_time;
-            } catch (error) {
-                this.logger.warn(`Failed to calculate GHN fee: ${error.message}. Using default fee.`);
-                throw new BadRequestException({
-                    message: `Failed to calculate shipping fee via GHN: ${error.message}`,
-                    code: ResponseCode.FAILED_TO_CALCULATE_SHIPPING_FEE
-                });
-            }
-        }
+        //         const ghnResult = await this.GHNService.calculateShippingFeeViaGHN(ghnRequest);
+        //         shippingFee = ghnResult.total;
+        //         // estimatedTime = ghnResult.expected_delivery_time;
+        //     } catch (error) {
+        //         this.logger.warn(`Failed to calculate GHN fee: ${error.message}. Using default fee.`);
+        //         throw new BadRequestException({
+        //             message: `Failed to calculate shipping fee via GHN: ${error.message}`,
+        //             code: ResponseCode.FAILED_TO_CALCULATE_SHIPPING_FEE
+        //         });
+        //     }
+        // }
 
         return {
             shipping_fee: shippingFee,
