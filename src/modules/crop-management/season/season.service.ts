@@ -207,7 +207,8 @@ export class SeasonService {
             const season = await this.seasonRepository.createQueryBuilder("season")
                 .select([
                     "season.start_date",
-                    "season.id"
+                    "season.id",
+                    "plot.crop_id",
                 ])
                 .leftJoin("season.plot", "plot")
                 .where("season.id = :seasonId", { seasonId: addStepDto.season_id })

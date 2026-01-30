@@ -44,15 +44,15 @@ export class LogService {
 
                 savedLog = await transactionalEntityManager.save(newLog);
 
-                const trasaction = await this.blockchainService.addLog(savedLog);
+                const transaction = await this.blockchainService.addLog(savedLog);
 
                 await transactionalEntityManager.update(
                     Log,
                     { id: savedLog.id },
-                    { transaction_hash: trasaction.transactionHash })
+                    { transaction_hash: transaction.transactionHash })
 
-                savedLog.transaction_hash = trasaction.transactionHash;
-                savedLog.verified = trasaction.transactionHash ? true : false;
+                savedLog.transaction_hash = transaction.transactionHash;
+                savedLog.verified = transaction.transactionHash ? true : false;
 
                 // upload step to blockchain if this is the last step
                 if (savedLog.type === LogType.DONE) {
@@ -116,6 +116,8 @@ export class LogService {
             } catch (error) {
                 this.logger.error("Failed to hashed logs: ", error.message);
             }
+
+            console.log(hashedLogs);
 
             hashedLogs.map((data) => {
                 const log = logs.find((log) => log.id === data.id);

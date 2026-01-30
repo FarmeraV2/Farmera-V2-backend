@@ -281,6 +281,11 @@ export class StepService {
         // validate crop type
         const step = await this.getStep(stepId);
 
+        if (step.crop_id != season.plot.crop_id) throw new BadRequestException({
+            message: "Invalid step for crop",
+            code: ResponseCode.INVALID_STEP_FOR_CROP
+        });
+
         const queryBuilder = this.seasonDetailRepository
             .createQueryBuilder('season_detail')
             .innerJoin('season_detail.step', 'step')
