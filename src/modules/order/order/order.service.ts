@@ -73,7 +73,7 @@ export class OrderService {
         return deliveryAddress;
     }
 
-    async getOrdersByUserId(userId: number, queryDto: GetMyOrdersDto): Promise<{ data: OrderDto[]; meta: PaginationMeta }> {
+    async getOrdersByUserId(userId: number, queryDto: GetMyOrdersDto): Promise<{ data: OrderDto[]; pagination: PaginationMeta }> {
         const {
             status,
             sort_by = OrderSortField.CREATED,
@@ -131,6 +131,7 @@ export class OrderService {
                 'order_details.product.farm',
                 'payment',
                 'delivery',
+                'delivery_address',
                 'farm'
             ],
             order: orderBy,
@@ -138,14 +139,14 @@ export class OrderService {
             take: limit,
         });
 
-        const meta: PaginationMeta = new PaginationMeta({
+        const pagination: PaginationMeta = new PaginationMeta({
             paginationOptions: queryDto,
             totalItems,
         });
 
         const orderDtos = plainToInstance(OrderDto, orders, { excludeExtraneousValues: true });
 
-        return { data: orderDtos, meta };
+        return { data: orderDtos, pagination };
     }
 
     async getOrderById(orderId: number, userId: number): Promise<OrderDto> {
@@ -637,7 +638,7 @@ export class OrderService {
         };
     }
 
-    async getOrdersForFarmer(farmerId: number, queryDto: GetMyOrdersDto): Promise<{ data: OrderDto[]; meta: PaginationMeta }> {
+    async getOrdersForFarmer(farmerId: number, queryDto: GetMyOrdersDto): Promise<{ data: OrderDto[]; pagination: PaginationMeta }> {
         const {
             status,
             sort_by = OrderSortField.CREATED,
@@ -710,7 +711,7 @@ export class OrderService {
 
         const orderDtos = plainToInstance(OrderDto, orders, { excludeExtraneousValues: true });
 
-        return { data: orderDtos, meta };
+        return { data: orderDtos, pagination: meta };
     }
 
     async getOrderShippingInfo(
