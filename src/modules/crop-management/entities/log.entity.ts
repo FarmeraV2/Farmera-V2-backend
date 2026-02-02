@@ -1,7 +1,6 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { SeasonDetail } from './season-detail.entity';
 import { Farm } from 'src/modules/farm/entities/farm.entity';
-import { LogType } from '../enums/log-type.enum';
 
 @Entity()
 export class Log {
@@ -13,9 +12,6 @@ export class Log {
 
     @Column()
     description: string;
-
-    @Column({ type: "enum", enum: LogType, enumName: "log_type", default: LogType.PROGRESS })
-    type: LogType;
 
     @Column('text', { array: true })
     image_urls: string[];
@@ -49,7 +45,7 @@ export class Log {
     @Column()
     farm_id: number;
 
-    @Column({ default: false })
+    @Column({ default: true })
     is_active: boolean;
 
     //

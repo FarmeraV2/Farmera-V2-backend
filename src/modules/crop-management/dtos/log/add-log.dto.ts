@@ -16,10 +16,6 @@ export class AddLogDto {
     @IsNotEmpty()
     description: string;
 
-    @IsOptional()
-    @IsEnum(LogType)
-    type: LogType;
-
     @IsArray()
     @ArrayMinSize(1)
     @IsString({ each: true })

@@ -20,6 +20,7 @@ export class StepDto {
     @Expose() step_notes?: string;
     @Expose() transaction_hash?: string;
     @Expose() verified?: boolean;
+    @Expose() inactive_logs: number;
     @Expose() created: Date;
     @Expose() updated: Date;
 }

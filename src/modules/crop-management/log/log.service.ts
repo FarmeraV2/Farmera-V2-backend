@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { Log } from '../entities/log.entity';
@@ -14,9 +14,9 @@ import { applyPagination } from 'src/common/utils/pagination.util';
 import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
 import { BlockchainService } from 'src/services/blockchain.service';
 import { HashedLog } from '../dtos/log/hashed-log.dto';
-import { LogType } from '../enums/log-type.enum';
 import { StepService } from '../step/step.service';
 import { StepStatus } from '../enums/step-status.enum';
+import { InactiveLogDto } from '../dtos/log/inactive-log.dto';
 
 @Injectable()
 export class LogService {
@@ -53,18 +53,6 @@ export class LogService {
 
                 savedLog.transaction_hash = transaction.transactionHash;
                 savedLog.verified = transaction.transactionHash ? true : false;
-
-                // upload step to blockchain if this is the last step
-                if (savedLog.type === LogType.DONE) {
-                    const step = await this.stepService.getSeasonStep(addLogDto.season_detail_id);
-                    const transaction = await this.blockchainService.addStep(step);
-                    await this.stepService.updateTransactionHash(
-                        step.season_id,
-                        step.step_id,
-                        transaction.transactionHash,
-                        transactionalEntityManager
-                    );
-                }
             });
 
             if (!savedLog) {
@@ -116,8 +104,6 @@ export class LogService {
             } catch (error) {
                 this.logger.error("Failed to hashed logs: ", error.message);
             }
-
-            console.log(hashedLogs);
 
             hashedLogs.map((data) => {
                 const log = logs.find((log) => log.id === data.id);
@@ -174,6 +160,67 @@ export class LogService {
         }
     }
 
+    async finishStep(seasonStepId: number): Promise<void> {
+        try {
+            const logCount = await this.logRepository.countBy({ season_detail_id: seasonStepId });
+            if (logCount <= 0) throw new BadRequestException({
+                message: "Can not finish a step without any log",
+                code: ResponseCode.NOT_ENOUGH_LOG
+            });
+
+            if (await this.stepService.updateSeasonStepStatus(seasonStepId, StepStatus.DONE)) {
+                const step = await this.stepService.getSeasonStep(seasonStepId);
+                const transaction = await this.blockchainService.addStep(step);
+                await this.stepService.updateTransactionHash(
+                    step.season_id,
+                    step.step_id,
+                    transaction.transactionHash,
+                );
+            }
+        }
+        catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error(`Failed to finish step: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: "Failed to finish step",
+                code: ResponseCode.INTERNAL_ERROR
+            })
+        }
+    }
+
+    async unactiveLog(dto: InactiveLogDto): Promise<boolean> {
+        try {
+            const latestLog = await this.logRepository.findOne({
+                select: ["id"],
+                where: { season_detail_id: dto.season_step_id },
+                order: { id: "DESC" }
+            })
+            if (!latestLog) throw new NotFoundException({
+                message: "Log not found",
+                code: ResponseCode.LOG_NOT_FOUND
+            })
+            if (latestLog.id !== dto.log_id) throw new BadRequestException({
+                message: "Invalid to to inactive",
+                code: ResponseCode.INVALID_LOG_TO_INACTIVE
+            })
+            const result = await this.dataSource.transaction(async (manager) => {
+                const result = await manager.update(Log, { id: dto.log_id }, { is_active: false });
+                await this.stepService.updateInactiveLogNum(dto.season_step_id, manager);
+                return result;
+            });
+
+            if (result.affected && result.affected > 0) return true;
+            throw new InternalServerErrorException();
+        }
+        catch (error) {
+            this.logger.error(`Failed to inactive log: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: "Failed to inactive log",
+                code: ResponseCode.INTERNAL_ERROR
+            })
+        }
+    }
+
     private async validateAddLog(newLog: AddLogDto): Promise<void> {
         const sd = await this.stepService.getSeasonDetailForValidateAddLog(newLog.season_detail_id);
 
@@ -181,15 +228,6 @@ export class LogService {
             throw new BadRequestException({
                 message: 'Cannot add logs to a step that is already DONE.',
                 code: ResponseCode.STEP_ALREADY_DONE
-            });
-        }
-        const logNum = await this.logRepository.count({
-            where: { season_detail_id: newLog.season_detail_id }
-        });
-        if (newLog.type === LogType.DONE && logNum < sd.step.min_logs) {
-            throw new BadRequestException({
-                message: `Not enough logs to mark step as DONE. Minimum required: ${sd.step.min_logs}`,
-                code: ResponseCode.NOT_ENOUGH_LOG
             });
         }
     }

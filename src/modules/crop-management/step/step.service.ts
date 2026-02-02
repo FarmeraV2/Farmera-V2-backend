@@ -1,6 +1,6 @@
 import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, QueryFailedError, Repository, SelectQueryBuilder } from 'typeorm';
+import { DataSource, EntityManager, QueryFailedError, Repository, SelectQueryBuilder } from 'typeorm';
 import { Step } from '../entities/step.entity';
 import { SeasonDetail } from '../entities/season-detail.entity';
 import { TriggerException } from 'src/database/utils/trigger.exception';
@@ -30,6 +30,7 @@ export class StepService {
         @InjectRepository(SeasonDetail) private readonly seasonDetailRepository: Repository<SeasonDetail>,
         @InjectRepository(Step) private readonly stepRepository: Repository<Step>,
         private readonly blockchainService: BlockchainService,
+        private readonly dataSource: DataSource,
     ) { }
 
     async addSeasonStep(addStepDto: AddStepDto): Promise<StepDto> {
@@ -129,6 +130,7 @@ export class StepService {
         }
     }
 
+
     async listSteps(listStepDto: ListStepDto): Promise<PaginationResult<Step>> {
         const paginationOptions = plainToInstance(PaginationTransform<StepSortFields>, listStepDto);
         const { sort_by, order } = paginationOptions;
@@ -205,9 +207,10 @@ export class StepService {
         }
     }
 
-    async getSeasonStep(seasonDetailId: number): Promise<StepDto> {
+    async getSeasonStep(seasonDetailId: number, manager?: EntityManager): Promise<StepDto> {
+        const repo = manager ? manager.getRepository(SeasonDetail) : this.seasonDetailRepository;
         try {
-            const result = await this.seasonDetailRepository.findOne({
+            const result = await repo.findOne({
                 where: { id: seasonDetailId }, relations: ["step"]
             });
             if (!result) {
@@ -254,6 +257,23 @@ export class StepService {
             throw new InternalServerErrorException({
                 message: "Failed to verify step",
                 code: ResponseCode.FAILED_TO_VERIFY_STEP
+            })
+        }
+    }
+
+    async updateSeasonStepStatus(seasonDetailId: number, status: StepStatus): Promise<boolean> {
+        try {
+            const result = await this.seasonDetailRepository.update(
+                { id: seasonDetailId },
+                { step_status: status }
+            )
+            if (result.affected && result.affected > 0) return true;
+            throw new InternalServerErrorException();
+        }
+        catch (error) {
+            throw new InternalServerErrorException({
+                message: "Failed to update step",
+                code: ResponseCode.FAILED_TO_UPDATE_STEP
             })
         }
     }
@@ -380,6 +400,21 @@ export class StepService {
             throw new InternalServerErrorException({
                 message: "Failed to get step",
                 code: ResponseCode.FAILED_TO_GET_STEP
+            })
+        }
+    }
+
+    async updateInactiveLogNum(id: number, manager?: EntityManager): Promise<void> {
+        const repo = manager ? manager.getRepository(SeasonDetail) : this.seasonDetailRepository;
+        try {
+            const seasonDetail = await repo.findOne({ where: { id: id } });
+            if (!seasonDetail) throw new InternalServerErrorException();
+            seasonDetail.inactive_logs += 1;
+            await repo.save(seasonDetail);
+        } catch (error) {
+            throw new InternalServerErrorException({
+                message: "Failed to get update season step",
+                code: ResponseCode.FAILED_TO_UPDATE_STEP
             })
         }
     }

@@ -2,20 +2,14 @@ CREATE OR REPLACE FUNCTION handle_after_add_logs_fn()
 RETURNS TRIGGER AS $$
 DECLARE step_st step_status; 
 BEGIN
-	IF (NEW."type" = 'DONE') THEN
-		UPDATE season_detail
-		SET step_status = 'DONE'
-		WHERE season_detail.id = NEW.season_detail_id;
-	ELSE
-		SELECT step_status INTO step_st
-		FROM season_detail
-		WHERE season_detail.id = NEW.season_detail_id;
+	SELECT step_status INTO step_st
+	FROM season_detail
+	WHERE season_detail.id = NEW.season_detail_id;
 
-		IF step_st = 'PENDING' THEN
-			UPDATE season_detail
-			SET step_status = 'IN_PROGRESS'
-			WHERE season_detail.id = NEW.season_detail_id;
-		END IF;
+	IF step_st = 'PENDING' THEN
+		UPDATE season_detail
+		SET step_status = 'IN_PROGRESS'
+		WHERE season_detail.id = NEW.season_detail_id;
 	END IF;
 
 	RETURN NEW;

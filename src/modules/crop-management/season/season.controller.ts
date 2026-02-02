@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { SeasonService } from './season.service';
 import { Roles } from 'src/common/decorators/role.decorator';
 import { UserRole } from 'src/common/enums/role.enum';

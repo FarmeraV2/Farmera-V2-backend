@@ -124,8 +124,6 @@ export class BlockchainService {
                 .getLogs(seasonDetailId)
                 .call();
 
-            console.log(result);
-
             const ids = result[0].map((id: bigint | string) => Number(id));
             const hashes = result[1];
 

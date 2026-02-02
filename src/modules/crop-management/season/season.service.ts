@@ -21,6 +21,7 @@ import { SeasonSortFields } from '../enums/season-sort-fields.enum';
 import { applyPagination } from 'src/common/utils/pagination.util';
 import { PlotService } from '../plot/plot.service';
 import { AddStepDto } from '../dtos/season/add-step.dto';
+import { StepStatus } from '../enums/step-status.enum';
 
 @Injectable()
 export class SeasonService {
