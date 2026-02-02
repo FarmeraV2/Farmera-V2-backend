@@ -409,6 +409,10 @@ export class StepService {
         try {
             const seasonDetail = await repo.findOne({ where: { id: id } });
             if (!seasonDetail) throw new InternalServerErrorException();
+            if (seasonDetail.step_status === StepStatus.DONE) throw new BadRequestException({
+                message: "Can not update finished step",
+                code: ResponseCode.STEP_ALREADY_DONE
+            })
             seasonDetail.inactive_logs += 1;
             await repo.save(seasonDetail);
         } catch (error) {

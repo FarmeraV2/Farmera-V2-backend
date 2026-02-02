@@ -160,9 +160,14 @@ export class LogService {
         }
     }
 
-    async finishStep(seasonStepId: number): Promise<void> {
+    async finishStep(seasonStepId: number): Promise<boolean> {
         try {
-            const logCount = await this.logRepository.countBy({ season_detail_id: seasonStepId });
+            const logCount = await this.logRepository.count({
+                where: {
+                    season_detail_id: seasonStepId,
+                    is_active: true,
+                }
+            });
             if (logCount <= 0) throw new BadRequestException({
                 message: "Can not finish a step without any log",
                 code: ResponseCode.NOT_ENOUGH_LOG
@@ -177,6 +182,7 @@ export class LogService {
                     transaction.transactionHash,
                 );
             }
+            return true;
         }
         catch (error) {
             if (error instanceof HttpException) throw error;
@@ -190,19 +196,19 @@ export class LogService {
 
     async unactiveLog(dto: InactiveLogDto): Promise<boolean> {
         try {
-            const latestLog = await this.logRepository.findOne({
-                select: ["id"],
-                where: { season_detail_id: dto.season_step_id },
-                order: { id: "DESC" }
-            })
-            if (!latestLog) throw new NotFoundException({
-                message: "Log not found",
-                code: ResponseCode.LOG_NOT_FOUND
-            })
-            if (latestLog.id !== dto.log_id) throw new BadRequestException({
-                message: "Invalid to to inactive",
-                code: ResponseCode.INVALID_LOG_TO_INACTIVE
-            })
+            // const latestLog = await this.logRepository.findOne({
+            //     select: ["id"],
+            //     where: { season_detail_id: dto.season_step_id },
+            //     order: { id: "DESC" }
+            // })
+            // if (!latestLog) throw new NotFoundException({
+            //     message: "Log not found",
+            //     code: ResponseCode.LOG_NOT_FOUND
+            // })
+            // if (latestLog.id !== dto.log_id) throw new BadRequestException({
+            //     message: "Invalid to to inactive",
+            //     code: ResponseCode.INVALID_LOG_TO_INACTIVE
+            // })
             const result = await this.dataSource.transaction(async (manager) => {
                 const result = await manager.update(Log, { id: dto.log_id }, { is_active: false });
                 await this.stepService.updateInactiveLogNum(dto.season_step_id, manager);
@@ -213,6 +219,7 @@ export class LogService {
             throw new InternalServerErrorException();
         }
         catch (error) {
+            if (error instanceof BadRequestException) throw error;
             this.logger.error(`Failed to inactive log: ${error.message}`);
             throw new InternalServerErrorException({
                 message: "Failed to inactive log",
