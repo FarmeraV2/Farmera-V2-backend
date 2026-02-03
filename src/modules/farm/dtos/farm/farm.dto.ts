@@ -23,6 +23,9 @@ export class FarmDto {
     @Expose() email: string;
     @Expose() phone: string;
     @Expose() tax_number: string;
+    @Expose() farm_size?: number;
+    @Expose() establish?: number;
+    @Expose() created: Date;
 
     @Expose()
     @Type(() => PublicUserDto)

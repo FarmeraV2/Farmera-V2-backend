@@ -53,6 +53,12 @@ export class Farm {
     @JoinColumn({ name: 'user_id' })
     owner: User;
 
+    @Column({ nullable: true })
+    establish: number;
+
+    @Column({ nullable: true })
+    farm_size: number;
+
     @Column()
     user_id: number;
 

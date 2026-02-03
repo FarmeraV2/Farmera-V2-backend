@@ -17,6 +17,12 @@ export class FarmCertificate {
     @Column({ type: "jsonb", nullable: true })
     meta_data?: Record<string, any>;
 
+    @Column({ type: "date", nullable: true })
+    valid_until: Date;
+
+    @Column({ nullable: true })
+    issuer: string;
+
     @Column({ type: "enum", enum: CertificateStatus, enumName: "certificate_status", default: CertificateStatus.PENDING })
     status: CertificateStatus;
 

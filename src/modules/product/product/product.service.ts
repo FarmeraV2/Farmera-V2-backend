@@ -225,12 +225,15 @@ export class ProductService {
      * @throws {BadRequestException} - If an invalid status is provided or the requested page is out of range
      * @throws {InternalServerErrorException} - If the search and filtering process fails due to an unexpected error
      */
-    async searchAndFilterProducts(searchProductsDto: SearchProductsDto): Promise<PaginationResult<ProductDto>> {
+    async searchAndFilterProducts(searchProductsDto: SearchProductsDto, farmId?: number): Promise<PaginationResult<ProductDto>> {
         // todo!("optimize this fk shit")
         // extract pagination options
         const paginationOptions = plainToInstance(PaginationTransform<ProductSortField>, searchProductsDto);
         try {
             const queryBuilder = this.productsRepository.createQueryBuilder('product').select(productSelectFields)
+            if (farmId) {
+                queryBuilder.where('product.farm_id = :farmId', { farmId: farmId });
+            }
             // todo!("only get available products")
             // .where('product.status != :deletedStatus', { deletedStatus: ProductStatus.DELETED });
 

@@ -28,6 +28,7 @@ import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.d
 import { SearchProductsDto } from 'src/modules/product/dtos/product/search-product.dto';
 import { FarmProductDetailDto } from 'src/modules/product/dtos/product/farm-product-detail.dto';
 import { FarmProductDto } from 'src/modules/product/dtos/product/farm-product.dto';
+import { ProductDto } from 'src/modules/product/dtos/product/product.dto';
 
 @Injectable()
 export class FarmService {
@@ -523,6 +524,10 @@ export class FarmService {
 
     async getMyFarmProducts(farmId: number, getProductDto: SearchProductsDto): Promise<PaginationResult<FarmProductDto>> {
         return await this.productService.getFarmProducts(farmId, getProductDto);
+    }
+
+    async getFarmProducts(farmId: number, getProductDto: SearchProductsDto): Promise<PaginationResult<ProductDto>> {
+        return await this.productService.searchAndFilterProducts(getProductDto, farmId);
     }
 
     async getMyFarmProductById(productId: number): Promise<FarmProductDetailDto> {

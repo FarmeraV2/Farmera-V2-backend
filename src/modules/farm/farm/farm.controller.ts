@@ -97,9 +97,15 @@ export class FarmController {
         return await this.farmService.getMyFarmProductById(productId);
     }
 
+    @Get(':farmId/product')
+    @Public()
+    async getFarmProducts(@Param("farmId") farmId: number, @Query() getProductByFarmDto: SearchProductsDto) {
+        return await this.farmService.getFarmProducts(farmId, getProductByFarmDto);
+    }
+
     @Get('my/product')
     @Roles([UserRole.FARMER])
-    async getFarmProducts(@User() user: UserInterface, @Query() getProductByFarmDto: SearchProductsDto) {
+    async getMyFarmProducts(@User() user: UserInterface, @Query() getProductByFarmDto: SearchProductsDto) {
         return await this.farmService.getMyFarmProducts(user.farm_id!, getProductByFarmDto);
     }
 

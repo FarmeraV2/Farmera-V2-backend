@@ -17,6 +17,8 @@ export class MyFarmDto {
     @Expose() status: FarmStatus;
     @Expose() created: Date;
     @Expose() updated: Date;
+    @Expose() farm_size?: number;
+    @Expose() establish?: number;
 
     @Type(() => DeliveryAddressDto)
     @Expose() address: DeliveryAddressDto;
