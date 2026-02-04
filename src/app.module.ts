@@ -26,6 +26,8 @@ import { FileStorageModule } from './core/file-storage/file-storage.module';
 import { StringValue } from 'ms';
 import { AuditModule } from './core/audit/audit.module';
 import { QrModule } from './modules/qr/qr.module';
+import { FtesModule } from './modules/ftes/ftes.module';
+import { BlockchainModule } from './modules/blockchain/blockchain.module';
 
 @Module({
     imports: [
@@ -89,6 +91,8 @@ import { QrModule } from './modules/qr/qr.module';
         FileStorageModule,
         AuditModule,
         QrModule,
+        FtesModule,
+        BlockchainModule,
     ],
     controllers: [AppController],
     providers: [

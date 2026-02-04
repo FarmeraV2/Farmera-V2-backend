@@ -16,7 +16,7 @@ import { HashedLog } from '../dtos/log/hashed-log.dto';
 import { StepService } from '../step/step.service';
 import { StepStatus } from '../enums/step-status.enum';
 import { InactiveLogDto } from '../dtos/log/inactive-log.dto';
-import { BlockchainService } from '../blockchain/blockchain.service';
+import { ProcessTrackingService } from 'src/modules/blockchain/process-tracking/process-tracking.service';
 
 @Injectable()
 export class LogService {
@@ -26,7 +26,7 @@ export class LogService {
     constructor(
         @InjectRepository(Log) private readonly logRepository: Repository<Log>,
         private readonly dataSource: DataSource,
-        private readonly blockchainService: BlockchainService,
+        private readonly blockchainService: ProcessTrackingService,
         private readonly stepService: StepService,
     ) { }
 

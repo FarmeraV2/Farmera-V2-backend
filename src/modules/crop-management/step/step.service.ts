@@ -19,7 +19,7 @@ import { Order } from 'src/common/enums/pagination.enum';
 import { SeasonDetailDto } from '../dtos/step/season-detail.dto';
 import { StepStatus } from '../enums/step-status.enum';
 import { Season } from '../entities/season.entity';
-import { BlockchainService } from '../blockchain/blockchain.service';
+import { ProcessTrackingService } from 'src/modules/blockchain/process-tracking/process-tracking.service';
 
 @Injectable()
 export class StepService {
@@ -29,7 +29,7 @@ export class StepService {
     constructor(
         @InjectRepository(SeasonDetail) private readonly seasonDetailRepository: Repository<SeasonDetail>,
         @InjectRepository(Step) private readonly stepRepository: Repository<Step>,
-        private readonly blockchainService: BlockchainService,
+        private readonly blockchainService: ProcessTrackingService,
         private readonly dataSource: DataSource,
     ) { }
 
