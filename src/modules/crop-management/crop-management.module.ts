@@ -13,10 +13,10 @@ import { StepController } from './step/step.controller';
 import { LogService } from './log/log.service';
 import { LogController } from './log/log.controller';
 import { Step } from './entities/step.entity';
-import { BlockchainService } from 'src/services/blockchain.service';
 import { CropService } from './crop/crop.service';
 import { CropController } from './crop/crop.controller';
 import { Crop } from './entities/crop.entity';
+import { BlockchainService } from './blockchain/blockchain.service';
 
 @Module({
   imports: [

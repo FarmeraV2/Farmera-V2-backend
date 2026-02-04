@@ -16,10 +16,10 @@ import { CreateStepDto } from '../dtos/step/create-step.dto';
 import { ListStepDto } from '../dtos/step/list-step.dto';
 import { StepSortFields } from '../enums/step-sort-fields.enum';
 import { Order } from 'src/common/enums/pagination.enum';
-import { BlockchainService } from 'src/services/blockchain.service';
 import { SeasonDetailDto } from '../dtos/step/season-detail.dto';
 import { StepStatus } from '../enums/step-status.enum';
 import { Season } from '../entities/season.entity';
+import { BlockchainService } from '../blockchain/blockchain.service';
 
 @Injectable()
 export class StepService {

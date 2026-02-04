@@ -12,11 +12,11 @@ import { PaginationTransform } from 'src/common/dtos/pagination/pagination-optio
 import { LogDto } from '../dtos/log/log.dto';
 import { applyPagination } from 'src/common/utils/pagination.util';
 import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
-import { BlockchainService } from 'src/services/blockchain.service';
 import { HashedLog } from '../dtos/log/hashed-log.dto';
 import { StepService } from '../step/step.service';
 import { StepStatus } from '../enums/step-status.enum';
 import { InactiveLogDto } from '../dtos/log/inactive-log.dto';
+import { BlockchainService } from '../blockchain/blockchain.service';
 
 @Injectable()
 export class LogService {
