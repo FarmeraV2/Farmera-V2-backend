@@ -9,6 +9,7 @@ import { Season } from 'src/modules/crop-management/entities/season.entity';
 import { Log } from 'src/modules/crop-management/entities/log.entity';
 import { Product } from 'src/modules/product/entities/product.entity';
 import { FarmCertificate } from './farm-certificate.entity';
+import { FarmTransparencyMetrics } from 'src/modules/ftes/interfaces/farm-transparency.interface';
 
 @Entity()
 export class Farm {
@@ -90,6 +91,6 @@ export class Farm {
     @OneToMany(() => FarmCertificate, (cert) => cert.farm)
     certificate?: FarmCertificate;
 
-    @Column({ type: "float", nullable: true })
-    transparency_score?: number;
+    @Column({ type: "jsonb", nullable: true })
+    transparency_score?: FarmTransparencyMetrics
 }

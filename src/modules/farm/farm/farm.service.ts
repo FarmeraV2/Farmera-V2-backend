@@ -29,6 +29,7 @@ import { SearchProductsDto } from 'src/modules/product/dtos/product/search-produ
 import { FarmProductDetailDto } from 'src/modules/product/dtos/product/farm-product-detail.dto';
 import { FarmProductDto } from 'src/modules/product/dtos/product/farm-product.dto';
 import { ProductDto } from 'src/modules/product/dtos/product/product.dto';
+import { FarmTransparencyMetricsDto } from '../dtos/farm/farm-transparency-metrics.dto';
 
 @Injectable()
 export class FarmService {
@@ -550,7 +551,7 @@ export class FarmService {
         return await this.productService.getProductRatings(farmId);
     }
 
-    async updateTransparencyScore(farmId: number, score: number, manager?: EntityManager): Promise<void> {
+    async updateTransparencyScore(farmId: number, score: FarmTransparencyMetricsDto, manager?: EntityManager): Promise<void> {
         try {
             const repo = manager ? manager.getRepository(Farm) : this.farmRepository;
             await repo.update(

@@ -1,6 +1,6 @@
 export interface FarmTransparencyMetrics {
-    procesTransparency: number;
-    customerTrustScore: number;
+    process_transparency: number;
+    customer_trust_score: number;
 
     total: number;
 }

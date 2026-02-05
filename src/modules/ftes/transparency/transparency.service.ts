@@ -217,8 +217,8 @@ export class TransparencyService {
             );
 
             return {
-                procesTransparency: procesTransparency,
-                customerTrustScore: customerTrustScore,
+                process_transparency: procesTransparency,
+                customer_trust_score: customerTrustScore,
                 total: totalTransparencyScore
             };
         } catch (error) {
@@ -285,11 +285,11 @@ export class TransparencyService {
                 try {
                     const score = await this.calcFarmTransparencyScore(id);
                     this.logger.debug(`Farm ${id} transparency metrics calculated:
-                        ProcessTransparency: ${score.procesTransparency}
-                        CustomerTrust: ${score.customerTrustScore}
+                        ProcessTransparency: ${score.process_transparency}
+                        CustomerTrust: ${score.customer_trust_score}
                         TOTAL SCORE: ${score.total}`
                     );
-                    await this.farmService.updateTransparencyScore(id, score.total);
+                    await this.farmService.updateTransparencyScore(id, score);
                     success += 1;
                 }
                 catch (error) {

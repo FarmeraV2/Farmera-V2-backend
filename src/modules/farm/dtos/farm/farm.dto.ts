@@ -1,6 +1,7 @@
 import { Expose, Type } from "class-transformer";
 import { DeliveryAddressDto } from "src/modules/address/dtos/delivery-address.dto";
 import { PublicUserDto } from "src/modules/user/dtos/user/user.dto";
+import { FarmTransparencyMetricsDto } from "./farm-transparency-metrics.dto";
 
 export class FarmSummaryDto {
     @Expose() id: number;
@@ -25,13 +26,15 @@ export class FarmDto {
     @Expose() tax_number: string;
     @Expose() farm_size?: number;
     @Expose() establish?: number;
-    @Expose() transparency_score?: number;
     @Expose() created: Date;
 
     @Expose()
     @Type(() => PublicUserDto)
     owner: PublicUserDto;
 
+    @Expose()
+    @Type(() => FarmTransparencyMetricsDto)
+    transparency_score?: FarmTransparencyMetricsDto;
 
     @Type(() => DeliveryAddressDto)
     @Expose() address: DeliveryAddressDto;
