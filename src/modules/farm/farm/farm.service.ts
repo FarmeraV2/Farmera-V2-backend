@@ -546,6 +546,10 @@ export class FarmService {
         }
     }
 
+    async getFarmProductRating(farmId: number): Promise<number[]> {
+        return await this.productService.getProductRatings(farmId);
+    }
+
     async updateTransparencyScore(farmId: number, score: number, manager?: EntityManager): Promise<void> {
         try {
             const repo = manager ? manager.getRepository(Farm) : this.farmRepository;

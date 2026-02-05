@@ -22,7 +22,7 @@ export class StepDto {
     @Expose() transaction_hash?: string;
     @Expose() verified?: boolean;
     @Expose() inactive_logs: number;
-    @Expose() transparency_score: number;
+    @Expose() transparency_score?: number;
     @Expose() created: Date;
     @Expose() updated: Date;
 }

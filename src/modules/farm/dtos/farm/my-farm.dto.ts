@@ -18,6 +18,7 @@ export class MyFarmDto {
     @Expose() created: Date;
     @Expose() updated: Date;
     @Expose() farm_size?: number;
+    @Expose() transparency_score?: number;
     @Expose() establish?: number;
 
     @Type(() => DeliveryAddressDto)

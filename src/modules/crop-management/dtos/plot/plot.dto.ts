@@ -28,6 +28,7 @@ export class PlotDetailDto {
     @Expose() image_url: string;
     @Expose() created: Date
     @Expose() updated: Date
+    @Expose() transparency_score?: number;
     @Expose() crop_id: number;
 }
 

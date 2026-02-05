@@ -8,7 +8,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
+import { DataSource, In, Not, Repository, SelectQueryBuilder } from 'typeorm';
 import { Product } from '../entities/product.entity';
 import { CreateProductDto } from '../dtos/product/create-product.dto';
 import { ConfigService } from '@nestjs/config';
@@ -518,6 +518,19 @@ export class ProductService {
         );
         if (!result.affected || result.affected === 0) {
             throw new Error();
+        }
+    }
+
+    async getProductRatings(farmId: number): Promise<number[]> {
+        try {
+            const products = await this.productsRepository.find({
+                select: ["average_rating"],
+                where: { farm_id: farmId, status: Not(In([ProductStatus.DELETED, ProductStatus.PRE_ORDER])) }
+            })
+            return products.map((p) => p.average_rating);
+        }
+        catch (error) {
+            throw Error(`Failed to get product rating: ${error.message}`);
         }
     }
 
