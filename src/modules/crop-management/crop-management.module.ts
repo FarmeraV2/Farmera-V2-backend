@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { PlotService } from './plot/plot.service';
 import { PlotController } from './plot/plot.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -17,14 +17,18 @@ import { CropService } from './crop/crop.service';
 import { CropController } from './crop/crop.controller';
 import { Crop } from './entities/crop.entity';
 import { BlockchainModule } from '../blockchain/blockchain.module';
+import { FtesModule } from '../ftes/ftes.module';
+import { ProductModule } from '../product/product.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Plot, Season, SeasonDetail, Step, Log, Crop]),
-    BlockchainModule
+    BlockchainModule,
+    ProductModule,
+    forwardRef(() => FtesModule)
   ],
   providers: [PlotService, SeasonService, StepService, LogService, CropService],
   controllers: [PlotController, SeasonController, StepController, LogController, CropController],
-  exports: [SeasonService]
+  exports: [SeasonService, StepService, LogService, PlotService],
 })
 export class CropManagementModule { }

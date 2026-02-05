@@ -15,7 +15,7 @@ export class Plot {
     crop_name: string;
 
     @Column({ nullable: true })
-    area?: number;
+    area: number;
 
     @Column({ type: "jsonb" })
     location: { lat: number; lng: number }
@@ -51,4 +51,7 @@ export class Plot {
 
     @Column({ nullable: true })
     crop_id: number;
+
+    @Column({ type: "float", nullable: true })
+    transparency_score?: number;
 }

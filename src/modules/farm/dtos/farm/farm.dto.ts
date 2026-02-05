@@ -25,6 +25,7 @@ export class FarmDto {
     @Expose() tax_number: string;
     @Expose() farm_size?: number;
     @Expose() establish?: number;
+    @Expose() transparency_score?: number;
     @Expose() created: Date;
 
     @Expose()

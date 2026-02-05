@@ -4,6 +4,6 @@ import { TrustworthinessService } from './trustworthiness/trustworthiness.servic
 
 @Module({
   providers: [ProcessTrackingService, TrustworthinessService],
-  exports: [ProcessTrackingService]
+  exports: [ProcessTrackingService, TrustworthinessService]
 })
 export class BlockchainModule { }

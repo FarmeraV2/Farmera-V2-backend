@@ -14,6 +14,7 @@ export class StepDto {
     @Expose() step_description: string;
     @Expose() step_type: StepType;
     @Expose() step_order: number;
+    @Expose() min_logs: number;
     // from season_detail table
     @Expose() step_status: StepStatus;
     @Expose() step_evaluation?: StepEvaluation
@@ -21,6 +22,7 @@ export class StepDto {
     @Expose() transaction_hash?: string;
     @Expose() verified?: boolean;
     @Expose() inactive_logs: number;
+    @Expose() transparency_score: number;
     @Expose() created: Date;
     @Expose() updated: Date;
 }

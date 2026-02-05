@@ -534,6 +534,34 @@ export class FarmService {
         return await this.productService.getFarmProductById(productId);
     }
 
+    async getAllFarmIds(): Promise<number[]> {
+        try {
+            const farms = await this.farmRepository.find({
+                select: ["id"]
+            })
+            return farms.map((f) => f.id);
+        }
+        catch (error) {
+            throw Error(`Failed to get all farm ids: ${error.message}`);
+        }
+    }
+
+    async updateTransparencyScore(farmId: number, score: number, manager?: EntityManager): Promise<void> {
+        try {
+            const repo = manager ? manager.getRepository(Farm) : this.farmRepository;
+            await repo.update(
+                { id: farmId },
+                { transparency_score: score })
+        }
+        catch (error) {
+            this.logger.error(`Failed to update season transparency score: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: "Failed to update season transparency score",
+                code: ResponseCode.FAILED_TO_UPDATE_SEASON
+            })
+        }
+    }
+
     //   async findFarmsByIds(farmIds: string[]): Promise<Farm[]> {
     //     // Hoặc number[]
     //     if (!farmIds || farmIds.length === 0) {

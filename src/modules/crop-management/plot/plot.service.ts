@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { Plot } from '../entities/plot.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
@@ -14,6 +14,7 @@ import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.d
 import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
 import { UpdatePlotDto } from '../dtos/plot/update-plot.dto';
 import { SeasonStatus } from '../enums/season-status.enum';
+import { SeasonDetailDto } from '../dtos/season/season.dto';
 
 @Injectable()
 export class PlotService {
@@ -198,5 +199,54 @@ export class PlotService {
         //     })
         // }
         return plot;
+    }
+
+    async getPlotCrop(plotId: number): Promise<Plot> {
+        try {
+            const result = await this.plotRepository.findOne({
+                where: { id: plotId },
+                relations: ["crop"]
+            });
+            if (!result) throw new NotFoundException({
+                message: "Plot not found",
+                code: ResponseCode.PLOT_NOT_FOUND,
+            })
+            return result;
+        }
+        catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error(`Failed to get plot: ${error.message}`)
+            throw new InternalServerErrorException({
+                message: "Failed to get plot",
+                code: ResponseCode.FAILED_TO_GET_PLOTS
+            })
+        }
+    }
+
+    async updateTransparencyScore(plotId: number, score: number, manager?: EntityManager): Promise<void> {
+        try {
+            const repo = manager ? manager.getRepository(Plot) : this.plotRepository;
+            await repo.update(
+                { id: plotId },
+                { transparency_score: score })
+        }
+        catch (error) {
+            this.logger.error(`Failed to update plot transparency score: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: "Failed to update plot transparency score",
+                code: ResponseCode.FAILED_TO_UPDATE_PLOT
+            })
+        }
+    }
+
+    async getFarmPlots(farmId: number): Promise<Plot[]> {
+        try {
+            return await this.plotRepository.find({
+                where: { farm_id: farmId }
+            })
+        }
+        catch (error) {
+            throw new Error("Failed to get farm plots")
+        }
     }
 }

@@ -81,7 +81,7 @@ export class Farm {
     products: Product[];
 
     @OneToMany(() => Plot, (plot) => plot.farm)
-    plots?: Plot[]
+    plots: Plot[]
     @OneToMany(() => Season, (season) => season.farm)
     seasons?: Season[]
     @OneToMany(() => Log, (log) => log.farm)
@@ -89,4 +89,7 @@ export class Farm {
 
     @OneToMany(() => FarmCertificate, (cert) => cert.farm)
     certificate?: FarmCertificate;
+
+    @Column({ type: "float", nullable: true })
+    transparency_score?: number;
 }

@@ -1,8 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { processTrackingContractAbi } from "src/contracts/ProcessTracking";
 import { trustComputationContractAbi } from "src/contracts/TrustComputation";
 import Web3 from "web3";
+import { TransactionReceipt } from "../interfaces/transaction-receipt.interface";
+import { TrustedLog } from "../interfaces/trusted-log.interface";
+import { TrustRecord } from "../interfaces/trust-score-record.interface";
 
 @Injectable()
 export class TrustworthinessService {
@@ -29,5 +31,76 @@ export class TrustworthinessService {
         const abi = trustComputationContractAbi;
 
         this.contract = new this.web3.eth.Contract(abi, contractAddress);
+    }
+
+    async processData(id: number, dataType: string, context: string, data: TrustedLog): Promise<TransactionReceipt> {
+        try {
+            return await this.contract.methods
+                .processData(id, dataType, context, this.encodeLogData(data))
+                .send({ from: this.web3.eth.defaultAccount });
+
+        } catch (error) {
+            this.logger.error(error.message);
+            this.logger.error("Error name: ", error.cause.errorName);
+            throw new Error(error.message);
+        }
+    }
+
+    async getTrustRecord(id: number): Promise<TrustRecord> {
+        try {
+            return await this.contract.methods
+                .getTrustRecord(id)
+                .call({ from: this.web3.eth.defaultAccount });
+
+        } catch (error) {
+            this.logger.error(error.message);
+            this.logger.error("Error name: ", error.cause.errorName);
+            throw new Error(error.message);
+        }
+    }
+
+    async getTrustRecords(ids: number[]): Promise<TrustRecord[]> {
+        try {
+            const result = await this.contract.methods
+                .getTrustRecords(ids)
+                .call({ from: this.web3.eth.defaultAccount });
+
+            const trustScores = result[0].map((score: string) => Number(score));
+            const timestamps = result[1].map((ts: string) => Number(ts));
+
+            const records = ids.map((id, index) => ({
+                id: id,
+                trustScore: trustScores[index],
+                timestamp: timestamps[index]
+            }));
+
+            return records;
+
+        } catch (error) {
+            this.logger.error(error.message);
+            this.logger.error("Error name: ", error.cause.errorName);
+            throw new Error(error.message);
+        }
+    }
+
+    private encodeLogData(data: TrustedLog): string {
+        return this.web3.eth.abi.encodeParameters(
+            [
+                "tuple(bool,uint256,uint256,(int256,int256),(int256,int256))"
+            ],
+            [[
+                data.verified,
+                data.imageCount,
+                data.videoCount,
+                [
+                    Math.round(data.logLocation.latitude),
+                    Math.round(data.logLocation.longitude)
+                ],
+                [
+                    Math.round(data.plotLocation.latitude),
+                    Math.round(data.plotLocation.longitude)
+                ]
+            ]]
+        );
     }
 }

@@ -1,12 +1,8 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { LogService } from './log.service';
 import { Roles } from 'src/common/decorators/role.decorator';
 import { UserRole } from 'src/common/enums/role.enum';
 import { ListLogDto } from '../dtos/log/list-log.dto';
-import { User } from 'src/common/decorators/user.decorator';
-import { UserInterface } from 'src/common/types/user.interface';
-import { AddLogDto } from '../dtos/log/add-log.dto';
-import { InactiveLogDto } from '../dtos/log/inactive-log.dto';
 
 @Controller('log')
 export class LogController {
@@ -23,23 +19,5 @@ export class LogController {
     @Get(":id")
     async getLog(@Param("id") id: number) {
         return await this.logService.getLog(id);
-    }
-
-    @Roles([UserRole.FARMER])
-    @Post()
-    async addLog(@User() user: UserInterface, @Body() addLogDto: AddLogDto) {
-        return await this.logService.addLog(user.farm_id!, addLogDto);
-    }
-
-    @Roles([UserRole.FARMER])
-    @Patch("season-step/:stepId/done")
-    async finishStep(@Param("stepId") stepId: number) {
-        return await this.logService.finishStep(stepId);
-    }
-
-    @Roles([UserRole.FARMER])
-    @Patch("/inactive")
-    async unactiveLog(@Body() dto: InactiveLogDto) {
-        return await this.logService.unactiveLog(dto);
     }
 }

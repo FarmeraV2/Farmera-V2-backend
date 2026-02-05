@@ -73,18 +73,6 @@ export class ProductController {
         return await this.productService.getProductById(productId, include_categories);
     }
 
-    @Roles([UserRole.FARMER])
-    @Patch(':id/assign')
-    async assignSeason(@Param('id') productId: number, @Body() body: AssignSeasonDto) {
-        return await this.productService.assignSeason(productId, body.season_id);
-    }
-
-    @Roles([UserRole.FARMER])
-    @Patch(':id/status')
-    async updateProductStatus(@Param('id') productId: number, @Body() dto: UpdateProductStatusDto) {
-        return await this.productService.updateProductStatus(productId, dto);
-    }
-
     /*#########################################################################
                                    Deprecated                                
     #########################################################################*/

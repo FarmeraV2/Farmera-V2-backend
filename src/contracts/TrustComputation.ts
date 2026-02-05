@@ -49,6 +49,30 @@ export const trustComputationContractAbi = [
     },
     {
         type: "function",
+        name: "getTrustRecords",
+        inputs: [
+            {
+                name: "logIds",
+                type: "uint64[]",
+                internalType: "uint64[]"
+            }
+        ],
+        outputs: [
+            {
+                name: "",
+                type: "uint256[]",
+                internalType: "uint256[]"
+            },
+            {
+                name: "",
+                type: "uint256[]",
+                internalType: "uint256[]"
+            }
+        ],
+        stateMutability: "view"
+    },
+    {
+        type: "function",
         name: "processData",
         inputs: [
             {

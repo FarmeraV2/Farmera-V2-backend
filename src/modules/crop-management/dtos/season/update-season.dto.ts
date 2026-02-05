@@ -19,11 +19,6 @@ export class UpdateSeasonDto {
     @IsNotEmpty()
     expected_end_date: Date;
 
-    @IsOptional()
-    @IsDateString()
-    @IsNotEmpty()
-    actual_end_date?: Date;
-
     @IsInt()
     @IsPositive()
     expected_yield: number;

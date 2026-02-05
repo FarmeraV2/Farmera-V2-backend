@@ -11,10 +11,9 @@ export class CreatePlotDto {
     @IsNotEmpty()
     crop_name: string;
 
-    @IsOptional()
     @IsNumber()
     @IsPositive()
-    area?: number;
+    area: number;
 
     @IsObject()
     @Type(() => LocationRequestDto)
