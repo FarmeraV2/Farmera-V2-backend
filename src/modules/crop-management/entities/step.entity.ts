@@ -36,6 +36,12 @@ export class Step {
     @Column({ nullable: true })
     interval_date: number;
 
+    @Column({ nullable: true })
+    min_day_duration: number;
+
+    @Column({ nullable: true })
+    max_day_duration: number;
+
     @CreateDateColumn({ type: "timestamptz" })
     created: Date;
 

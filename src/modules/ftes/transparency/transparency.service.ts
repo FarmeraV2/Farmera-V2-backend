@@ -33,8 +33,8 @@ export class TransparencyService {
 
 
     async onModuleInit() {
-        this.logger.debug('Running farm transparency job on server start');
-        await this.handleCalcFarmTSCron();
+        // this.logger.debug('Running farm transparency job on server start');
+        // await this.handleCalcFarmTSCron();
     }
 
     async calcStepTransparencyScore(seasonStepId: number): Promise<number> {

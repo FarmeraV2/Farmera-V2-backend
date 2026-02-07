@@ -12,7 +12,7 @@ export class Crop {
     @Column({ type: "enum", enum: CropType, enumName: "crop_type" })
     crop_type: CropType;
 
-    @Column()
+    @Column({ nullable: true })
     description: string;
 
     @Column('text', { array: true })

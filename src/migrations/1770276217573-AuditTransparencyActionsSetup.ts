@@ -17,13 +17,23 @@ export class AuditTransparencyActionsSetup1770276217573 implements MigrationInte
 
     public async down(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
-            DELETE FROM audit_event
+        DELETE FROM audit
+            WHERE audit_event_id IN (
+                'FTS001',
+                'FTS002',
+                'FTS003',
+                'FTS004'
+            );
+        `);
+
+        await queryRunner.query(`
+            DELETE FROM audit_event CASCADE
             WHERE id IN (
                 'FTS001',
                 'FTS002',
                 'FTS003',
                 'FTS004'
-            )
+            );
         `);
     }
 
