@@ -58,6 +58,19 @@ export class OrderController {
         return await this.orderService.getOrdersForFarmer(farmerID, queryDto);
     }
 
+    @Get('farmer/orders/:order_id')
+    @Roles([UserRole.FARMER])
+    async getOrderByIdForFarmer(@User() user: UserInterface, @Param('order_id', ParseIntPipe) orderId: number) {
+        if (!user.farm_id) {
+            throw new BadRequestException({
+                message: 'No farm found for this farmer',
+                code: ResponseCode.FARM_NOT_FOUND || 'FARM_NOT_FOUND',
+            });
+        }
+        const farmerID = user.farm_id;
+        return await this.orderService.getOrderByIdForFarmer(orderId, farmerID);
+    }
+
     @Post('calculate-shipping-fee')
     @Roles([UserRole.BUYER, UserRole.FARMER])
     async calculateShippingFee(@User() user: UserInterface, @Body() calculateShippingFeeRequestDto: CalculateShippingFeeRequestDto) {
@@ -108,5 +121,31 @@ export class OrderController {
         @Param('delivery_id', ParseIntPipe) deliveryId: number
     ) {
         return await this.orderService.updateDeliveryFromGHN(deliveryId);
+    }
+    
+    @Post('farmer/orders/:order_id/confirm')
+    @Roles([UserRole.FARMER])
+    async confirmOrder(@User() user: UserInterface, @Param('order_id', ParseIntPipe) orderId: number) {
+        if (!user.farm_id) {
+            throw new BadRequestException({
+                message: 'No farm found for this farmer',
+                code: ResponseCode.FARM_NOT_FOUND || 'FARM_NOT_FOUND',
+            });
+        }
+        const farmerID = user.farm_id;
+        return await this.orderService.farmerConfirmOrder(orderId, farmerID);
+    }
+    
+    @Post('farmer/orders/:order_id/cancel')
+    @Roles([UserRole.FARMER])
+    async cancelOrder(@User() user: UserInterface, @Param('order_id', ParseIntPipe) orderId: number) {
+        if (!user.farm_id) {
+            throw new BadRequestException({
+                message: 'No farm found for this farmer',
+                code: ResponseCode.FARM_NOT_FOUND || 'FARM_NOT_FOUND',
+            });
+        }
+        const farmerID = user.farm_id;
+        return await this.orderService.farmerCancelOrder(orderId, farmerID);
     }
 }
