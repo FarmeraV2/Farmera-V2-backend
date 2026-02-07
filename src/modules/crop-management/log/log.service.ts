@@ -1,10 +1,9 @@
-import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Log } from '../entities/log.entity';
 import { AddLogDto } from '../dtos/log/add-log.dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
-import { TriggerException } from 'src/database/utils/trigger.exception';
 import { ListLogDto } from '../dtos/log/list-log.dto';
 import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
 import { plainToInstance } from 'class-transformer';
@@ -12,11 +11,9 @@ import { PaginationTransform } from 'src/common/dtos/pagination/pagination-optio
 import { LogDto } from '../dtos/log/log.dto';
 import { applyPagination } from 'src/common/utils/pagination.util';
 import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
-import { BlockchainService } from 'src/services/blockchain.service';
 import { HashedLog } from '../dtos/log/hashed-log.dto';
-import { LogType } from '../enums/log-type.enum';
-import { StepService } from '../step/step.service';
-import { StepStatus } from '../enums/step-status.enum';
+import { InactiveLogDto } from '../dtos/log/inactive-log.dto';
+import { ProcessTrackingService } from 'src/modules/blockchain/process-tracking/process-tracking.service';
 
 @Injectable()
 export class LogService {
@@ -26,57 +23,20 @@ export class LogService {
     constructor(
         @InjectRepository(Log) private readonly logRepository: Repository<Log>,
         private readonly dataSource: DataSource,
-        private readonly blockchainService: BlockchainService,
-        private readonly stepService: StepService,
+        private readonly processTrackingBlockchainservice: ProcessTrackingService,
     ) { }
 
-    async addLog(farmId: number, addLogDto: AddLogDto): Promise<Log> {
+    async addLog(farmId: number, addLogDto: AddLogDto, manager?: EntityManager): Promise<Log> {
+        const repo = manager ? manager.getRepository(Log) : this.logRepository;
         try {
-            let savedLog: Log | undefined;
-
-            await this.validateAddLog(addLogDto);
-
-            await this.dataSource.transaction(async (transactionalEntityManager) => {
-                const newLog = this.logRepository.create({
-                    ...addLogDto,
-                    farm_id: farmId,
-                });
-
-                savedLog = await transactionalEntityManager.save(newLog);
-
-                const trasaction = await this.blockchainService.addLog(savedLog);
-
-                await transactionalEntityManager.update(
-                    Log,
-                    { id: savedLog.id },
-                    { transaction_hash: trasaction.transactionHash })
-
-                savedLog.transaction_hash = trasaction.transactionHash;
-                savedLog.verified = trasaction.transactionHash ? true : false;
-
-                // upload step to blockchain if this is the last step
-                if (savedLog.type === LogType.DONE) {
-                    const step = await this.stepService.getSeasonStep(addLogDto.season_detail_id);
-                    const transaction = await this.blockchainService.addStep(step);
-                    await this.stepService.updateTransactionHash(
-                        step.season_id,
-                        step.step_id,
-                        transaction.transactionHash,
-                        transactionalEntityManager
-                    );
-                }
+            const newLog = this.logRepository.create({
+                ...addLogDto,
+                farm_id: farmId,
             });
 
-            if (!savedLog) {
-                throw new InternalServerErrorException();
-            }
-
-            return savedLog;
+            return await repo.save(newLog);
         }
         catch (error) {
-            if (error instanceof QueryFailedError) {
-                TriggerException.throwLogException(error);
-            }
             if (error instanceof HttpException) throw error;
             this.logger.error("Failed to add log: ", error.message);
             throw new InternalServerErrorException({
@@ -84,6 +44,16 @@ export class LogService {
                 code: ResponseCode.FAILED_TO_ADD_LOG
             })
         }
+    }
+
+    async updateTransactionHash(id: number, transactionHash: string, manager?: EntityManager): Promise<string> {
+        const repo = manager ? manager.getRepository(Log) : this.logRepository;
+        const result = await repo.update(
+            { id: id },
+            { transaction_hash: transactionHash }
+        );
+        if (result.affected && result.affected > 0) return transactionHash;
+        throw Error("Failed to update transaction hash");
     }
 
     async getLog(logId: number) {
@@ -107,9 +77,12 @@ export class LogService {
                 where: { season_detail_id: seasonDetailId, },
                 order: { id: "DESC" }
             });
+            if (logs.length === 0) {
+                return logs;
+            }
             let hashedLogs: { id: number, hash: string }[] = [];
             try {
-                hashedLogs = await this.blockchainService.getHashedLogs(seasonDetailId);
+                hashedLogs = await this.processTrackingBlockchainservice.getHashedLogs(seasonDetailId);
             } catch (error) {
                 this.logger.error("Failed to hashed logs: ", error.message);
             }
@@ -117,7 +90,7 @@ export class LogService {
             hashedLogs.map((data) => {
                 const log = logs.find((log) => log.id === data.id);
                 if (log) {
-                    log.verified = this.blockchainService.hashData(HashedLog, log) === data.hash;
+                    log.verified = this.processTrackingBlockchainservice.hashData(HashedLog, log) === data.hash;
                 }
             })
 
@@ -169,22 +142,73 @@ export class LogService {
         }
     }
 
-    private async validateAddLog(newLog: AddLogDto): Promise<void> {
-        const sd = await this.stepService.getSeasonDetailForValidateAddLog(newLog.season_detail_id);
+    async unactiveLog(dto: InactiveLogDto, manager?: EntityManager): Promise<boolean> {
+        const repo = manager ? manager.getRepository(Log) : this.logRepository;
+        try {
+            // const latestLog = await this.logRepository.findOne({
+            //     select: ["id"],
+            //     where: { season_detail_id: dto.season_step_id },
+            //     order: { id: "DESC" }
+            // })
+            // if (!latestLog) throw new NotFoundException({
+            //     message: "Log not found",
+            //     code: ResponseCode.LOG_NOT_FOUND
+            // })
+            // if (latestLog.id !== dto.log_id) throw new BadRequestException({
+            //     message: "Invalid to to inactive",
+            //     code: ResponseCode.INVALID_LOG_TO_INACTIVE
+            // })
+            const result = await repo.update({ id: dto.log_id }, { is_active: false });
 
-        if (sd.step_status === StepStatus.DONE) {
-            throw new BadRequestException({
-                message: 'Cannot add logs to a step that is already DONE.',
-                code: ResponseCode.STEP_ALREADY_DONE
+            if (result.affected && result.affected > 0) return true;
+            throw new InternalServerErrorException();
+        }
+        catch (error) {
+            if (error instanceof BadRequestException) throw error;
+            this.logger.error(`Failed to inactive log: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: "Failed to inactive log",
+                code: ResponseCode.INTERNAL_ERROR
+            })
+        }
+    }
+
+    async countActiveLogs(seasonDetailId: number): Promise<{ active: number, unactive: number }> {
+        try {
+            const result = await this.dataSource.query(`
+                SELECT 
+                    COUNT(*) FILTER(WHERE is_active = true) AS "active",
+                    COUNT(*) FILTER(WHERE is_active = false) AS "unactive"
+                FROM "log"
+                WHERE season_detail_id = $1
+                `, [seasonDetailId]);
+
+            return {
+                active: result[0].active ? parseInt(result[0].active) : 0,
+                unactive: result[0].unactive ? parseInt(result[0].unactive) : 0,
+            }
+        } catch (error) {
+            throw new InternalServerErrorException({
+                message: "Failed to count active logs",
+                code: ResponseCode.INTERNAL_ERROR
             });
         }
-        const logNum = await this.logRepository.count({
-            where: { season_detail_id: newLog.season_detail_id }
-        });
-        if (newLog.type === LogType.DONE && logNum < sd.step.min_logs) {
-            throw new BadRequestException({
-                message: `Not enough logs to mark step as DONE. Minimum required: ${sd.step.min_logs}`,
-                code: ResponseCode.NOT_ENOUGH_LOG
+    }
+
+    async getActiveLogIds(seasonDetailId: number): Promise<number[]> {
+        try {
+            const logs = await this.logRepository.find({
+                select: ["id"],
+                where: {
+                    season_detail_id: seasonDetailId,
+                    is_active: true,
+                }
+            });
+            return logs.map(log => log.id);
+        } catch (error) {
+            throw new InternalServerErrorException({
+                message: "Failed to get active log ids",
+                code: ResponseCode.INTERNAL_ERROR
             });
         }
     }

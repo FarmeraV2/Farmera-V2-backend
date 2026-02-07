@@ -2,61 +2,25 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { plainToInstance } from "class-transformer";
 import { createHash } from "crypto";
-import { contractAbi } from "src/contracts/ProcessTracking";
+import { processTrackingContractAbi } from "src/contracts/ProcessTracking";
 import { HashedLog } from "src/modules/crop-management/dtos/log/hashed-log.dto";
 import { HashedStep } from "src/modules/crop-management/dtos/step/hashed-step.dto";
 import { StepDto } from "src/modules/crop-management/dtos/step/step.dto";
 import { Log } from "src/modules/crop-management/entities/log.entity";
 import Web3 from "web3";
-
-export interface TransactionLog {
-    address: string;
-    topics: string[];
-    data: string;
-    blockHash: string;
-    blockNumber: bigint;
-    transactionHash: string;
-    transactionIndex: bigint;
-    logIndex: bigint;
-    removed: boolean;
-    returnValues?: Record<string, any>;
-    event?: string;
-    signature?: string;
-    raw?: {
-        data: string;
-        topics: string[];
-    };
-}
-
-export interface TransactionReceipt {
-    type: bigint;
-    status: bigint;
-    cumulativeGasUsed: bigint;
-    gasUsed: bigint;
-    effectiveGasPrice: bigint;
-    from: string;
-    to: string;
-    transactionHash: string;
-    transactionIndex: bigint;
-    blockHash: string;
-    blockNumber: bigint;
-    logsBloom: string;
-    logs: TransactionLog[];
-    events?: Record<string, TransactionLog>;
-}
-
+import { TransactionReceipt } from "../interfaces/transaction-receipt.interface";
 
 @Injectable()
-export class BlockchainService {
+export class ProcessTrackingService {
 
-    private readonly logger = new Logger(BlockchainService.name);
+    private readonly logger = new Logger(ProcessTrackingService.name);
     private readonly web3: Web3;
     private readonly contract: any;
 
     constructor(private readonly configService: ConfigService) {
         const rpcUrl = this.configService.get<string>('RPC_URL');
         const walletKey = this.configService.get<string>('WALLET_PRIVATE_KEY');
-        const contractAddress = this.configService.get<string>('CONTRACT_ADDRESS');
+        const contractAddress = this.configService.get<string>('PROCESS_TRACKING_CONTRACT_ADDRESS');
 
         if (!rpcUrl || !walletKey || !contractAddress) {
             this.logger.warn("Blockchain service configuration is missing, this service is disabled");
@@ -68,7 +32,7 @@ export class BlockchainService {
         this.web3.eth.accounts.wallet.add(account);
         this.web3.eth.defaultAccount = account.address;
 
-        const abi = contractAbi;
+        const abi = processTrackingContractAbi;
 
         this.contract = new this.web3.eth.Contract(abi, contractAddress);
     }

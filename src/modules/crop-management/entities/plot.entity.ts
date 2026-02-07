@@ -1,7 +1,7 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-import { CropType } from '../enums/crop-type.enum';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Season } from './season.entity';
 import { Farm } from 'src/modules/farm/entities/farm.entity';
+import { Crop } from './crop.entity';
 
 @Entity()
 export class Plot {
@@ -14,11 +14,8 @@ export class Plot {
     @Column()
     crop_name: string;
 
-    @Column({ type: 'enum', enumName: 'crop_type', enum: CropType })
-    crop_type: CropType
-
     @Column({ nullable: true })
-    area?: number;
+    area: number;
 
     @Column({ type: "jsonb" })
     location: { lat: number; lng: number }
@@ -26,11 +23,10 @@ export class Plot {
     @Column({ nullable: true })
     notes?: string;
 
-
     @Column()
     image_url: string;
 
-    @Column({ default: false})
+    @Column({ default: false })
     is_deleted: boolean;
 
     @CreateDateColumn({ type: "timestamptz" })
@@ -48,4 +44,14 @@ export class Plot {
 
     @OneToMany(() => Season, (season) => season.plot)
     seasons: Season[];
+
+    @ManyToOne(() => Crop)
+    @JoinColumn({ name: "crop_id" })
+    crop: Crop;
+
+    @Column({ nullable: true })
+    crop_id: number;
+
+    @Column({ type: "float", nullable: true })
+    transparency_score?: number;
 }

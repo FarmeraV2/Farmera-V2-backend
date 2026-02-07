@@ -1,6 +1,6 @@
-import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, forwardRef, HttpException, Inject, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, EntityManager, QueryFailedError, Repository } from 'typeorm';
 import { Season } from '../entities/season.entity';
 import { CreateSeasonDto } from '../dtos/season/create-season.dto';
 import { SeasonStatus } from '../enums/season-status.enum';
@@ -9,7 +9,7 @@ import { PaginationTransform } from 'src/common/dtos/pagination/pagination-optio
 import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
 import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
-import { SeasonDetailDto, SeasonDto, seasonSelectFields } from '../dtos/season/season.dto';
+import { SeasonDetailDto, seasonDetailSelectFields, SeasonDto, seasonSelectFields } from '../dtos/season/season.dto';
 import { TriggerException } from 'src/database/utils/trigger.exception';
 import { StepService } from '../step/step.service';
 import { StepDto } from '../dtos/step/step.dto';
@@ -21,6 +21,18 @@ import { SeasonSortFields } from '../enums/season-sort-fields.enum';
 import { applyPagination } from 'src/common/utils/pagination.util';
 import { PlotService } from '../plot/plot.service';
 import { AddStepDto } from '../dtos/season/add-step.dto';
+import { StepStatus } from '../enums/step-status.enum';
+import { ProcessTrackingService } from 'src/modules/blockchain/process-tracking/process-tracking.service';
+import { AddLogDto } from '../dtos/log/add-log.dto';
+import { InactiveLogDto } from '../dtos/log/inactive-log.dto';
+import { TrustworthinessService } from 'src/modules/blockchain/trustworthiness/trustworthiness.service';
+import { TransparencyService } from 'src/modules/ftes/transparency/transparency.service';
+import { TransparencyEmitEvent } from 'src/modules/ftes/enums/emit-event.enum';
+import { StepType } from '../enums/step-type.enum';
+import { ProductService } from 'src/modules/product/product/product.service';
+import { FarmProductDetailDto } from 'src/modules/product/dtos/product/farm-product-detail.dto';
+import { UpdateProductStatusDto } from 'src/modules/product/dtos/product/update-product-status.dto';
+import { ProductStatus } from 'src/modules/product/enums/product-status.enum';
 
 @Injectable()
 export class SeasonService {
@@ -29,18 +41,20 @@ export class SeasonService {
 
     constructor(
         @InjectRepository(Season) private readonly seasonRepository: Repository<Season>,
+        private readonly dataSource: DataSource,
         private readonly plotService: PlotService,
         private readonly stepService: StepService,
         private readonly logService: LogService,
+        private readonly processTrackingBlockchainservice: ProcessTrackingService,
+        private readonly trustworthinessBlockchainService: TrustworthinessService,
+        private readonly productService: ProductService,
+        @Inject(forwardRef(() => TransparencyService)) private readonly transparencyService: TransparencyService
     ) { }
 
     async createSeason(farmId: number, createSeasonDto: CreateSeasonDto): Promise<SeasonDetailDto> {
         try {
-            const cropType = await this.plotService.getPlotCropType(createSeasonDto.plot_id);
-
             const season = this.seasonRepository.create({
                 ...createSeasonDto,
-                crop_type: cropType,
                 farm_id: farmId
             });
 
@@ -78,7 +92,7 @@ export class SeasonService {
 
     async updateSeason(farmId: number, updateSeasonDto: UpdateSeasonDto): Promise<SeasonDetailDto> {
         try {
-            const { name, notes, actual_end_date, actual_yield } = updateSeasonDto;
+            const { name, notes, actual_yield } = updateSeasonDto;
             const season = await this.seasonRepository.findOneBy({ id: updateSeasonDto.id, farm_id: farmId });
             if (!season) throw new NotFoundException({
                 message: "Season not found",
@@ -96,7 +110,7 @@ export class SeasonService {
 
             // if the seaon is already started, allow to update actual results
             if (season.status === SeasonStatus.DONE) {
-                const result = await this.seasonRepository.save({ ...season, actual_end_date, actual_yield });
+                const result = await this.seasonRepository.save({ ...season, actual_yield });
                 return plainToInstance(SeasonDetailDto, result, { excludeExtraneousValues: true });
             }
 
@@ -108,7 +122,7 @@ export class SeasonService {
 
             // allowing update all fields exclude actual values
             else {
-                const { actual_end_date, actual_yield, ...res } = updateSeasonDto;
+                const { actual_yield, ...res } = updateSeasonDto;
                 const result = await this.seasonRepository.save({ ...season, ...res });
                 return plainToInstance(SeasonDetailDto, result, { excludeExtraneousValues: true });
             }
@@ -183,9 +197,10 @@ export class SeasonService {
 
     async getSeasonDetail(seasonId: number): Promise<SeasonDetailDto> {
         try {
-            const season = await this.seasonRepository.findOne({
-                where: { id: seasonId },
-            });
+            const queryBuilder = this.seasonRepository.createQueryBuilder("season")
+                .select(seasonDetailSelectFields)
+                .where("season.id = :seasonId", { seasonId });
+            const season = await queryBuilder.getOne();
             if (!season) {
                 throw new NotFoundException({
                     message: "season not found",
@@ -209,10 +224,10 @@ export class SeasonService {
             const season = await this.seasonRepository.createQueryBuilder("season")
                 .select([
                     "season.start_date",
-                    "season.id"
+                    "season.id",
+                    "plot.crop_id",
                 ])
                 .leftJoin("season.plot", "plot")
-                .addSelect("plot.crop_type")
                 .where("season.id = :seasonId", { seasonId: addStepDto.season_id })
                 .getOne();
 
@@ -237,7 +252,14 @@ export class SeasonService {
 
             await this.stepService.validateAddSeasonStep(season, addStepDto.step_id);
 
-            return await this.stepService.addSeasonStep(addStepDto);
+            return await this.dataSource.transaction(async (manager) => {
+                const newStep = await this.stepService.addSeasonStep(addStepDto, manager);
+                // update season status PENDING -> IN_PROGRESS
+                if (season.status === SeasonStatus.PENDING) {
+                    await this.updateSeasonStatus(addStepDto.season_id, SeasonStatus.IN_PROGRESS, manager);
+                }
+                return newStep;
+            })
         } catch (error) {
             if (error instanceof HttpException) throw error;
             this.logger.error(error.message);
@@ -302,6 +324,297 @@ export class SeasonService {
         }
     }
 
+    async finishStep(seasonStepId: number): Promise<boolean> {
+        try {
+            const { active } = await this.logService.countActiveLogs(seasonStepId);
+            const logCount = active;
+            if (logCount <= 0) throw new BadRequestException({
+                message: "Can not finish a step without any log",
+                code: ResponseCode.NOT_ENOUGH_LOG
+            });
+
+            await this.dataSource.transaction(async (manager) => {
+                // update season detail status IN_PROGRESS -> DONE
+                if (await this.stepService.updateSeasonStepStatus(seasonStepId, StepStatus.DONE, manager)) {
+                    const step = await this.stepService.getSeasonStep(seasonStepId);
+
+                    // const transaction = await this.processTrackingBlockchainservice.addStep(step);
+                    // await this.stepService.updateTransactionHash(
+                    //     seasonStepId,
+                    //     transaction.transactionHash,
+                    //     manager
+                    // );
+
+                    // calc step transparency score
+                    const stepTransparencyScore = await this.transparencyService.calcStepTransparencyScore(seasonStepId);
+                    await this.stepService.updateTransparencyScore(seasonStepId, stepTransparencyScore, manager);
+
+                    // if last step of the season, update season status IN_PROGRESS -> DONE to finish season
+                    if (step.step_type === StepType.POST_HARVEST) {
+                        // update status
+                        await this.updateSeasonStatus(step.season_id, SeasonStatus.DONE, manager);
+
+                        // calc season transparency score
+                        const seasonTransparencyScore = await this.transparencyService.calcSeasonTransparencyScore(step.season_id);
+                        await this.updateTransparencyScore(step.season_id, seasonTransparencyScore, manager);
+
+                        // calc plot score
+                        const plotId = await this.getSeasonPlotId(step.season_id);
+                        const plotTransparencyScore = await this.transparencyService.calcPlotTransparencyScore(plotId);
+                        await this.plotService.updateTransparencyScore(plotId, plotTransparencyScore, manager);
+                    }
+                }
+            })
+
+            return true;
+        }
+        catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error(`Failed to finish step: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: "Failed to finish step",
+                code: ResponseCode.INTERNAL_ERROR
+            })
+        }
+    }
+
+    async addLog(farmId: number, addLogDto: AddLogDto): Promise<Log> {
+        try {
+            await this.stepService.validateAddLog(addLogDto);
+            return await this.dataSource.transaction(async (manager) => {
+                // save db
+                const savedLog = await this.logService.addLog(farmId, addLogDto, manager);
+
+                // update season detail status PENDING -> IN_PROGRESS
+                await this.stepService.handleAfterAddLogs(addLogDto.season_detail_id, manager);
+
+                // up blockchain
+                const transaction = await this.processTrackingBlockchainservice.addLog(savedLog);
+
+                // assess trust score
+                await this.processData(savedLog, transaction.transactionHash ? true : false);
+
+                // update transaction hash
+                await this.logService.updateTransactionHash(savedLog.id, transaction.transactionHash, manager);
+
+                savedLog.transaction_hash = transaction.transactionHash;
+                savedLog.verified = transaction.transactionHash ? true : false;
+
+                return savedLog;
+            });
+        }
+        catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error("Failed to add log: ", error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to add log",
+                code: ResponseCode.FAILED_TO_ADD_LOG
+            })
+        }
+    }
+
+    async unactiveLog(dto: InactiveLogDto): Promise<boolean> {
+        try {
+            const result = this.dataSource.transaction(async (manager) => {
+                const result = await this.logService.unactiveLog(dto, manager);
+                await this.stepService.updateInactiveLogNum(dto.season_step_id, manager);
+                return result;
+            });
+            return result;
+        }
+        catch (error) {
+            if (error instanceof BadRequestException) throw error;
+            this.logger.error(`Failed to inactive log: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: "Failed to inactive log",
+                code: ResponseCode.INTERNAL_ERROR
+            })
+        }
+    }
+
+    private async processData(log: Log, verified: boolean): Promise<void> {
+        const plotLocation = await this.stepService.getPlotLocation(log.season_detail_id);
+
+        await this.trustworthinessBlockchainService.processData(log.id, "log", "default", {
+            verified: verified,
+            logLocation: {
+                latitude: log.location.lat * 1000000,
+                longitude: log.location.lng * 1000000
+            },
+            plotLocation: {
+                latitude: plotLocation.lat * 1000000,
+                longitude: plotLocation.lng * 1000000,
+            },
+            imageCount: log.image_urls.length,
+            videoCount: log.video_urls.length,
+        });
+    }
+
+    private async updateSeasonStatus(seasonId: number, seasonStatus: SeasonStatus, manager?: EntityManager): Promise<void> {
+        const repo = manager ? manager.getRepository(Season) : this.seasonRepository;
+        try {
+            const season = await repo.findOne({
+                select: ["status"],
+                where: { id: seasonId }
+            })
+            if (!season) throw Error();
+            const currentStatus = season.status;
+
+            switch (seasonStatus) {
+                case SeasonStatus.CANCELED:
+                    await repo.update({ id: seasonId }, { status: SeasonStatus.CANCELED });
+                    return;
+                case SeasonStatus.IN_PROGRESS:
+                    if (currentStatus === SeasonStatus.PENDING) {
+                        await repo.update({ id: seasonId }, { status: SeasonStatus.IN_PROGRESS });
+                        return;
+                    }
+                case SeasonStatus.DONE:
+                    if (currentStatus === SeasonStatus.IN_PROGRESS) {
+                        await repo.update({ id: seasonId }, { status: SeasonStatus.DONE, actual_end_date: new Date() });
+                        return;
+                    }
+            }
+            throw new BadRequestException({
+                message: "Invalid season status",
+                code: ResponseCode.INVALID_STATUS
+            })
+        }
+        catch (error) {
+            this.logger.error(`Failed to update season: ${error.message}`);
+            if (error instanceof HttpException) throw error;
+            throw new InternalServerErrorException({
+                message: "Failed to update season",
+                code: ResponseCode.INTERNAL_ERROR
+            })
+        }
+    }
+
+    private async updateTransparencyScore(seasonId: number, score: number, manager?: EntityManager): Promise<void> {
+        try {
+            const repo = manager ? manager.getRepository(Season) : this.seasonRepository;
+            await repo.update(
+                { id: seasonId },
+                { transparency_score: score })
+        }
+        catch (error) {
+            this.logger.error(`Failed to update season transparency score: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: "Failed to update season transparency score",
+                code: ResponseCode.FAILED_TO_UPDATE_SEASON
+            })
+        }
+    }
+
+    async getSeasonsScores(plotId: number): Promise<{ id: number, score: number, endDate?: Date }[]> {
+        try {
+            const seasons = await this.seasonRepository.find({
+                select: ["id", "transparency_score", "actual_end_date"],
+                where: { plot_id: plotId }
+            });
+            return seasons.map((s) => ({ id: s.id, score: s.transparency_score ?? 0, endDate: s.actual_end_date }))
+        }
+        catch (error) {
+            this.logger.error(`Failed to get season transparency scores: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: "Failed to get season transparency scores",
+                code: ResponseCode.INTERNAL_ERROR
+            })
+        }
+    }
+
+    async getFarmAllAssignedSeasonsScores(farmId: number): Promise<{ id: number, score: number, endDate?: Date }[]> {
+        try {
+            const seasons = await this.seasonRepository.find({
+                select: ["id", "transparency_score", "actual_end_date"],
+                where: { farm_id: farmId, is_assigned: true }
+            });
+            return seasons.map((s) => ({ id: s.id, score: s.transparency_score ?? 0, endDate: s.actual_end_date }))
+        }
+        catch (error) {
+            this.logger.error(`Failed to get season transparency scores: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: "Failed to get season transparency scores",
+                code: ResponseCode.INTERNAL_ERROR
+            })
+        }
+    }
+
+    async assignSeason(productId: number, seasonId: number): Promise<FarmProductDetailDto> {
+        try {
+            const product = await this.productService.findOneById(productId);
+            const season = await this.getSeasonToAssign(seasonId);
+            if (season.status != SeasonStatus.DONE) throw new BadRequestException({
+                message: "Season is not completed",
+                code: ResponseCode.SEASON_IS_NOT_COMPLETED_TO_ASSIGN
+            })
+            product.season_id = season.id;
+            const result = await this.dataSource.transaction(async (manager) => {
+                const result = await manager.save(product);
+                await this.updateAssigned(season.id, manager);
+                return result;
+            });
+            return plainToInstance(FarmProductDetailDto, result, { excludeExtraneousValues: true });
+        } catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: `Failed to assign season`,
+                code: ResponseCode.FAILED_TO_ASSIGN_SEASON,
+            });
+        }
+    }
+
+    async updateProductStatus(productId: number, dto: UpdateProductStatusDto): Promise<boolean> {
+        try {
+            const newStatus = dto.status;
+            const validStatus = [
+                ProductStatus.OPEN_FOR_SALE,
+                ProductStatus.CLOSED,
+            ];
+            if (!validStatus.includes(newStatus))
+                throw new BadRequestException({
+                    message: "Invalid status",
+                    code: ResponseCode.INVALID_STATUS,
+                });
+
+            const product = await this.productService.getProductSeasonStatus(productId);
+            if (!product.season_id) {
+                throw new BadRequestException({
+                    message: "Invalid product",
+                    code: ResponseCode.INVALID_PRODUCT_TO_UPDATE_STATUS
+                })
+            }
+            if (newStatus === ProductStatus.OPEN_FOR_SALE) {
+                const season = await this.getSeasonToAssign(product.season_id);
+                if (!season || season.status !== SeasonStatus.DONE) {
+                    throw new BadRequestException({
+                        message: "Invalid product",
+                        code: ResponseCode.SEASON_IS_NOT_COMPLETED_TO_ASSIGN
+                    })
+                }
+            }
+
+            await this.productService.updateProductStatus(productId, dto.status);
+            return true;
+        } catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to update product status",
+                code: ResponseCode.FAILED_TO_UPDATE_PRODUCT
+            });
+        }
+    }
+
+    private async getSeasonPlotId(seasonId: number): Promise<number> {
+        const season = await this.seasonRepository.findOne({
+            select: ["id", "plot_id"],
+            where: { id: seasonId }
+        })
+        if (!season) throw new Error(`Season ${seasonId} not found`);
+        return season.plot_id;
+    }
 
     // todo!("handle cron job to update status every day")
     // @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)

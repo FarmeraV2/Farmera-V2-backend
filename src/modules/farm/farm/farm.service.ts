@@ -28,6 +28,8 @@ import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.d
 import { SearchProductsDto } from 'src/modules/product/dtos/product/search-product.dto';
 import { FarmProductDetailDto } from 'src/modules/product/dtos/product/farm-product-detail.dto';
 import { FarmProductDto } from 'src/modules/product/dtos/product/farm-product.dto';
+import { ProductDto } from 'src/modules/product/dtos/product/product.dto';
+import { FarmTransparencyMetricsDto } from '../dtos/farm/farm-transparency-metrics.dto';
 
 @Injectable()
 export class FarmService {
@@ -332,7 +334,7 @@ export class FarmService {
             const farm = await this.farmRepository.findOne({ select: ['id', 'farm_id'], where: { user_id: userId, status: In([FarmStatus.APPROVED, FarmStatus.VERIFIED]) } });
             if (!farm || farm.id <= 0) {
                 throw new InternalServerErrorException({
-                    message: "Something ưent wrong, you're a farmer but your Farm is not found",
+                    message: "Something went wrong, you're a farmer but your Farm is not found",
                     code: ResponseCode.INTERNAL_ERROR
                 });
             }
@@ -525,8 +527,44 @@ export class FarmService {
         return await this.productService.getFarmProducts(farmId, getProductDto);
     }
 
+    async getFarmProducts(farmId: number, getProductDto: SearchProductsDto): Promise<PaginationResult<ProductDto>> {
+        return await this.productService.searchAndFilterProducts(getProductDto, farmId);
+    }
+
     async getMyFarmProductById(productId: number): Promise<FarmProductDetailDto> {
         return await this.productService.getFarmProductById(productId);
+    }
+
+    async getAllFarmIds(): Promise<number[]> {
+        try {
+            const farms = await this.farmRepository.find({
+                select: ["id"]
+            })
+            return farms.map((f) => f.id);
+        }
+        catch (error) {
+            throw Error(`Failed to get all farm ids: ${error.message}`);
+        }
+    }
+
+    async getFarmProductRating(farmId: number): Promise<number[]> {
+        return await this.productService.getProductRatings(farmId);
+    }
+
+    async updateTransparencyScore(farmId: number, score: FarmTransparencyMetricsDto, manager?: EntityManager): Promise<void> {
+        try {
+            const repo = manager ? manager.getRepository(Farm) : this.farmRepository;
+            await repo.update(
+                { id: farmId },
+                { transparency_score: score })
+        }
+        catch (error) {
+            this.logger.error(`Failed to update season transparency score: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: "Failed to update season transparency score",
+                code: ResponseCode.FAILED_TO_UPDATE_SEASON
+            })
+        }
     }
 
     //   async findFarmsByIds(farmIds: string[]): Promise<Farm[]> {

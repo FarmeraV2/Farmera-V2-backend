@@ -1,6 +1,5 @@
 import { Expose, Type } from "class-transformer";
 import { LocationDto } from "src/common/dtos/location/location.dto";
-import { CropType } from "../../enums/crop-type.enum";
 
 export class PlotDto {
     @Expose() id: number;
@@ -21,7 +20,6 @@ export class PlotDetailDto {
     @Expose() id: number;
     @Expose() plot_name: string;
     @Expose() crop_name: string;
-    @Expose() crop_type: CropType
     @Expose() area: number;
     @Expose()
     @Type(() => LocationDto)
@@ -30,6 +28,8 @@ export class PlotDetailDto {
     @Expose() image_url: string;
     @Expose() created: Date
     @Expose() updated: Date
+    @Expose() transparency_score?: number;
+    @Expose() crop_id: number;
 }
 
 const plotDetailDtoProps = Object.keys(new PlotDetailDto());

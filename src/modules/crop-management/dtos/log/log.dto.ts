@@ -1,12 +1,10 @@
 import { Expose, Type } from "class-transformer";
-import { LogType } from "../../enums/log-type.enum";
 import { LocationDto } from "src/common/dtos/location/location.dto";
 
 export class LogDto {
     @Expose() id: number;
     @Expose() name: string;
     @Expose() description: string;
-    @Expose() type: LogType;
     @Expose() image_urls: string[];
     @Expose() video_urls: string[];
     @Expose()
@@ -18,4 +16,5 @@ export class LogDto {
     @Expose() season_detail_id: number;
     @Expose() farm_id: number;
     @Expose() farm_name?: string;
+    @Expose() is_active: boolean;
 }
