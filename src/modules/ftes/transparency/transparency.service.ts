@@ -3,7 +3,7 @@ import { ResponseCode } from 'src/common/constants/response-code.const';
 import { TrustworthinessService } from 'src/modules/blockchain/trustworthiness/trustworthiness.service';
 import { LogService } from 'src/modules/crop-management/log/log.service';
 import { StepService } from 'src/modules/crop-management/step/step.service';
-import { W_SS_OUT_COME, W_SS_PROCESS, W_ST_ACTIVITY_RATIO, W_ST_LOG_COVERAGE, W_ST_TYPE_CARE, W_ST_TYPE_HARVEST, W_ST_TYPE_PLANTING, W_ST_TYPE_POST_HARVEST, W_ST_TYPE_PREPARE, W_SS_TEMPORAL, W_FARM_PROCESS, W_FARM_CUSTOMER_TRUST } from '../constants/weight.constant';
+import { W_SS_OUT_COME, W_SS_PROCESS, W_ST_TYPE_CARE, W_ST_TYPE_HARVEST, W_ST_TYPE_PLANTING, W_ST_TYPE_POST_HARVEST, W_ST_TYPE_PREPARE, W_SS_TEMPORAL, W_FARM_PROCESS, W_FARM_CUSTOMER_TRUST } from '../constants/weight.constant';
 import { SeasonService } from 'src/modules/crop-management/season/season.service';
 import { StepType } from 'src/modules/crop-management/enums/step-type.enum';
 import { PlotService } from 'src/modules/crop-management/plot/plot.service';
@@ -16,6 +16,7 @@ import { AuditEventID } from 'src/core/audit/enums/audit_event_id';
 import { AuditResult } from 'src/core/audit/enums/audit-result';
 import { SeasonDetailDto } from 'src/modules/crop-management/dtos/season/season.dto';
 import { FarmTransparencyMetrics } from '../interfaces/farm-transparency.interface';
+import { StepTransparency } from 'src/modules/blockchain/interfaces/step-transparency.interface';
 
 @Injectable()
 export class TransparencyService {
@@ -39,53 +40,54 @@ export class TransparencyService {
 
     async calcStepTransparencyScore(seasonStepId: number): Promise<number> {
         try {
-            // score = w1 * LogCoverage + w2 * ActivityRatio + w3 * DataQuality + w4 * Timeliness + w5 * Documentation
             const { active, unactive } = await this.logService.countActiveLogs(seasonStepId);
             const seasonDetail = await this.stepService.getFullSeasonStep(seasonStepId);
-            const activeLogIds = await this.logService.getActiveLogIds(seasonStepId);
 
-            const trustScoreRecords = await this.trustworthinessService.getTrustRecords(activeLogIds);
+            const verifiedLog = await this.logService.getLogs(seasonStepId)
+            const activeLogIds = verifiedLog.filter((log) => log.is_active == true && log.verified == true).map((log) => log.id);
+
+            const trustScoreRecords = await this.trustworthinessService.getTrustRecords('log', activeLogIds);
 
             // filter valid log ids based on trust score
-            const trustFilter = activeLogIds.filter((logId) => {
-                const record = trustScoreRecords.find((record) =>
-                    record.id === logId
-                );
-                return record && (record.trustScore / 100 >= 0.8)
-            });
+            let validLogCount = 0;
+            let invalidCount = 0;
 
-            const validLogCount = trustFilter.length;
+            for (const logId of activeLogIds) {
+                const record = trustScoreRecords.find(r => r.id === logId);
+                if (!record) continue;
 
-            // LogCoverage
-            const Lc = Math.min(validLogCount / seasonDetail.step.min_logs, 1);
+                const trust = record.trustScore / 100;
+                if (trust >= 0.8) {
+                    validLogCount += 1;
+                } else {
+                    invalidCount += 1;
+                }
+            }
 
-            // ActivityRatio
-            const Tar = active / (active + unactive);
-
-            // Data Quality Score
-            // const dataQuality = await this.calcDataQualityScore(seasonStepId);
-
-            // Timeliness Score
-            // const timeliness = await this.calcTimelinessScore(seasonStepId);
-
-            // Documentation Completeness Score
-            // const documentation = await this.calcDocumentationCompletenessScore(seasonStepId);
-
-            // Calculate weighted transparency score
-            const result =
-                W_ST_LOG_COVERAGE * Lc
-                + W_ST_ACTIVITY_RATIO * Tar
-            // + W_ST_DATA_QUALITY * dataQuality
-            // + W_ST_TIMELINESS * timeliness
-            // + W_ST_DOCUMENTATION * documentation;
-
-            this.logger.debug(`Step transparency score - 
-                LogCoverage: ${Lc}, 
-                ActivityRatio: ${Tar}, 
-                Total: ${result}`
+            const result = await this.trustworthinessService.processData<StepTransparency>(
+                'step', seasonStepId, 'step', 'default',
+                {
+                    validLogs: validLogCount,
+                    invalidLogs: invalidCount,
+                    active: active,
+                    unactive: unactive,
+                    minLogs: seasonDetail.step.min_logs,
+                },
+                {
+                    abiType: 'tuple(uint128,uint128,uint128,uint128,uint128)',
+                    map: (data) => [
+                        data.validLogs,
+                        data.invalidLogs,
+                        data.active,
+                        data.unactive,
+                        data.minLogs
+                    ]
+                }
             );
 
-            return Math.min(result, 1);
+            const score = result.events?.TrustProcessed.returnValues?.trustScore;
+
+            return Number(score) / 100;
 
         } catch (error) {
             this.logger.error(`Failed to calculate step transparency score: ${error.message}`);
@@ -103,6 +105,9 @@ export class TransparencyService {
             const season = await this.seasonService.getSeasonDetail(seasonId);
             const steps = await this.stepService.getSeasonStepForScoreCalc(seasonId);
 
+            const stepIds = steps.map((s) => s.id);
+            const stepTpScoreRecords = await this.trustworthinessService.getTrustRecords('step', stepIds);
+
             const stepMap: Record<StepType, number[]> = {
                 [StepType.PREPARE]: [],
                 [StepType.PLANTING]: [],
@@ -112,7 +117,10 @@ export class TransparencyService {
             };
 
             steps.forEach(step => {
-                stepMap[step.step_type].push(step.transparency_score ?? 0);
+                const record = stepTpScoreRecords.find(s => s.id === step.id);
+                if (record) {
+                    stepMap[step.step_type].push(record.trustScore ?? 0);
+                }
             });
 
             const weight = (arr: number[], w: number) =>

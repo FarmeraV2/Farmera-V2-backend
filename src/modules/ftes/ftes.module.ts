@@ -7,6 +7,8 @@ import { TransparencyWeight } from './entities/transparency-weight.entity';
 import { TransparencyWeightService } from './transparency-weight/transparency-weight.service';
 import { FarmModule } from '../farm/farm.module';
 import { AuditModule } from 'src/core/audit/audit.module';
+import { ImageVerificationService } from './image-verification/image-verification.service';
+import { TransparencyController } from './transparency/transparency.controller';
 
 @Module({
   imports: [
@@ -16,7 +18,8 @@ import { AuditModule } from 'src/core/audit/audit.module';
     forwardRef(() => CropManagementModule),
     forwardRef(() => FarmModule),
   ],
-  providers: [TransparencyService, TransparencyWeightService],
-  exports: [TransparencyService]
+  providers: [TransparencyService, TransparencyWeightService, ImageVerificationService],
+  exports: [TransparencyService],
+  controllers: [TransparencyController]
 })
 export class FtesModule { }

@@ -28,16 +28,31 @@ export const trustComputationContractAbi = [
         name: "getTrustRecord",
         inputs: [
             {
-                name: "logId",
+                name: "identifier",
+                type: "bytes32",
+                internalType: "bytes32"
+            },
+            {
+                name: "id",
                 type: "uint64",
                 internalType: "uint64"
             }
         ],
         outputs: [
             {
+                name: "",
+                type: "bytes32",
+                internalType: "bytes32"
+            },
+            {
+                name: "",
+                type: "uint64",
+                internalType: "uint64"
+            },
+            {
                 name: "trustScore",
-                type: "uint256",
-                internalType: "uint256"
+                type: "uint128",
+                internalType: "uint128"
             },
             {
                 name: "timestamp",
@@ -52,19 +67,24 @@ export const trustComputationContractAbi = [
         name: "getTrustRecords",
         inputs: [
             {
-                name: "logIds",
+                name: "identifier",
+                type: "bytes32",
+                internalType: "bytes32"
+            },
+            {
+                name: "ids",
                 type: "uint64[]",
                 internalType: "uint64[]"
             }
         ],
         outputs: [
             {
-                name: "",
-                type: "uint256[]",
-                internalType: "uint256[]"
+                name: "trustScores",
+                type: "uint128[]",
+                internalType: "uint128[]"
             },
             {
-                name: "",
+                name: "timestamps",
                 type: "uint256[]",
                 internalType: "uint256[]"
             }
@@ -76,7 +96,12 @@ export const trustComputationContractAbi = [
         name: "processData",
         inputs: [
             {
-                name: "logId",
+                name: "identifier",
+                type: "bytes32",
+                internalType: "bytes32"
+            },
+            {
+                name: "id",
                 type: "uint64",
                 internalType: "uint64"
             },
@@ -104,16 +129,22 @@ export const trustComputationContractAbi = [
         name: "TrustProcessed",
         inputs: [
             {
-                name: "logId",
+                name: "identifier",
+                type: "bytes32",
+                "indexed": true,
+                internalType: "bytes32"
+            },
+            {
+                name: "id",
                 type: "uint64",
                 "indexed": true,
                 internalType: "uint64"
             },
             {
                 name: "trustScore",
-                type: "uint256",
+                type: "uint128",
                 "indexed": false,
-                internalType: "uint256"
+                internalType: "uint128"
             }
         ],
         anonymous: false

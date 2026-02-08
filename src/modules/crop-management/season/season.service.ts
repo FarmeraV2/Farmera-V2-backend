@@ -27,12 +27,12 @@ import { AddLogDto } from '../dtos/log/add-log.dto';
 import { InactiveLogDto } from '../dtos/log/inactive-log.dto';
 import { TrustworthinessService } from 'src/modules/blockchain/trustworthiness/trustworthiness.service';
 import { TransparencyService } from 'src/modules/ftes/transparency/transparency.service';
-import { TransparencyEmitEvent } from 'src/modules/ftes/enums/emit-event.enum';
 import { StepType } from '../enums/step-type.enum';
 import { ProductService } from 'src/modules/product/product/product.service';
 import { FarmProductDetailDto } from 'src/modules/product/dtos/product/farm-product-detail.dto';
 import { UpdateProductStatusDto } from 'src/modules/product/dtos/product/update-product-status.dto';
 import { ProductStatus } from 'src/modules/product/enums/product-status.enum';
+import { TrustedLog } from 'src/modules/blockchain/interfaces/trusted-log.interface';
 
 @Injectable()
 export class SeasonService {
@@ -338,12 +338,12 @@ export class SeasonService {
                 if (await this.stepService.updateSeasonStepStatus(seasonStepId, StepStatus.DONE, manager)) {
                     const step = await this.stepService.getSeasonStep(seasonStepId);
 
-                    // const transaction = await this.processTrackingBlockchainservice.addStep(step);
-                    // await this.stepService.updateTransactionHash(
-                    //     seasonStepId,
-                    //     transaction.transactionHash,
-                    //     manager
-                    // );
+                    const transaction = await this.processTrackingBlockchainservice.addStep(step);
+                    await this.stepService.updateTransactionHash(
+                        seasonStepId,
+                        transaction.transactionHash,
+                        manager
+                    );
 
                     // calc step transparency score
                     const stepTransparencyScore = await this.transparencyService.calcStepTransparencyScore(seasonStepId);
@@ -435,7 +435,7 @@ export class SeasonService {
     private async processData(log: Log, verified: boolean): Promise<void> {
         const plotLocation = await this.stepService.getPlotLocation(log.season_detail_id);
 
-        await this.trustworthinessBlockchainService.processData(log.id, "log", "default", {
+        await this.trustworthinessBlockchainService.processData<TrustedLog>('log', log.id, "log", "default", {
             verified: verified,
             logLocation: {
                 latitude: log.location.lat * 1000000,
@@ -447,6 +447,21 @@ export class SeasonService {
             },
             imageCount: log.image_urls.length,
             videoCount: log.video_urls.length,
+        }, {
+            abiType: "tuple(bool,uint256,uint256,(int256,int256),(int256,int256))",
+            map: (data) => [
+                data.verified,
+                data.imageCount,
+                data.videoCount,
+                [
+                    Math.round(data.logLocation.latitude),
+                    Math.round(data.logLocation.longitude),
+                ],
+                [
+                    Math.round(data.plotLocation.latitude),
+                    Math.round(data.plotLocation.longitude),
+                ],
+            ],
         });
     }
 
