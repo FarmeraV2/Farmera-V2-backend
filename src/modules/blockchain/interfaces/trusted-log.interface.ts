@@ -1,6 +1,7 @@
 export interface TrustedLog {
     // provenance
     verified: boolean;
+    imageVerified: boolean;
 
     // spatial plausibility
     logLocation: { latitude: number, longitude: number }

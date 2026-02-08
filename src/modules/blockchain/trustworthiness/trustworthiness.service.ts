@@ -36,6 +36,7 @@ export class TrustworthinessService {
     async processData<T>(identifier: string, id: number, dataType: string, context: string, data: T, descriptor: AbiEncoderDescriptor<T>): Promise<TransactionReceipt> {
         try {
             const identifierBytes32 = Web3.utils.keccak256(identifier);
+            this.logger.debug(`Identifier: ${identifierBytes32}`)
 
             const result = await this.contract.methods
                 .processData(identifierBytes32, id, dataType, context, this.encodeData(data, descriptor))

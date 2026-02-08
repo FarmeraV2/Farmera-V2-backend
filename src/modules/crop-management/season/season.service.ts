@@ -399,7 +399,11 @@ export class SeasonService {
                 const transaction = await this.processTrackingBlockchainservice.addLog(savedLog);
 
                 // assess trust score
-                await this.processData(savedLog, transaction.transactionHash ? true : false);
+                await this.processData(
+                    savedLog,
+                    transaction.transactionHash ? true : false,
+                    true //imageVerified
+                );
 
                 // update transaction hash
                 await this.logService.updateTransactionHash(savedLog.id, transaction.transactionHash, manager);
@@ -439,11 +443,12 @@ export class SeasonService {
         }
     }
 
-    private async processData(log: Log, verified: boolean): Promise<void> {
+    private async processData(log: Log, verified: boolean, image_verified: boolean): Promise<void> {
         const plotLocation = await this.stepService.getPlotLocation(log.season_detail_id);
 
         await this.trustworthinessBlockchainService.processData<TrustedLog>('log', log.id, "log", "default", {
             verified: verified,
+            imageVerified: image_verified,
             logLocation: {
                 latitude: log.location.lat * 1000000,
                 longitude: log.location.lng * 1000000
@@ -455,9 +460,10 @@ export class SeasonService {
             imageCount: log.image_urls.length,
             videoCount: log.video_urls.length,
         }, {
-            abiType: "tuple(bool,uint256,uint256,(int256,int256),(int256,int256))",
+            abiType: "tuple(bool,bool,uint256,uint256,(int256,int256),(int256,int256))",
             map: (data) => [
                 data.verified,
+                data.imageVerified,
                 data.imageCount,
                 data.videoCount,
                 [
