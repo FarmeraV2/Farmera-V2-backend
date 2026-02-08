@@ -4,6 +4,7 @@
 /build
 /temp
 /claude
+/key
 
 # Logs
 logs

@@ -48,6 +48,9 @@ export class Log {
     @Column({ default: true })
     is_active: boolean;
 
+    @Column({ default: false })
+    image_verified: boolean;
+
     //
     verified: boolean = false;
 }

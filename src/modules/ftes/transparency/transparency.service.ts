@@ -44,7 +44,7 @@ export class TransparencyService {
             const seasonDetail = await this.stepService.getFullSeasonStep(seasonStepId);
 
             const verifiedLog = await this.logService.getLogs(seasonStepId)
-            const activeLogIds = verifiedLog.filter((log) => log.is_active == true && log.verified == true).map((log) => log.id);
+            const activeLogIds = verifiedLog.filter((log) => log.is_active == true && log.verified == true && log.image_verified == true).map((log) => log.id);
 
             const trustScoreRecords = await this.trustworthinessService.getTrustRecords('log', activeLogIds);
 

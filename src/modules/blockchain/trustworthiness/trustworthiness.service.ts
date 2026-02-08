@@ -40,8 +40,10 @@ export class TrustworthinessService {
             const result = await this.contract.methods
                 .processData(identifierBytes32, id, dataType, context, this.encodeData(data, descriptor))
                 .send({ from: this.web3.eth.defaultAccount });
-
-            this.logger.debug(`Trustworthiness result: ${result.events?.TrustProcessed.returnValues}`);
+            this.logger.debug(`Trustworthiness result: 
+                ID: ${Number(result.events?.TrustProcessed.returnValues?.id)}
+                score: ${Number(result.events?.TrustProcessed.returnValues?.trustScore)}
+                `);
             return result;
 
         } catch (error) {

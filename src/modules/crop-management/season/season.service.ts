@@ -33,6 +33,7 @@ import { FarmProductDetailDto } from 'src/modules/product/dtos/product/farm-prod
 import { UpdateProductStatusDto } from 'src/modules/product/dtos/product/update-product-status.dto';
 import { ProductStatus } from 'src/modules/product/enums/product-status.enum';
 import { TrustedLog } from 'src/modules/blockchain/interfaces/trusted-log.interface';
+import { ImageVerificationService } from 'src/modules/ftes/image-verification/image-verification.service';
 
 @Injectable()
 export class SeasonService {
@@ -48,7 +49,8 @@ export class SeasonService {
         private readonly processTrackingBlockchainservice: ProcessTrackingService,
         private readonly trustworthinessBlockchainService: TrustworthinessService,
         private readonly productService: ProductService,
-        @Inject(forwardRef(() => TransparencyService)) private readonly transparencyService: TransparencyService
+        @Inject(forwardRef(() => TransparencyService)) private readonly transparencyService: TransparencyService,
+        @Inject(forwardRef(() => ImageVerificationService)) private readonly imageVerificationService: ImageVerificationService,
     ) { }
 
     async createSeason(farmId: number, createSeasonDto: CreateSeasonDto): Promise<SeasonDetailDto> {
@@ -384,6 +386,11 @@ export class SeasonService {
             return await this.dataSource.transaction(async (manager) => {
                 // save db
                 const savedLog = await this.logService.addLog(farmId, addLogDto, manager);
+
+                // verify images before storing on blockchain
+                const imageVerified = await this.imageVerificationService.verifyLogImages(savedLog);
+                savedLog.image_verified = imageVerified;
+                await manager.getRepository(Log).update({ id: savedLog.id }, { image_verified: imageVerified });
 
                 // update season detail status PENDING -> IN_PROGRESS
                 await this.stepService.handleAfterAddLogs(addLogDto.season_detail_id, manager);
