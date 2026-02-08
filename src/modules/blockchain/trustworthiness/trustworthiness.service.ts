@@ -3,8 +3,8 @@ import { ConfigService } from "@nestjs/config";
 import { trustComputationContractAbi } from "src/contracts/TrustComputation";
 import Web3 from "web3";
 import { TransactionReceipt } from "../interfaces/transaction-receipt.interface";
-import { TrustedLog } from "../interfaces/trusted-log.interface";
 import { TrustRecord } from "../interfaces/trust-score-record.interface";
+import { AbiEncoderDescriptor } from "../interfaces/abi-encoder-descriptor.interface";
 
 @Injectable()
 export class TrustworthinessService {
@@ -33,11 +33,18 @@ export class TrustworthinessService {
         this.contract = new this.web3.eth.Contract(abi, contractAddress);
     }
 
-    async processData(id: number, dataType: string, context: string, data: TrustedLog): Promise<TransactionReceipt> {
+    async processData<T>(identifier: string, id: number, dataType: string, context: string, data: T, descriptor: AbiEncoderDescriptor<T>): Promise<TransactionReceipt> {
         try {
-            return await this.contract.methods
-                .processData(id, dataType, context, this.encodeLogData(data))
+            const identifierBytes32 = Web3.utils.keccak256(identifier);
+
+            const result = await this.contract.methods
+                .processData(identifierBytes32, id, dataType, context, this.encodeData(data, descriptor))
                 .send({ from: this.web3.eth.defaultAccount });
+            this.logger.debug(`Trustworthiness result: 
+                ID: ${Number(result.events?.TrustProcessed.returnValues?.id)}
+                score: ${Number(result.events?.TrustProcessed.returnValues?.trustScore)}
+                `);
+            return result;
 
         } catch (error) {
             this.logger.error(error.message);
@@ -59,16 +66,20 @@ export class TrustworthinessService {
         }
     }
 
-    async getTrustRecords(ids: number[]): Promise<TrustRecord[]> {
+    async getTrustRecords(identifier: string, ids: number[]): Promise<TrustRecord[]> {
         try {
+
+            const identifierBytes32 = Web3.utils.keccak256(identifier);
+
             const result = await this.contract.methods
-                .getTrustRecords(ids)
+                .getTrustRecords(identifierBytes32, ids)
                 .call({ from: this.web3.eth.defaultAccount });
 
             const trustScores = result[0].map((score: string) => Number(score));
             const timestamps = result[1].map((ts: string) => Number(ts));
 
             const records = ids.map((id, index) => ({
+                identifier: identifier,
                 id: id,
                 trustScore: trustScores[index],
                 timestamp: timestamps[index]
@@ -83,24 +94,10 @@ export class TrustworthinessService {
         }
     }
 
-    private encodeLogData(data: TrustedLog): string {
+    private encodeData<T>(data: T, descriptor: AbiEncoderDescriptor<T>): string {
         return this.web3.eth.abi.encodeParameters(
-            [
-                "tuple(bool,uint256,uint256,(int256,int256),(int256,int256))"
-            ],
-            [[
-                data.verified,
-                data.imageCount,
-                data.videoCount,
-                [
-                    Math.round(data.logLocation.latitude),
-                    Math.round(data.logLocation.longitude)
-                ],
-                [
-                    Math.round(data.plotLocation.latitude),
-                    Math.round(data.plotLocation.longitude)
-                ]
-            ]]
+            [descriptor.abiType],
+            [[...descriptor.map(data)]]
         );
     }
 }
