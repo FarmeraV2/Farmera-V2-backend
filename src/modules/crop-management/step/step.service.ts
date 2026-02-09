@@ -22,7 +22,7 @@ import { Season } from '../entities/season.entity';
 import { ProcessTrackingService } from 'src/modules/blockchain/process-tracking/process-tracking.service';
 import { LocationDto } from 'src/common/dtos/location/location.dto';
 import { AddLogDto } from '../dtos/log/add-log.dto';
-import { SeasonStatus } from '../enums/season-status.enum';
+import { CropType } from '../enums/crop-type.enum';
 
 @Injectable()
 export class StepService {
@@ -358,42 +358,24 @@ export class StepService {
             });
         }
 
-        // if (!prevStepOrder) {
-        //     if (season.plot.crop_type === CropType.SHORT_TERM) {
-        //         const firstStep = await this.stepRepository.findOne({
-        //             select: ["order"],
-        //             where: { for_crop_type: CropType.SHORT_TERM },
-        //             order: { order: "ASC" }
-        //         });
-        //         if (!firstStep) throw new InternalServerErrorException({
-        //             message: "Internal server errror",
-        //             code: ResponseCode.INTERNAL_ERROR
-        //         });
-        //         if (firstStep.order != step.order) throw new BadRequestException({
-        //             message: `Invalid first step`,
-        //             code: ResponseCode.INVALID_FIRST_STEP,
-        //         });
-        //     }
-        //     else if (season.plot.crop_type === CropType.LONG_TERM) {
-        //         const firstStep = await this.stepRepository
-        //             .createQueryBuilder('step')
-        //             .select('step.order')
-        //             .where('step.for_crop_type = :crop_type', { crop_type: CropType.LONG_TERM })
-        //             .andWhere('step.order % 10 != 0')
-        //             .andWhere('step.type = :type', { type: StepType.CARE })
-        //             .orderBy('step.order', 'ASC')
-        //             .getOne();
-
-        //         if (!firstStep) throw new InternalServerErrorException({
-        //             message: "Internal server errror",
-        //             code: ResponseCode.INTERNAL_ERROR
-        //         });
-        //         if (step.order > firstStep.order) throw new BadRequestException({
-        //             message: `Invalid first step`,
-        //             code: ResponseCode.INVALID_FIRST_STEP,
-        //         });
-        //     }
-        // }
+        if (!prevStepOrder) {
+            const firstStep = await this.stepRepository.findOne({
+                select: ["order"],
+                where: {
+                    crop_id: season.plot.crop_id,
+                    is_optional: false
+                },
+                order: { order: "ASC" }
+            });
+            if (!firstStep) throw new InternalServerErrorException({
+                message: "Internal server errror",
+                code: ResponseCode.INTERNAL_ERROR
+            });
+            if (firstStep.order != step.order) throw new BadRequestException({
+                message: `Invalid first step`,
+                code: ResponseCode.INVALID_FIRST_STEP,
+            });
+        }
     }
 
     async getSeasonDetailForValidateAddLog(seasonDetailId: number): Promise<SeasonDetail> {

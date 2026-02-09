@@ -49,7 +49,8 @@ export class ProcessTrackingService {
 
         } catch (error) {
             this.logger.error(error.message);
-            this.logger.error("Error name: ", error.cause.errorName);
+            this.logger.error(`Error name: ${error.cause.errorName}`);
+            this.logger.error(`Error input: ${error.cause.inputs}`);
             throw new Error(error.message);
         }
     }
@@ -64,7 +65,8 @@ export class ProcessTrackingService {
 
         } catch (error) {
             this.logger.error(error.message);
-            this.logger.error("Error name: ", error.cause.errorName);
+            this.logger.error(`Error name: ${error.cause.errorName}`);
+            this.logger.error(`Error args: ${error.cause.errorArgs[0]}`);
             throw new Error(error.message);
         }
     }
@@ -77,7 +79,7 @@ export class ProcessTrackingService {
 
         } catch (error) {
             this.logger.error(error.message);
-            this.logger.error("Error name: ", error.cause.errorName);
+            this.logger.error(`Error name: ${error.cause.errorName}`);
             throw new Error(error.message);
         }
     }
@@ -110,7 +112,7 @@ export class ProcessTrackingService {
 
         } catch (error) {
             this.logger.error(error.message);
-            this.logger.error("Error name: ", error.cause.errorName);
+            this.logger.error(`Error name: ${error.cause.errorName}`);
             throw new Error(error.message);
         }
     }
@@ -131,7 +133,7 @@ export class ProcessTrackingService {
 
         } catch (error) {
             this.logger.error(error.message);
-            this.logger.error("Error name: ", error.cause.errorName);
+            this.logger.error(`Error name: ${error.cause.errorName}`);
             throw new Error(error.message);
         }
     }

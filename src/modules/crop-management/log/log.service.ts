@@ -212,4 +212,22 @@ export class LogService {
             });
         }
     }
+
+    async updateVerifyImage(logId: number, value: boolean, manager?: EntityManager): Promise<boolean> {
+        const repo = manager ? manager.getRepository(Log) : this.logRepository;
+        try {
+            const result = await repo.update({ id: logId }, { image_verified: value });
+
+            if (result.affected && result.affected > 0) return true;
+            throw new InternalServerErrorException();
+        }
+        catch (error) {
+            if (error instanceof BadRequestException) throw error;
+            this.logger.error(`Failed to inactive log: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: "Failed to inactive log",
+                code: ResponseCode.INTERNAL_ERROR
+            })
+        }
+    }
 }
