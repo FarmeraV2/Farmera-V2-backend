@@ -62,7 +62,7 @@ VALUES
     1,
     'CARE',
     NULL,
-    NULL,
+    1,
     NULL,
     5
 ),
@@ -75,7 +75,7 @@ VALUES
     1,
     'CARE',
     NULL,
-    NULL,
+    1,
     NULL,
     5
 ),
@@ -88,7 +88,7 @@ VALUES
     1,
     'CARE',
     NULL,
-    NULL,
+    1,
     NULL,
     5
 ),
@@ -101,7 +101,7 @@ VALUES
     1,
     'CARE',
     NULL,
-    NULL,
+    1,
     NULL,
     5
 ),
