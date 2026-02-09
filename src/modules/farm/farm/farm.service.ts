@@ -30,6 +30,10 @@ import { FarmProductDetailDto } from 'src/modules/product/dtos/product/farm-prod
 import { FarmProductDto } from 'src/modules/product/dtos/product/farm-product.dto';
 import { ProductDto } from 'src/modules/product/dtos/product/product.dto';
 import { FarmTransparencyMetricsDto } from '../dtos/farm/farm-transparency-metrics.dto';
+import { FptIdrCardFrontData } from '../interfaces/fpt-idr-front.interface';
+import { FptLivenessResponse } from '../interfaces/fpt-liveness.interfaces';
+import { parseDateDMY } from 'src/utils/format';
+import { IdentificationStatus } from '../enums/identification.enums';
 
 @Injectable()
 export class FarmService {
@@ -131,53 +135,53 @@ export class FarmService {
         await queryRunner.connect();
         await queryRunner.startTransaction();
         try {
-            // const idrCardDataArray = await this.biometricsService.callFptIdrApiForFront(ssnImg);
-            // const idrData: FptIdrCardFrontData = idrCardDataArray[0];
+            const idrCardDataArray = await this.biometricsService.callFptIdrApiForFront(ssnImg);
+            const idrData: FptIdrCardFrontData = idrCardDataArray[0];
 
-            // await this.auditService.log({
-            //     actor_type: ActorType.USER,
-            //     audit_event_id: AuditEventID.EKYC01,
-            //     actor_id: userId,
-            //     result: AuditResult.SUCCESS,
-            // })
+            await this.auditService.log({
+                actor_type: ActorType.USER,
+                audit_event_id: AuditEventID.EKYC01,
+                actor_id: userId,
+                result: AuditResult.SUCCESS,
+            })
 
-            // const livenessData: FptLivenessResponse = await this.biometricsService.callFptLivenessApi(ssnImg, faceVideo);
+            const livenessData: FptLivenessResponse = await this.biometricsService.callFptLivenessApi(ssnImg, faceVideo);
 
-            // await this.auditService.log({
-            //     actor_type: ActorType.USER,
-            //     audit_event_id: AuditEventID.EKYC02,
-            //     actor_id: userId,
-            //     result: AuditResult.SUCCESS,
-            //     metadata: { liveness: livenessData.liveness, face_match: livenessData.face_match }
-            // })
+            await this.auditService.log({
+                actor_type: ActorType.USER,
+                audit_event_id: AuditEventID.EKYC02,
+                actor_id: userId,
+                result: AuditResult.SUCCESS,
+                metadata: { liveness: livenessData.liveness, face_match: livenessData.face_match }
+            })
 
-            // const ssnImgUrl = await this.fileStorage.uploadFile(
-            //     [ssnImg],
-            //     `private/biometric/${userId}`,
-            // );
+            const ssnImgUrl = await this.fileStorage.uploadFile(
+                [ssnImg],
+                `private/biometric/${userId}`,
+            );
 
-            // // save identification
-            // const partial: Partial<Identification> = {
-            //     full_name: idrData.name,
-            //     hashed_id_number: await this.hashService.hashPassword(idrData.id),
-            //     dob: parseDateDMY(idrData.dob),
-            //     gender: idrData.sex || 'N/A',
-            //     nationality: idrData.nationality || 'N/A',
-            //     address: idrData.address || 'N/A',
-            //     address_entity: idrData.address_entities,
-            //     doe: parseDateDMY(idrData.doe),
-            //     face_match_score: livenessData.face_match ? parseFloat(livenessData.face_match.similarity) : 0,
-            //     liveness_score: livenessData.liveness.spoof_prob ? 1 - parseFloat(livenessData.liveness.spoof_prob) : 0,
-            //     status: IdentificationStatus.APPROVED,
-            // }
+            // save identification
+            const partial: Partial<Identification> = {
+                full_name: idrData.name,
+                hashed_id_number: await this.hashService.hashPassword(idrData.id),
+                dob: parseDateDMY(idrData.dob),
+                gender: idrData.sex || 'N/A',
+                nationality: idrData.nationality || 'N/A',
+                address: idrData.address || 'N/A',
+                address_entity: idrData.address_entities,
+                doe: parseDateDMY(idrData.doe),
+                face_match_score: livenessData.face_match ? parseFloat(livenessData.face_match.similarity) : 0,
+                liveness_score: livenessData.liveness.spoof_prob ? 1 - parseFloat(livenessData.liveness.spoof_prob) : 0,
+                status: IdentificationStatus.APPROVED,
+            }
 
-            // const identification = this.identificationRepository.create(partial);
+            const identification = this.identificationRepository.create(partial);
 
-            // if (ssnImgUrl.length > 0) {
-            //     identification.id_card_image_url = ssnImgUrl[0];
-            // }
+            if (ssnImgUrl.length > 0) {
+                identification.id_card_image_url = ssnImgUrl[0];
+            }
 
-            // farm.identification = identification;
+            farm.identification = identification;
             farm.status = FarmStatus.VERIFIED;
 
             const savedFarm = await queryRunner.manager.save(farm);
