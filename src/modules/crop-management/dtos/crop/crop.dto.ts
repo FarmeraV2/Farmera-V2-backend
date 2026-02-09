@@ -6,6 +6,7 @@ export class CropDto {
     @Expose() name: string;
     @Expose() crop_type: CropType;
     @Expose() image_url: string;
+    @Expose() description?: string;
     @Expose() max_seasons: number;
 }
 
