@@ -26,8 +26,9 @@ import { FileStorageModule } from './core/file-storage/file-storage.module';
 import { StringValue } from 'ms';
 import { AuditModule } from './core/audit/audit.module';
 import { QrModule } from './modules/qr/qr.module';
-import { FtesModule } from './modules/ftes/ftes.module';
 import { BlockchainModule } from './modules/blockchain/blockchain.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
     imports: [
@@ -50,6 +51,12 @@ import { BlockchainModule } from './modules/blockchain/blockchain.module';
                 },
             }),
         }),
+
+        // Cron jobs
+        ScheduleModule.forRoot(),
+
+        // Emitter
+        EventEmitterModule.forRoot(),
 
         // Rate limiting
         // ThrottlerModule.forRootAsync({
@@ -91,8 +98,8 @@ import { BlockchainModule } from './modules/blockchain/blockchain.module';
         FileStorageModule,
         AuditModule,
         QrModule,
-        FtesModule,
         BlockchainModule,
+        EventEmitterModule.forRoot(),
     ],
     controllers: [AppController],
     providers: [

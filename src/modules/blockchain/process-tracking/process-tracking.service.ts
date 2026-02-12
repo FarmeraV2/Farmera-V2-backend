@@ -2,13 +2,13 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { plainToInstance } from "class-transformer";
 import { createHash } from "crypto";
-import { processTrackingContractAbi } from "src/contracts/ProcessTracking";
 import { HashedLog } from "src/modules/crop-management/dtos/log/hashed-log.dto";
 import { HashedStep } from "src/modules/crop-management/dtos/step/hashed-step.dto";
 import { StepDto } from "src/modules/crop-management/dtos/step/step.dto";
 import { Log } from "src/modules/crop-management/entities/log.entity";
 import Web3 from "web3";
 import { TransactionReceipt } from "../interfaces/transaction-receipt.interface";
+import { processTrackingContractAbi } from "../contracts/ProcessTracking";
 
 @Injectable()
 export class ProcessTrackingService {
@@ -23,7 +23,7 @@ export class ProcessTrackingService {
         const contractAddress = this.configService.get<string>('PROCESS_TRACKING_CONTRACT_ADDRESS');
 
         if (!rpcUrl || !walletKey || !contractAddress) {
-            this.logger.warn("Blockchain service configuration is missing, this service is disabled");
+            this.logger.warn("ProcessTrackingService configuration is missing, this service is disabled");
             return;
         }
 
@@ -84,6 +84,19 @@ export class ProcessTrackingService {
         }
     }
 
+    async getTempHashedLog(logId: number): Promise<string> {
+        try {
+            return await this.contract.methods
+                .getTempLog(logId)
+                .call();
+
+        } catch (error) {
+            this.logger.error(error.message);
+            this.logger.error(`Error name: ${error.cause.errorName}`);
+            throw new Error(error.message);
+        }
+    }
+
     async getHashedLogs(seasonDetailId: number): Promise<{ id: number, hash: string }[]> {
         try {
             const result = await this.contract.methods
@@ -134,6 +147,21 @@ export class ProcessTrackingService {
         } catch (error) {
             this.logger.error(error.message);
             this.logger.error(`Error name: ${error.cause.errorName}`);
+            throw new Error(error.message);
+        }
+    }
+
+    /**
+     * Set verification status for a log on-chain.
+     * Status enum: 0=None, 1=Skipped, 2=Verified, 3=Rejected
+     */
+    async verifyLog(logId: number, status: number): Promise<TransactionReceipt> {
+        try {
+            return await this.contract.methods
+                .verifyLog(logId, status)
+                .send({ from: this.web3.eth.defaultAccount });
+        } catch (error) {
+            this.logger.error(`Failed to verify log on-chain: ${error.message}`);
             throw new Error(error.message);
         }
     }
