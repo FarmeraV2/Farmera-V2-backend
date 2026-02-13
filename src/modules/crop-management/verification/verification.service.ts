@@ -5,18 +5,21 @@ import { ResponseCode } from 'src/common/constants/response-code.const';
 import { AuditorProfileService } from '../auditor-profile/auditor-profile.service';
 import { VerificationAssignment } from '../entities/verification-assignment.entity';
 import { ImageVerificationService } from '../image-verification/image-verification.service';
-import { Log } from '../entities/log.entity';
 import { ProcessTrackingService } from 'src/modules/blockchain/process-tracking/process-tracking.service';
 import { TrustComputationService } from 'src/modules/blockchain/trustworthiness/trust-computation.service';
 import { AuditorRegistryService } from 'src/modules/blockchain/auditor/auditor-registry.service';
 import { VerificationIdentifier } from '../enums/verification-identifier.enum';
-import { Cron } from '@nestjs/schedule';
-import { OnEvent } from '@nestjs/event-emitter';
-import { AddLogDto } from '../dtos/log/add-log.dto';
 import Web3 from 'web3';
 import { LogImageVerificationResult } from '../entities/log-image-verification-result.entity';
 import { LogVerificationPackage } from '../dtos/verification/log-verification-package.dto';
 import { plainToInstance } from 'class-transformer';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { LogAddedEvent } from 'src/common/events/log-added.event';
+import { HashedLog } from '../dtos/log/hashed-log.dto';
+import { AuditorRegistryEvent } from 'src/modules/blockchain/enums/auditor-registry.enum';
+import { LogVerified } from 'src/common/events/log-verified.event';
+import { LogSkipReviewEvent } from 'src/common/events/log-skip-review.event';
+import { Cron } from '@nestjs/schedule';
 
 const AUTO_VERIFY_THRESHOLD = 0.6;
 const SKIP_VERIFY_THRESHOLD = 0.8;
@@ -34,8 +37,8 @@ export class VerificationService {
         private readonly imageVerificationService: ImageVerificationService,
         // Blockchain contract
         private readonly processTrackingService: ProcessTrackingService,
-        private readonly trustComputationService: TrustComputationService,
         private readonly auditorRegistryService: AuditorRegistryService,
+        private readonly emitter: EventEmitter2,
     ) { }
 
     async getPendingVerificationsByUser(userId: number): Promise<VerificationAssignment[]> {
@@ -90,11 +93,16 @@ export class VerificationService {
                 aiAnalysis = await this.imageVerificationService.getLogVerificationResultByLogId(log.id);
             } catch { /* non-critical */ }
 
+            const currentHashed = this.processTrackingService.hashData(HashedLog, log);
+
             return plainToInstance(LogVerificationPackage, {
                 id: assignment.id,
                 log: log,
                 farm: farm,
-                on_chainHash: onChainHash,
+                hash: {
+                    on_chainHash: onChainHash,
+                    current_hash: currentHashed,
+                },
                 ai_analysis: aiAnalysis ? aiAnalysis : undefined,
                 deadline: assignment.deadline,
             });
@@ -108,8 +116,11 @@ export class VerificationService {
         }
     }
 
-    async evaluateForVerification(log: Log): Promise<void> {
+    @OnEvent(LogAddedEvent.name)
+    async evaluateForVerification(payload: LogAddedEvent): Promise<void> {
         try {
+            const log = payload.log;
+
             let shouldVerify = false;
 
             const imageVerified = await this.imageVerificationService.verifyLogImages(log);
@@ -122,58 +133,80 @@ export class VerificationService {
             }
 
             if (!shouldVerify) {
-                // use trust computation for calculating score -> upload process tracking
+                this.logger.debug("Auditor verify skipped");
+                this.emitter.emit(LogSkipReviewEvent.name, new LogSkipReviewEvent(log));
                 return;
             }
+
+
+            // temp log for verify immutability
+            await this.processTrackingService.addTempLog(log);
 
             // Blockchain request verification
             const deadline = new Date();
             deadline.setDate(deadline.getDate() + VERIFICATION_DEADLINE_DAYS);
-            setTimeout(() => {
-                void (async () => {
-                    try {
-                        this.logger.debug("Sending verification request...")
-                        await this.auditorRegistryService.requestVerfication(VerificationIdentifier.LOG, log.id, deadline);
-                        this.logger.debug("Verification request sent")
-                    } catch (error) {
-                        this.logger.error("Failed to request verification");
-                    }
-                })();
-            }, 0);
+
+            try {
+                await this.auditorRegistryService.requestVerfication(VerificationIdentifier.LOG, log.id, deadline);
+            } catch (error) {
+                this.logger.error("Failed to request verification");
+            }
+
         } catch (error) {
             this.logger.error(`Failed to evaluate for verification: ${error.message}`);
         }
     }
 
-    // @Cron("*/10 * * * * *")
+    @Cron("*/10 * * * * *")
     async handleRequestEvents() {
-        await this.auditorRegistryService.handleRequestEvents(async (events) => {
-            this.logger.log(`Running handle verification request event cron job - event count: ${events.length}`);
-            const filteredEvents = events.filter(
-                (e) =>
-                    Web3.utils.keccak256(VerificationIdentifier.LOG) === e.identifier,
-            );
+        await this.auditorRegistryService.handleEvent(
+            AuditorRegistryEvent.VERIFICATION_REQUESTED,
+            async (from, to) => await this.auditorRegistryService.getRecentVerificationRequestEvents(from, to),
+            async (events) => {
+                this.logger.log(`Running handle verification request event cron job - event count: ${events.length}`);
+                const filteredEvents = events.filter(
+                    (e) =>
+                        Web3.utils.keccak256(VerificationIdentifier.LOG) === e.identifier,
+                );
 
-            const results = await Promise.all(
-                filteredEvents.map(async (e) => {
-                    const auditorIds =
-                        await this.auditorProfileService.getAuditorIdsByAddresses(
-                            e.assignedAuditors,
+                const results = await Promise.all(
+                    filteredEvents.map(async (e) => {
+                        const auditorIds =
+                            await this.auditorProfileService.getAuditorIdsByAddresses(
+                                e.assignedAuditors,
+                            );
+
+                        return auditorIds.map((id) =>
+                            this.assignmentRepo.create({
+                                auditor_profile_id: id,
+                                log_id: e.id,
+                                deadline: new Date(e.deadline * 1000),
+                            }),
                         );
+                    }),
+                );
 
-                    return auditorIds.map((id) =>
-                        this.assignmentRepo.create({
-                            auditor_profile_id: id,
-                            log_id: e.id,
-                            deadline: new Date(e.deadline * 1000),
-                        }),
-                    );
-                }),
-            );
+                const assignments = results.flat();
+                await this.assignmentRepo.save(assignments);
+            });
+    }
 
-            const assignments = results.flat();
-            await this.assignmentRepo.save(assignments);
-        });
+
+    @Cron("*/10 * * * * *")
+    async handleFinalizedEvents() {
+        await this.auditorRegistryService.handleEvent(
+            AuditorRegistryEvent.VERIFICATION_FINALIZED,
+            async (from, to) => await this.auditorRegistryService.getRecentVerificationFinalizedEvents(from, to),
+            async (events) => {
+                this.logger.log(`Running handle finalized verification event cron job - event count: ${events.length}`);
+                const filteredEvents = events.filter(
+                    (e) =>
+                        Web3.utils.keccak256(VerificationIdentifier.LOG) === e.identifier,
+                );
+                filteredEvents.forEach((e) => {
+                    this.emitter.emit(LogVerified.name, new LogVerified(e.id, e.consensus, e.totalVote));
+                })
+            });
     }
 
     //     async recordVote(requestId: number, userId: number, isValid: boolean, txHash: string): Promise<{ vote_recorded: boolean; consensus_reached: boolean }> {

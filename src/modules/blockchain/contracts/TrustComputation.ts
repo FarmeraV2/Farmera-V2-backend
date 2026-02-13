@@ -50,14 +50,26 @@ export const trustComputationContractAbi = [
                 internalType: "uint64"
             },
             {
-                name: "trustScore",
-                type: "uint128",
-                internalType: "uint128"
-            },
-            {
-                name: "timestamp",
-                type: "uint256",
-                internalType: "uint256"
+                name: "",
+                type: "tuple",
+                internalType: "struct TrustComputation.TrustRecord",
+                components: [
+                    {
+                        name: "accept",
+                        type: "bool",
+                        internalType: "bool"
+                    },
+                    {
+                        name: "trustScore",
+                        type: "uint128",
+                        internalType: "uint128"
+                    },
+                    {
+                        name: "timestamp",
+                        type: "uint256",
+                        internalType: "uint256"
+                    }
+                ]
             }
         ],
         stateMutability: "view"
@@ -79,14 +91,36 @@ export const trustComputationContractAbi = [
         ],
         outputs: [
             {
-                name: "trustScores",
-                type: "uint128[]",
-                internalType: "uint128[]"
+                name: "",
+                type: "bytes32",
+                internalType: "bytes32"
             },
             {
-                name: "timestamps",
-                type: "uint256[]",
-                internalType: "uint256[]"
+                name: "",
+                type: "uint64[]",
+                internalType: "uint64[]"
+            },
+            {
+                name: "",
+                type: "tuple[]",
+                internalType: "struct TrustComputation.TrustRecord[]",
+                components: [
+                    {
+                        name: "accept",
+                        type: "bool",
+                        internalType: "bool"
+                    },
+                    {
+                        name: "trustScore",
+                        type: "uint128",
+                        internalType: "uint128"
+                    },
+                    {
+                        name: "timestamp",
+                        type: "uint256",
+                        internalType: "uint256"
+                    }
+                ]
             }
         ],
         stateMutability: "view"
@@ -131,19 +165,25 @@ export const trustComputationContractAbi = [
             {
                 name: "identifier",
                 type: "bytes32",
-                "indexed": true,
+                indexed: true,
                 internalType: "bytes32"
             },
             {
                 name: "id",
                 type: "uint64",
-                "indexed": true,
+                indexed: true,
                 internalType: "uint64"
+            },
+            {
+                name: "accept",
+                type: "bool",
+                indexed: false,
+                internalType: "bool"
             },
             {
                 name: "trustScore",
                 type: "uint128",
-                "indexed": false,
+                indexed: false,
                 internalType: "uint128"
             }
         ],
@@ -152,7 +192,18 @@ export const trustComputationContractAbi = [
     {
         type: "error",
         name: "TrustComputation__IdAlreadyProcessed",
-        inputs: []
+        inputs: [
+            {
+                name: "",
+                type: "bytes32",
+                internalType: "bytes32"
+            },
+            {
+                name: "",
+                type: "uint64",
+                internalType: "uint64"
+            }
+        ]
     },
     {
         type: "error",

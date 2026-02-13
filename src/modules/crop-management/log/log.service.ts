@@ -56,9 +56,9 @@ export class LogService {
         throw Error("Failed to update transaction hash");
     }
 
-    async getLog(logId: number) {
+    async getLog(logId: number): Promise<Log | null> {
         try {
-            return await this.logRepository.find({
+            return await this.logRepository.findOne({
                 where: { id: logId }
             })
         }
@@ -67,6 +67,19 @@ export class LogService {
             throw new InternalServerErrorException({
                 message: "Failed to add log",
                 code: ResponseCode.FAILED_TO_GET_LOG
+            })
+        }
+    }
+
+    async save(log: Log): Promise<Log> {
+        try {
+            return await this.logRepository.save(log);
+        }
+        catch (error) {
+            this.logger.error("Failed to save log: ", error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to save log",
+                code: ResponseCode.INTERNAL_ERROR
             })
         }
     }

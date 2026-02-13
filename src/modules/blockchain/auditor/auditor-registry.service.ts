@@ -5,17 +5,24 @@ import { auditRegistryAbi } from "../contracts/AuditRegistry";
 import { AuditorInfo, VerificationRecord } from "../interfaces/auditor.interface";
 import { VerificationFinalized, VerificationRequested } from "../interfaces/auditor-event.interface";
 import { StateService } from "../state/state.service";
-
-const AUDIT_SYNC_STATE_KEY = 'BSS01';
+import { VerificationIdentifier } from "src/modules/crop-management/enums/verification-identifier.enum";
+import { AuditorRegistryEvent } from "../enums/auditor-registry.enum";
 
 @Injectable()
 export class AuditorRegistryService {
 
     private readonly logger = new Logger(AuditorRegistryService.name);
+
     private readonly web3: Web3;
     private readonly contract: any;
     private readonly devMode: boolean;
-    private currentBlock: bigint = 0n;
+    private state: Record<AuditorRegistryEvent, bigint> = {
+        [AuditorRegistryEvent.VERIFICATION_REQUESTED]: 0n,
+        [AuditorRegistryEvent.VERIFICATION_FINALIZED]: 0n,
+        [AuditorRegistryEvent.AUDITOR_REGISTERED]: 0n,
+        [AuditorRegistryEvent.VERIFICATION_SUBMITTED]: 0n,
+        [AuditorRegistryEvent.AUDITOR_SLASHED]: 0n
+    };
 
     constructor(
         private readonly configService: ConfigService,
@@ -41,18 +48,18 @@ export class AuditorRegistryService {
         this.contract = new this.web3.eth.Contract(auditRegistryAbi, contractAddress);
     }
 
-    async requestVerfication(identifier: string, id: number, deadline: Date): Promise<void> {
+    async requestVerfication(identifier: VerificationIdentifier, id: number, deadline: Date): Promise<void> {
         try {
             const identifierBytes32 = Web3.utils.keccak256(identifier);
             await this.contract.methods.requestVerification(identifierBytes32, id, Math.floor(deadline.getTime() / 1000))
                 .send({ from: this.web3.eth.defaultAccount });
         } catch (error) {
-            this.logger.error(`Failed to get auditor: ${error.message}`);
+            this.logger.error(`Failed to request verification: ${error.message}`);
             throw new Error(error.message);
         }
     }
 
-    async finalizeExpired(identifier: string, id: number): Promise<void> {
+    async finalizeExpired(identifier: VerificationIdentifier, id: number): Promise<void> {
         try {
             const identifierBytes32 = Web3.utils.keccak256(identifier);
             const result = await this.contract.methods.finalizeExpired(identifierBytes32, id).call();
@@ -80,7 +87,12 @@ export class AuditorRegistryService {
         }
     }
 
-    async getVerifications(identifier: string, id: number): Promise<VerificationRecord[]> {
+    async getMinAuditors(): Promise<number> {
+        const result = await this.contract.methods.MIN_AUDITORS().call();
+        return Number(result);
+    }
+
+    async getVerifications(identifier: VerificationIdentifier, id: number): Promise<VerificationRecord[]> {
         try {
             const identifierBytes32 = Web3.utils.keccak256(identifier);
             const result = await this.contract.methods.getVerifications(identifierBytes32, id).call();
@@ -95,7 +107,7 @@ export class AuditorRegistryService {
         }
     }
 
-    async getVerificationDeadline(identifier: string, id: number): Promise<{ deadline: Date }> {
+    async getVerificationDeadline(identifier: VerificationIdentifier, id: number): Promise<{ deadline: Date }> {
         try {
             const identifierBytes32 = Web3.utils.keccak256(identifier);
             const result = await this.contract.methods.getVerificationDeadline(identifierBytes32, id).call();
@@ -106,7 +118,7 @@ export class AuditorRegistryService {
         }
     }
 
-    async getVerificationsFinalize(identifier: string, id: number): Promise<{ result: boolean }> {
+    async getVerificationsFinalize(identifier: VerificationIdentifier, id: number): Promise<{ result: boolean }> {
         try {
             const identifierBytes32 = Web3.utils.keccak256(identifier);
             const result = await this.contract.methods.finalized(identifierBytes32, id).call();
@@ -123,12 +135,15 @@ export class AuditorRegistryService {
                 fromBlock,
                 toBlock: toBlock ? toBlock : 'latest',
             });
-            return events.map((e: any): VerificationFinalized => ({
+            const result = events.map((e: any): VerificationFinalized => ({
                 identifier: e.returnValues.identifier,
                 id: Number(e.returnValues.id),
                 consensus: e.returnValues.consensus,
                 blockNumber: Number(e.blockNumber),
+                totalVote: e.returnValues.totalVote,
             }));
+
+            return result;
         } catch (error) {
             this.logger.error(`Failed to get VerificationFinalized events: ${error.message}`);
             return [];
@@ -164,27 +179,36 @@ export class AuditorRegistryService {
         }
     }
 
-    async handleRequestEvents(callback: (events: VerificationRequested[]) => Promise<void>) {
-        let fromBlock: number | string = this.currentBlock.toString();
+    async handleEvent<T>(
+        key: AuditorRegistryEvent,
+        recentEvent: (fromBlock: string | number, toBlock?: string | number | undefined) => Promise<T[]>,
+        callback: (events: T[]) => Promise<void>
+    ) {
+        let fromBlock: number | string = 0;
         if (!this.devMode) {
-            const state = await this.blockchainSyncStateService.getState(AUDIT_SYNC_STATE_KEY);
+            const state = await this.blockchainSyncStateService.getState(key);
             if (state) {
                 fromBlock = state.latest_block_processed.toString();
             }
         }
+        else {
+            fromBlock = this.state[key].toString();
+        }
+
         const latestBlock = (await this.getCurrentBlockNumber());
         const toBlock = latestBlock.toString();
 
-        if (fromBlock > toBlock) return;
+        if (BigInt(fromBlock) > BigInt(toBlock)) return;
 
-        const events = await this.getRecentVerificationRequestEvents(fromBlock, toBlock);
+        this.logger.debug(`Handle ${key} from block ${fromBlock} to block ${toBlock}`)
+        const events = await recentEvent(fromBlock, toBlock);
 
         await callback(events);
 
         if (!this.devMode) {
-            await this.blockchainSyncStateService.updateState({ key: AUDIT_SYNC_STATE_KEY, latest_block_processed: latestBlock + 1n })
+            await this.blockchainSyncStateService.updateState({ key, latest_block_processed: latestBlock + 1n })
         } else {
-            this.currentBlock = latestBlock + 1n
+            this.state[key] = latestBlock + 1n
         }
     }
 }

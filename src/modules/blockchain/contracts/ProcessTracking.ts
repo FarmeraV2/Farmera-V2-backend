@@ -47,6 +47,24 @@ export const processTrackingContractAbi = [
     },
     {
         type: "function",
+        name: "addTempLog",
+        inputs: [
+            {
+                name: "logId",
+                type: "uint64",
+                internalType: "uint64"
+            },
+            {
+                name: "hashedData",
+                type: "string",
+                internalType: "string"
+            }
+        ],
+        outputs: [],
+        stateMutability: "nonpayable"
+    },
+    {
+        type: "function",
         name: "getLog",
         inputs: [
             {
@@ -132,6 +150,25 @@ export const processTrackingContractAbi = [
         stateMutability: "view"
     },
     {
+        type: "function",
+        name: "getTempLog",
+        inputs: [
+            {
+                name: "logId",
+                type: "uint64",
+                internalType: "uint64"
+            }
+        ],
+        outputs: [
+            {
+                name: "",
+                type: "string",
+                internalType: "string"
+            }
+        ],
+        stateMutability: "view"
+    },
+    {
         type: "event",
         name: "LogAdded",
         inputs: [
@@ -176,26 +213,8 @@ export const processTrackingContractAbi = [
         anonymous: false
     },
     {
-        type: "function",
-        name: "verifyLog",
-        inputs: [
-            {
-                name: "logId",
-                type: "uint64",
-                internalType: "uint64"
-            },
-            {
-                name: "status",
-                type: "uint8",
-                internalType: "enum ProcessTracking.Status"
-            }
-        ],
-        outputs: [],
-        stateMutability: "nonpayable"
-    },
-    {
         type: "event",
-        name: "LogVerified",
+        name: "TempLogAdded",
         inputs: [
             {
                 name: "logId",
@@ -204,10 +223,10 @@ export const processTrackingContractAbi = [
                 internalType: "uint64"
             },
             {
-                name: "status",
-                type: "uint8",
+                name: "hashedData",
+                type: "string",
                 indexed: false,
-                internalType: "enum ProcessTracking.Status"
+                internalType: "string"
             }
         ],
         anonymous: false

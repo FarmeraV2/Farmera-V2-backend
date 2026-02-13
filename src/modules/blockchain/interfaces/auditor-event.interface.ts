@@ -17,6 +17,7 @@ export interface VerificationFinalized {
     identifier: string;
     id: number;
     consensus: boolean;
+    totalVote: number
     blockNumber: number;
 }
 

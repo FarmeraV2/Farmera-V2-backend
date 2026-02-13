@@ -2,7 +2,7 @@ import { Column, CreateDateColumn, Entity, PrimaryColumn, UpdateDateColumn } fro
 
 @Entity()
 export class BlockchainSyncState {
-    @PrimaryColumn({ type: "varchar", length: 5 })
+    @PrimaryColumn()
     key: string;
 
     @Column('bigint')

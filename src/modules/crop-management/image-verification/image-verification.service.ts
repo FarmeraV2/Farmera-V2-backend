@@ -9,6 +9,7 @@ import { LogImageVerificationResult } from '../entities/log-image-verification-r
 import { Log } from 'src/modules/crop-management/entities/log.entity';
 import { FileStorageService } from 'src/core/file-storage/interfaces/file-storage.interface';
 import { ImageAnalysisResult, ImagePerImageResult } from '../interfaces/image-analysis.interface';
+import { VerificationIdentifier } from '../enums/verification-identifier.enum';
 
 const AGRICULTURAL_LABELS = [
     'agriculture', 'farm', 'crop', 'plant', 'soil', 'field', 'harvest',
@@ -70,7 +71,7 @@ export class ImageVerificationService {
                 }
             }
             const duplicateResult = await this.checkDuplicates(hashes, log.farm_id);
-            await this.saveHashes(hashes, log.farm_id);
+            await this.saveHashes(hashes, log.farm_id, log.id, VerificationIdentifier.LOG);
 
             // AI analysis with Google Cloud Vision
             const aiAnalysis = this.mockAnalyzeWithVision(imageBuffers, "LOW") // todo: await this.analyzeWithVision(imageBuffers);
@@ -147,7 +148,7 @@ export class ImageVerificationService {
             const phashes = hashes.map(h => h.phash);
 
             const sql = `
-                SELECT ih.log_id, ih.farm_id
+                SELECT ih.farm_id
                 FROM image_hash ih
                 JOIN unnest($2::bit(64)[]) AS nh(phash)
                 ON bit_count(ih.phash # nh.phash) <= $3
@@ -386,10 +387,12 @@ export class ImageVerificationService {
         return Math.min(Math.max(overall, 0), 1);
     }
 
-    private async saveHashes(hashes: { phash: string; image_url: string }[], farmId: number): Promise<void> {
+    private async saveHashes(hashes: { phash: string; image_url: string }[], farmId: number, source_id?: number, source?: string): Promise<void> {
         try {
             const entities = hashes.map(h =>
                 this.imageHashRepo.create({
+                    source: source,
+                    source_id: source_id,
                     phash: h.phash,
                     image_url: h.image_url,
                     farm_id: farmId,

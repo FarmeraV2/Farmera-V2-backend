@@ -1,6 +1,6 @@
 import { BadRequestException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { DataSource, EntityManager, QueryFailedError, Repository } from 'typeorm';
 import { Season } from '../entities/season.entity';
 import { CreateSeasonDto } from '../dtos/season/create-season.dto';
@@ -28,7 +28,19 @@ import { ProductService } from 'src/modules/product/product/product.service';
 import { FarmProductDetailDto } from 'src/modules/product/dtos/product/farm-product-detail.dto';
 import { UpdateProductStatusDto } from 'src/modules/product/dtos/product/update-product-status.dto';
 import { ProductStatus } from 'src/modules/product/enums/product-status.enum';
-import { VerificationService } from '../verification/verification.service';
+import { LogAddedEvent } from 'src/common/events/log-added.event';
+import { LogUploadedEvent } from 'src/common/events/log-uploaded.event';
+import { LogVerified } from 'src/common/events/log-verified.event';
+import { OnChainLogStatus } from '../enums/onchain-log-status.enum';
+import { ProcessTrackingService } from 'src/modules/blockchain/process-tracking/process-tracking.service';
+import { LogSkipReviewEvent } from 'src/common/events/log-skip-review.event';
+import { TrustComputationService } from 'src/modules/blockchain/trustworthiness/trust-computation.service';
+import { TrustedLogAuditor, TrustedLogDefault } from 'src/modules/blockchain/interfaces/trusted-log.interface';
+import { VerificationIdentifier } from '../enums/verification-identifier.enum';
+import { TrustProcessedEvent } from 'src/modules/blockchain/interfaces/trust-computation-event.interface';
+import { AuditorRegistryService } from 'src/modules/blockchain/auditor/auditor-registry.service';
+import Web3 from 'web3';
+import { StepStatus } from '../enums/step-status.enum';
 
 @Injectable()
 export class SeasonService {
@@ -43,9 +55,10 @@ export class SeasonService {
         private readonly logService: LogService,
 
         private readonly productService: ProductService,
-        private readonly verificationService: VerificationService
-        // private readonly processTrackingBlockchainservice: ProcessTrackingService,
-        // @Inject(forwardRef(() => TransparencyService)) private readonly transparencyService: TransparencyService,
+        private readonly processTrackingService: ProcessTrackingService,
+        private readonly trustComputionService: TrustComputationService,
+        private readonly auditorRegistryService: AuditorRegistryService,
+        private readonly emitter: EventEmitter2,
     ) { }
 
     async createSeason(farmId: number, createSeasonDto: CreateSeasonDto): Promise<SeasonDetailDto> {
@@ -347,7 +360,7 @@ export class SeasonService {
             //     // update season detail status IN_PROGRESS -> DONE
             //     const step = await this.stepService.getSeasonStep(seasonStepId);
 
-            //     const transaction = await this.processTrackingBlockchainservice.addStep(step);
+            //     const transaction = await this.processTrackingService.addStep(step);
             //     await this.stepService.updateTransactionHash(
             //         seasonStepId,
             //         transaction.transactionHash,
@@ -395,19 +408,8 @@ export class SeasonService {
             // update season detail status PENDING -> IN_PROGRESS
             await this.stepService.handleAfterAddLogs(addLogDto.season_detail_id);
 
-            // up blockchain
-            // const transaction = await this.processTrackingBlockchainservice.addLog(savedLog);
-
-            // update transaction hash
-            // await this.logService.updateTransactionHash(savedLog.id, transaction.transactionHash);
-            // savedLog.transaction_hash = transaction.transactionHash;
-
-            // evaluate for auditor verification (trust score computed after consensus)
-            // const verifyStatus = await this.auditorVerificationService.evaluateForVerification(savedLog, farmId);
-            // savedLog.verified = verifyStatus === VerificationStatus.SKIPPED ? true : false;
-
             // Evaluate for verification
-            await this.verificationService.evaluateForVerification(savedLog);
+            this.emitter.emit(LogAddedEvent.name, new LogAddedEvent(savedLog, farmId));
 
             return savedLog;
         }
@@ -604,6 +606,123 @@ export class SeasonService {
         })
         if (!season) throw new Error(`Season ${seasonId} not found`);
         return season.plot_id;
+    }
+
+    @OnEvent(LogUploadedEvent.name)
+    async updateLogTransactionHash(payload: LogUploadedEvent): Promise<void> {
+        await this.logService.updateTransactionHash(payload.id, payload.transactionHash);
+    }
+
+    @OnEvent(LogVerified.name)
+    async handleLogVerified(payload: LogVerified): Promise<void> {
+        try {
+            const { id, consensus, totalVote } = payload;
+            const log = await this.logService.getLog(id);
+            if (!log) throw new Error();
+
+            log.status = consensus ? OnChainLogStatus.Verified : OnChainLogStatus.Rejected;
+
+            const plotLocation = await this.stepService.getPlotLocation(log.season_detail_id);
+
+            const minAuditor = await this.auditorRegistryService.getMinAuditors();
+
+            const result = await this.trustComputionService.processData<TrustedLogAuditor>(VerificationIdentifier.LOG, log.id, "log", "auditor", {
+                identifier: Web3.utils.keccak256(VerificationIdentifier.LOG),
+                id: log.id,
+                auditorCount: totalVote,
+                minAuditors: minAuditor,
+                imageCount: log.image_urls.length,
+                videoCount: log.video_urls.length,
+                logLocation: {
+                    latitude: log.location.lat * 1000000,
+                    longitude: log.location.lng * 1000000
+                },
+                plotLocation: {
+                    latitude: plotLocation.lat * 1000000,
+                    longitude: plotLocation.lng * 1000000,
+                },
+            }, {
+                abiType: "tuple(bytes32,uint64,uint128,uint128,uint128,uint128,(int128,int128),(int128,int128))",
+                map: (data) => [
+                    data.identifier,
+                    data.id,
+                    data.auditorCount,
+                    data.minAuditors,
+                    data.imageCount,
+                    data.videoCount,
+                    [
+                        Math.round(data.logLocation.latitude),
+                        Math.round(data.logLocation.longitude),
+                    ],
+                    [
+                        Math.round(data.plotLocation.latitude),
+                        Math.round(data.plotLocation.longitude),
+                    ],
+                ],
+            });
+
+            const event = result.events?.TrustProcessed.returnValues!;
+            await this.handleTrustProcessedEventForLog(log, event);
+        }
+        catch (error) {
+            this.logger.error("Failed to handle verified event for auditor processed log from trust computation contract");
+        }
+    }
+
+    @OnEvent(LogSkipReviewEvent.name)
+    async handleSkippedLog(payload: LogSkipReviewEvent): Promise<void> {
+        try {
+            const log = payload.log;
+            const plotLocation = await this.stepService.getPlotLocation(log.season_detail_id);
+
+            const result = await this.trustComputionService.processData<TrustedLogDefault>(VerificationIdentifier.LOG, log.id, "log", "default", {
+                logLocation: {
+                    latitude: log.location.lat * 1000000,
+                    longitude: log.location.lng * 1000000
+                },
+                plotLocation: {
+                    latitude: plotLocation.lat * 1000000,
+                    longitude: plotLocation.lng * 1000000,
+                },
+                imageCount: log.image_urls.length,
+                videoCount: log.video_urls.length,
+            }, {
+                abiType: "tuple(uint128,uint128,(int128,int128),(int128,int128))",
+                map: (data) => [
+                    data.imageCount,
+                    data.videoCount,
+                    [
+                        Math.round(data.logLocation.latitude),
+                        Math.round(data.logLocation.longitude),
+                    ],
+                    [
+                        Math.round(data.plotLocation.latitude),
+                        Math.round(data.plotLocation.longitude),
+                    ],
+                ],
+            });
+
+            const event = result.events?.TrustProcessed.returnValues!;
+
+            await this.handleTrustProcessedEventForLog(log, event);
+        }
+        catch (error) {
+            this.logger.error("Failed to handle verified event for skipped log from trust computation contract");
+        }
+    }
+
+    private async handleTrustProcessedEventForLog(log: Log, event: Record<string, any>) {
+        const res: TrustProcessedEvent = {
+            identifier: event.identifier,
+            id: Number(event.id),
+            accept: event.accept,
+            trustScore: event.trustScore,
+        }
+
+        log.status = res.accept ? OnChainLogStatus.Verified : OnChainLogStatus.Rejected;
+        const savedLog = await this.logService.save(log);
+        const transaction = await this.processTrackingService.addLog(savedLog);
+        await this.logService.updateTransactionHash(log.id, transaction.transactionHash);
     }
 
     // todo!("handle cron job to update status every day")

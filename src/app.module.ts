@@ -93,6 +93,10 @@ import { ScheduleModule } from '@nestjs/schedule';
             {
                 path: "admin",
                 module: AdminModule
+            },
+            {
+                path: "on-chain",
+                module: BlockchainModule
             }
         ]),
         FileStorageModule,

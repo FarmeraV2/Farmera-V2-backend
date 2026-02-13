@@ -1,7 +1,6 @@
-export interface TrustRecord {
+export interface TrustProcessedEvent {
     identifier: string,
     id: number,
     accept: boolean,
     trustScore: number,
-    timestamp: Date
 }

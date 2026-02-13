@@ -55,6 +55,24 @@ export class ProcessTrackingService {
         }
     }
 
+    async addTempLog(log: Log): Promise<TransactionReceipt> {
+        try {
+            const hashedData = this.hashData(HashedLog, log);
+
+            // todo!("handle gas spent");
+
+            return await this.contract.methods
+                .addTempLog(log.id, hashedData)
+                .send({ from: this.web3.eth.defaultAccount });
+
+        } catch (error) {
+            this.logger.error(error.message);
+            this.logger.error(`Error name: ${error.cause.errorName}`);
+            this.logger.error(`Error input: ${error.cause.inputs}`);
+            throw new Error(error.message);
+        }
+    }
+
     async addStep(step: StepDto): Promise<TransactionReceipt> {
         try {
             const hashedData = this.hashData(HashedStep, step);

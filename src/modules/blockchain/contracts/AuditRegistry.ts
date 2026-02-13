@@ -32,6 +32,19 @@ export const auditRegistryAbi = [
     },
     {
         type: "function",
+        name: "MIN_AUDITORS",
+        inputs: [],
+        outputs: [
+            {
+                name: "",
+                type: "uint256",
+                internalType: "uint256"
+            }
+        ],
+        stateMutability: "view"
+    },
+    {
+        type: "function",
         name: "acceptOwnership",
         inputs: [],
         outputs: [],
@@ -169,6 +182,30 @@ export const auditRegistryAbi = [
                 name: "",
                 type: "uint256",
                 internalType: "uint256"
+            }
+        ],
+        stateMutability: "view"
+    },
+    {
+        type: "function",
+        name: "getVerificationResult",
+        inputs: [
+            {
+                name: "identifier",
+                type: "bytes32",
+                internalType: "bytes32"
+            },
+            {
+                name: "id",
+                type: "uint64",
+                internalType: "uint64"
+            }
+        ],
+        outputs: [
+            {
+                name: "",
+                type: "bool",
+                internalType: "bool"
             }
         ],
         stateMutability: "view"
@@ -351,6 +388,30 @@ export const auditRegistryAbi = [
     },
     {
         type: "function",
+        name: "verificationResult",
+        inputs: [
+            {
+                name: "",
+                type: "bytes32",
+                internalType: "bytes32"
+            },
+            {
+                name: "",
+                type: "uint64",
+                internalType: "uint64"
+            }
+        ],
+        outputs: [
+            {
+                name: "",
+                type: "bool",
+                internalType: "bool"
+            }
+        ],
+        stateMutability: "view"
+    },
+    {
+        type: "function",
         name: "verify",
         inputs: [
             {
@@ -488,6 +549,12 @@ export const auditRegistryAbi = [
                 type: "bool",
                 indexed: false,
                 internalType: "bool"
+            },
+            {
+                name: "totalVote",
+                type: "uint256",
+                indexed: false,
+                internalType: "uint256"
             }
         ],
         anonymous: false
@@ -654,6 +721,22 @@ export const auditRegistryAbi = [
     {
         type: "error",
         name: "AuditorRegistry__VerificationNotExpired",
+        inputs: [
+            {
+                name: "",
+                type: "bytes32",
+                internalType: "bytes32"
+            },
+            {
+                name: "",
+                type: "uint64",
+                internalType: "uint64"
+            }
+        ]
+    },
+    {
+        type: "error",
+        name: "AuditorRegistry__VerificationPending",
         inputs: [
             {
                 name: "",

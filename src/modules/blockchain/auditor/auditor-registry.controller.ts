@@ -5,6 +5,7 @@ import { Address } from 'web3';
 import { BlockRequest } from '../dtos/block-request.dto';
 import { Roles } from 'src/common/decorators/role.decorator';
 import { UserRole } from 'src/common/enums/role.enum';
+import { IdentifierDto } from '../dtos/identifier.dto';
 
 @Controller('auditor-registry')
 export class AuditorRegistryController {
@@ -18,19 +19,19 @@ export class AuditorRegistryController {
 
     @Public()
     @Get("verification")
-    async getVerifications(@Query() query: { identifier: string, id: number }) {
+    async getVerifications(@Query() query: IdentifierDto) {
         return await this.auditorRegistryService.getVerifications(query.identifier, query.id);
     }
 
     @Public()
     @Get("verification/deadline")
-    async getVerificationDeadline(@Query() query: { identifier: string, id: number }) {
+    async getVerificationDeadline(@Query() query: IdentifierDto) {
         return await this.auditorRegistryService.getVerificationDeadline(query.identifier, query.id);
     }
 
     @Public()
     @Get("verification/finalize")
-    async getVerificationsFinalize(@Query() query: { identifier: string, id: number }) {
+    async getVerificationsFinalize(@Query() query: IdentifierDto) {
         return await this.auditorRegistryService.getVerificationsFinalize(query.identifier, query.id);
     }
 
@@ -54,7 +55,13 @@ export class AuditorRegistryController {
 
     @Roles([UserRole.ADMIN])
     @Post("finalize-expired")
-    async finalizeExpired(@Body() body: { identifier: string, id: number }) {
+    async finalizeExpired(@Body() body: IdentifierDto) {
         return await this.auditorRegistryService.finalizeExpired(body.identifier, body.id);
+    }
+
+    @Public()
+    @Get("auditor-number")
+    async getMinAuditor() {
+        return await this.auditorRegistryService.getMinAuditors();
     }
 }

@@ -5,6 +5,7 @@ import { TransactionReceipt } from "../interfaces/transaction-receipt.interface"
 import { TrustRecord } from "../interfaces/trust-score-record.interface";
 import { AbiEncoderDescriptor } from "../interfaces/abi-encoder-descriptor.interface";
 import { trustComputationContractAbi } from "../contracts/TrustComputation";
+import { VerificationIdentifier } from "src/modules/crop-management/enums/verification-identifier.enum";
 
 @Injectable()
 export class TrustComputationService {
@@ -33,18 +34,23 @@ export class TrustComputationService {
         this.contract = new this.web3.eth.Contract(abi, contractAddress);
     }
 
-    async processData<T>(identifier: string, id: number, dataType: string, context: string, data: T, descriptor: AbiEncoderDescriptor<T>): Promise<TransactionReceipt> {
+    async processData<T>(identifier: VerificationIdentifier, id: number, dataType: string, context: string, data: T, descriptor: AbiEncoderDescriptor<T>): Promise<TransactionReceipt> {
         try {
             const identifierBytes32 = Web3.utils.keccak256(identifier);
-            this.logger.debug(`Identifier: ${identifierBytes32}`)
+
+            this.logger.debug(`Identifier: ${identifier}`)
+            this.logger.debug(`Identifier hashed: ${identifierBytes32}`)
 
             const result = await this.contract.methods
                 .processData(identifierBytes32, id, dataType, context, this.encodeData(data, descriptor))
                 .send({ from: this.web3.eth.defaultAccount });
+
             this.logger.debug(`Trustworthiness result: 
-                ID: ${Number(result.events?.TrustProcessed.returnValues?.id)}
-                score: ${Number(result.events?.TrustProcessed.returnValues?.trustScore)}
-                `);
+                ID: ${Number(result.events?.TrustProcessed.returnValues.id)}
+                accept: ${result.events?.TrustProcessed.returnValues.accept}
+                score: ${Number(result.events?.TrustProcessed.returnValues.trustScore)}
+            `);
+
             return result;
 
         } catch (error) {
@@ -54,11 +60,22 @@ export class TrustComputationService {
         }
     }
 
-    async getTrustRecord(id: number): Promise<TrustRecord> {
+    async getTrustRecord(identifier: VerificationIdentifier, id: number): Promise<TrustRecord> {
         try {
-            return await this.contract.methods
-                .getTrustRecord(id)
+            const identifierBytes32 = Web3.utils.keccak256(identifier);
+            const result = await this.contract.methods
+                .getTrustRecord(identifierBytes32, id)
                 .call({ from: this.web3.eth.defaultAccount });
+
+            const record = result[2];
+
+            return {
+                identifier: identifierBytes32,
+                id: id,
+                accept: record.accept,
+                trustScore: Number(record.trustScore),
+                timestamp: new Date(Number(record.timestamp) * 1000)
+            }
 
         } catch (error) {
             this.logger.error(error.message);
@@ -76,14 +93,13 @@ export class TrustComputationService {
                 .getTrustRecords(identifierBytes32, ids)
                 .call({ from: this.web3.eth.defaultAccount });
 
-            const trustScores = result[0].map((score: string) => Number(score));
-            const timestamps = result[1].map((ts: string) => Number(ts));
-
-            const records = ids.map((id, index) => ({
-                identifier: identifier,
-                id: id,
-                trustScore: trustScores[index],
-                timestamp: timestamps[index]
+            const resultIds = result[1].map((id: string) => Number(id));
+            const records = result[2].map((record: any, idx: number): TrustRecord => ({
+                identifier: identifierBytes32,
+                id: resultIds[idx],
+                accept: record.accept,
+                trustScore: Number(record.trustScore),
+                timestamp: new Date(Number(record.timestamp) * 1000)
             }));
 
             return records;

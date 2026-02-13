@@ -7,6 +7,11 @@ export class LogVerificationPackage {
     log: Log;
     farm: Farm;
     ai_analysis?: LogImageVerificationResult;
-    on_chainHash?: string;
+    hash: Hash
     deadline: Date;
+}
+
+class Hash {
+    on_chain_hash?: string;
+    current_hash?: string;
 }

@@ -1,8 +1,4 @@
-export interface TrustedLog {
-    // provenance
-    verified: boolean;
-    imageVerified: boolean;
-
+export interface TrustedLogDefault {
     // spatial plausibility
     logLocation: { latitude: number, longitude: number }
     plotLocation: { latitude: number, longitude: number }
@@ -12,4 +8,15 @@ export interface TrustedLog {
     videoCount: number
 
     // temporal plausibility
+}
+
+export interface TrustedLogAuditor {
+    identifier: string,
+    id: number,
+    auditorCount: number;
+    minAuditors: number;
+    imageCount: number;
+    videoCount: number
+    logLocation: { latitude: number, longitude: number }
+    plotLocation: { latitude: number, longitude: number }
 }
