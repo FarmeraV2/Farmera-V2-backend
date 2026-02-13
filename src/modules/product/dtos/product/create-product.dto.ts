@@ -32,7 +32,6 @@ export class CreateProductDto {
     stock_quantity: number;
 
     @IsArray()
-    @ArrayNotEmpty()
     @IsOptional()
     subcategory_ids?: number[];
 
