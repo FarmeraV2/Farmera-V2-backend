@@ -227,6 +227,7 @@ export class SeasonService {
                 .select([
                     "season.start_date",
                     "season.id",
+                    "season.status",
                     "plot.crop_id",
                 ])
                 .leftJoin("season.plot", "plot")
@@ -244,8 +245,11 @@ export class SeasonService {
                 });
             }
 
-            // validate date
-            // if (season.start_date > new Date()) {
+            // // validate date
+            // const newDate = new Date().getTime();
+            // if (season.start_date.getTime() > newDate) {
+            //     console.log(season.start_date.getTime());
+            //     console.log(newDate);
             //     throw new BadRequestException({
             //         message: `The season has not started yet. Season will be started after ${season.start_date}`,
             //         code: ResponseCode.SEASON_IS_NOT_STARTED,
@@ -335,38 +339,36 @@ export class SeasonService {
                 code: ResponseCode.NOT_ENOUGH_LOG
             });
 
-            await this.dataSource.transaction(async (manager) => {
+            if (await this.stepService.updateSeasonStepStatus(seasonStepId, StepStatus.DONE)) {
                 // update season detail status IN_PROGRESS -> DONE
-                if (await this.stepService.updateSeasonStepStatus(seasonStepId, StepStatus.DONE, manager)) {
-                    const step = await this.stepService.getSeasonStep(seasonStepId);
+                const step = await this.stepService.getSeasonStep(seasonStepId);
 
-                    const transaction = await this.processTrackingBlockchainservice.addStep(step);
-                    await this.stepService.updateTransactionHash(
-                        seasonStepId,
-                        transaction.transactionHash,
-                        manager
-                    );
+                const transaction = await this.processTrackingBlockchainservice.addStep(step);
+                await this.stepService.updateTransactionHash(
+                    seasonStepId,
+                    transaction.transactionHash,
+                );
 
-                    // calc step transparency score
-                    const stepTransparencyScore = await this.transparencyService.calcStepTransparencyScore(seasonStepId);
-                    await this.stepService.updateTransparencyScore(seasonStepId, stepTransparencyScore, manager);
+                // calc step transparency score
+                const stepTransparencyScore = await this.transparencyService.calcStepTransparencyScore(seasonStepId);
+                await this.stepService.updateTransparencyScore(seasonStepId, stepTransparencyScore);
 
-                    // if last step of the season, update season status IN_PROGRESS -> DONE to finish season
-                    if (step.step_type === StepType.POST_HARVEST) {
-                        // update status
-                        await this.updateSeasonStatus(step.season_id, SeasonStatus.DONE, manager);
+                // if last step of the season, update season status IN_PROGRESS -> DONE to finish season
+                if (step.step_type === StepType.POST_HARVEST) {
+                    // update status
+                    await this.updateSeasonStatus(step.season_id, SeasonStatus.DONE);
 
-                        // calc season transparency score
-                        const seasonTransparencyScore = await this.transparencyService.calcSeasonTransparencyScore(step.season_id);
-                        await this.updateTransparencyScore(step.season_id, seasonTransparencyScore, manager);
+                    // calc season transparency score
+                    const seasonTransparencyScore = await this.transparencyService.calcSeasonTransparencyScore(step.season_id);
+                    await this.updateTransparencyScore(step.season_id, seasonTransparencyScore);
 
-                        // calc plot score
-                        const plotId = await this.getSeasonPlotId(step.season_id);
-                        const plotTransparencyScore = await this.transparencyService.calcPlotTransparencyScore(plotId);
-                        await this.plotService.updateTransparencyScore(plotId, plotTransparencyScore, manager);
-                    }
+                    // calc plot score
+                    const plotId = await this.getSeasonPlotId(step.season_id);
+                    const plotTransparencyScore = await this.transparencyService.calcPlotTransparencyScore(plotId);
+                    await this.plotService.updateTransparencyScore(plotId, plotTransparencyScore);
                 }
-            })
+            }
+
 
             return true;
         }
@@ -383,36 +385,34 @@ export class SeasonService {
     async addLog(farmId: number, addLogDto: AddLogDto): Promise<Log> {
         try {
             await this.stepService.validateAddLog(addLogDto);
-            return await this.dataSource.transaction(async (manager) => {
-                // save db
-                const savedLog = await this.logService.addLog(farmId, addLogDto, manager);
+            // save db
+            const savedLog = await this.logService.addLog(farmId, addLogDto);
 
-                // verify images before storing on blockchain
-                const imageVerified = await this.imageVerificationService.verifyLogImages(savedLog);
-                savedLog.image_verified = imageVerified;
-                await manager.getRepository(Log).update({ id: savedLog.id }, { image_verified: imageVerified });
+            // verify images before storing on blockchain
+            const imageVerified = await this.imageVerificationService.verifyLogImages(savedLog);
+            savedLog.image_verified = imageVerified;
+            await this.logService.updateVerifyImage(savedLog.id, imageVerified);
 
-                // update season detail status PENDING -> IN_PROGRESS
-                await this.stepService.handleAfterAddLogs(addLogDto.season_detail_id, manager);
+            // update season detail status PENDING -> IN_PROGRESS
+            await this.stepService.handleAfterAddLogs(addLogDto.season_detail_id);
 
-                // up blockchain
-                const transaction = await this.processTrackingBlockchainservice.addLog(savedLog);
+            // up blockchain
+            const transaction = await this.processTrackingBlockchainservice.addLog(savedLog);
 
-                // assess trust score
-                await this.processData(
-                    savedLog,
-                    transaction.transactionHash ? true : false,
-                    true //imageVerified
-                );
+            // assess trust score
+            await this.processData(
+                savedLog,
+                transaction.transactionHash ? true : false,
+                true //imageVerified
+            );
 
-                // update transaction hash
-                await this.logService.updateTransactionHash(savedLog.id, transaction.transactionHash, manager);
+            // update transaction hash
+            await this.logService.updateTransactionHash(savedLog.id, transaction.transactionHash);
 
-                savedLog.transaction_hash = transaction.transactionHash;
-                savedLog.verified = transaction.transactionHash ? true : false;
+            savedLog.transaction_hash = transaction.transactionHash;
+            savedLog.verified = transaction.transactionHash ? true : false;
 
-                return savedLog;
-            });
+            return savedLog;
         }
         catch (error) {
             if (error instanceof HttpException) throw error;

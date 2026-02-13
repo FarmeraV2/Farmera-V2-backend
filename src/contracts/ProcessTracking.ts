@@ -178,11 +178,23 @@ export const processTrackingContractAbi = [
     {
         type: "error",
         name: "ProcessTracking__InvalidLogId",
-        inputs: []
+        inputs: [
+            {
+                name: "",
+                type: "uint64",
+                internalType: "uint64"
+            }
+        ]
     },
     {
         type: "error",
         name: "ProcessTracking__InvalidStepId",
-        inputs: []
+        inputs: [
+            {
+                name: "",
+                type: "uint64",
+                internalType: "uint64"
+            }
+        ]
     }
 ];
