@@ -3,7 +3,6 @@
 /node_modules
 /build
 /temp
-/claude
 /key
 
 # Logs
@@ -30,6 +29,7 @@ lerna-debug.log*
 *.launch
 .settings/
 *.sublime-workspace
+.claude
 
 # IDE - VSCode
 .vscode/

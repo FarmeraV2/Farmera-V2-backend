@@ -1,7 +1,10 @@
 export interface StepTransparency {
-    validLogs: number;
-    invalidLogs: number;
-    active: number;
-    unactive: number;
+    totalLogs: number;
+    verifiedLogs: number;
+    rejectedLogs: number;
+    unverifiedLogs: number;
+    activeDays: number;
+    totalDays: number;
     minLogs: number;
+    avgConsensusWeight: number;
 }

@@ -56,9 +56,9 @@ export class LogService {
         throw Error("Failed to update transaction hash");
     }
 
-    async getLog(logId: number) {
+    async getLog(logId: number): Promise<Log | null> {
         try {
-            return await this.logRepository.find({
+            return await this.logRepository.findOne({
                 where: { id: logId }
             })
         }
@@ -67,6 +67,19 @@ export class LogService {
             throw new InternalServerErrorException({
                 message: "Failed to add log",
                 code: ResponseCode.FAILED_TO_GET_LOG
+            })
+        }
+    }
+
+    async save(log: Log): Promise<Log> {
+        try {
+            return await this.logRepository.save(log);
+        }
+        catch (error) {
+            this.logger.error("Failed to save log: ", error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to save log",
+                code: ResponseCode.INTERNAL_ERROR
             })
         }
     }
@@ -213,21 +226,27 @@ export class LogService {
         }
     }
 
-    async updateVerifyImage(logId: number, value: boolean, manager?: EntityManager): Promise<boolean> {
-        const repo = manager ? manager.getRepository(Log) : this.logRepository;
-        try {
-            const result = await repo.update({ id: logId }, { image_verified: value });
+    // async updateVerifyImage(logId: number, value: boolean, manager?: EntityManager): Promise<boolean> {
+    //     const repo = manager ? manager.getRepository(Log) : this.logRepository;
+    //     try {
+    //         const result = await repo.update({ id: logId }, { image_verified: value });
 
-            if (result.affected && result.affected > 0) return true;
-            throw new InternalServerErrorException();
-        }
-        catch (error) {
-            if (error instanceof BadRequestException) throw error;
-            this.logger.error(`Failed to inactive log: ${error.message}`);
-            throw new InternalServerErrorException({
-                message: "Failed to inactive log",
-                code: ResponseCode.INTERNAL_ERROR
-            })
-        }
+    //         if (result.affected && result.affected > 0) return true;
+    //         throw new InternalServerErrorException();
+    //     }
+    //     catch (error) {
+    //         if (error instanceof BadRequestException) throw error;
+    //         this.logger.error(`Failed to inactive log: ${error.message}`);
+    //         throw new InternalServerErrorException({
+    //             message: "Failed to inactive log",
+    //             code: ResponseCode.INTERNAL_ERROR
+    //         })
+    //     }
+    // }
+
+    async getLogById(logId: number): Promise<Log> {
+        const log = await this.logRepository.findOne({ where: { id: logId } });
+        if (!log) throw new Error();
+        return log;
     }
 }

@@ -1,6 +1,12 @@
 export interface FarmTransparencyMetrics {
-    process_transparency: number;
-    customer_trust_score: number;
-
+    transparency: {
+        score: number;
+        confidence: number;
+        seasons_evaluated: number;
+    };
+    customer_satisfaction: {
+        score: number;
+        review_count: number;
+    };
     total: number;
 }

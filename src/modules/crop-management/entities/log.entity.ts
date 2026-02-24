@@ -1,6 +1,7 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { SeasonDetail } from './season-detail.entity';
 import { Farm } from 'src/modules/farm/entities/farm.entity';
+import { OnChainLogStatus } from '../enums/onchain-log-status.enum';
 
 @Entity()
 export class Log {
@@ -48,8 +49,8 @@ export class Log {
     @Column({ default: true })
     is_active: boolean;
 
-    @Column({ default: false })
-    image_verified: boolean;
+    @Column({ default: OnChainLogStatus.Pending })
+    status: OnChainLogStatus;
 
     //
     verified: boolean = false;
