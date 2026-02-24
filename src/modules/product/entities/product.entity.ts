@@ -10,10 +10,12 @@ import {
     ManyToMany,
     JoinTable,
     OneToMany,
+    OneToOne,
 } from 'typeorm';
 import { ProductStatus } from '../enums/product-status.enum';
 import { Subcategory } from './sub-category.entity';
 import { Review } from 'src/modules/review/entities/review.entity';
+import { Season } from 'src/modules/crop-management/entities/season.entity';
 
 @Entity()
 export class Product {
@@ -26,8 +28,8 @@ export class Product {
     @Column()
     description: string;
 
-    @Column({ type: 'numeric', precision: 10, scale: 2 })
-    price_per_unit: number;
+    @Column({ type: 'bigint' })
+    price_per_unit: bigint;
 
     @Column()
     unit: string;
@@ -36,7 +38,10 @@ export class Product {
     weight_per_unit: number; // in grams
 
     @Column()
-    stock_quantity: number;
+    stock_quantity: number; // in unit
+
+    @Column({ nullable: true })
+    low_stock_threshold?: number;
 
     @Column({ default: 0 })
     total_sold: number;
@@ -53,7 +58,7 @@ export class Product {
     @Column('text', { array: true, nullable: true })
     video_urls: string[] | null;
 
-    @Column({ type: 'enum', enum: ProductStatus, default: ProductStatus.NOT_YET_OPEN })
+    @Column({ type: 'enum', enum: ProductStatus, enumName: 'product_status', default: ProductStatus.NOT_YET_OPEN })
     status: ProductStatus;
 
     @CreateDateColumn({ type: 'timestamptz' })
@@ -62,10 +67,7 @@ export class Product {
     @UpdateDateColumn({ type: 'timestamptz' })
     updated: Date;
 
-    @Column({ nullable: true })
-    qr_code?: string;
-
-    @ManyToOne(() => Farm)
+    @ManyToOne(() => Farm, (farm) => farm.products)
     @JoinColumn({ name: 'farm_id' })
     farm: Farm;
 
@@ -79,7 +81,12 @@ export class Product {
     @OneToMany(() => Review, (review) => review.product)
     reviews?: Review[];
 
-    // @OneToMany(() => Process, (process) => process.product)
-    // @JoinColumn({ name: 'process_id' })
-    // processes?: Process[];
+    @OneToOne(() => Season, { nullable: true })
+    @JoinColumn({ name: 'season_id' })
+    season?: Season;
+
+    @Column({ nullable: true })
+    season_id?: number;
+
+    //todo!("summary columns for review data")
 }

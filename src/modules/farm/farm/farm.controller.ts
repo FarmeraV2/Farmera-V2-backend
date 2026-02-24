@@ -1,38 +1,59 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post, UploadedFiles } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, MaxFileSizeValidator, Param, ParseFilePipe, ParseIntPipe, Patch, Post, Query, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FarmService } from './farm.service';
 import { UserInterface } from 'src/common/types/user.interface';
 import { User } from 'src/common/decorators/user.decorator';
-import { Farm } from '../entities/farm.entity';
-import { FarmRegistrationDto } from '../dtos/farm-registration.dto';
+import { FarmRegistrationDto } from '../dtos/farm/farm-registration.dto';
 import { Public } from 'src/common/decorators/public.decorator';
-import { UpdateFarmDto } from '../dtos/update-farm.dto';
-import { UpdateFarmAvatarDto, UpdateFarmImagesDto } from '../dtos/update-farm-images.dto';
+import { UpdateFarmDto } from '../dtos/farm/update-farm.dto';
+import { UpdateFarmAvatarDto, UpdateFarmImagesDto } from '../dtos/farm/update-farm-images.dto';
 import { Roles } from 'src/common/decorators/role.decorator';
 import { UserRole } from 'src/common/enums/role.enum';
+import { ResponseCode } from 'src/common/constants/response-code.const';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { SearchProductsDto } from 'src/modules/product/dtos/product/search-product.dto';
 
 @Controller('farm')
 export class FarmController {
-    constructor(private readonly farmService: FarmService) {}
+    constructor(private readonly farmService: FarmService) { }
 
     @Post('register')
-    async farmRegister(@User() user: UserInterface, @Body() farmRegistration: FarmRegistrationDto): Promise<Farm> {
+    async farmRegister(@User() user: UserInterface, @Body() farmRegistration: FarmRegistrationDto) {
         return await this.farmService.farmRegister(farmRegistration, user.id);
     }
 
-    @Post('verify/:farmId')
+    @UseInterceptors(
+        FileFieldsInterceptor([
+            { name: 'ssn_img', maxCount: 1 },
+            { name: 'biometric_video', maxCount: 1 },
+        ]),
+    )
+    @Post('verify')
     async farmVerify(
-        @UploadedFiles()
+        @UploadedFiles(new ParseFilePipe({
+            validators: [
+                // new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }), // 10MB
+                // todo!("handle this error")
+                // new FileTypeValidator({
+                //     fileType:
+                //         /^(image\/(jpeg|jpg|png|gif|webp|jfif)|video\/(mp4|webm)|application\/pdf)$/,
+                // }),
+            ],
+        }),
+        )
         file: {
-            cccd?: Express.Multer.File[];
+            ssn_img?: Express.Multer.File[];
             biometric_video?: Express.Multer.File[];
         },
-        @Param('farmId') farmId: number,
+        @Body('farm_id', ParseIntPipe) farmId: number,
         @User() user: UserInterface,
     ) {
-        if (!file || !file.cccd?.[0] || !file.biometric_video?.[0]) {
-            throw new BadRequestException('Thiếu ảnh CCCD hoặc video sinh trắc học');
+        if (!file || !file.ssn_img?.[0] || !file.biometric_video?.[0]) {
+            throw new BadRequestException({
+                message: 'Thiếu ảnh CCCD hoặc video sinh trắc học',
+                code: ResponseCode.INVALID_MEDIA_FILE_INPUT
+            });
         }
-        return await this.farmService.verifyBiometric(file.cccd?.[0], file.biometric_video?.[0], farmId, user.id);
+        return await this.farmService.verifyBiometric(file.ssn_img?.[0], file.biometric_video?.[0], farmId, user.id);
     }
 
     @Get('my')
@@ -42,13 +63,13 @@ export class FarmController {
 
     @Public()
     @Get('owner/:userId')
-    async getFarmByOwnerId(@Param('userId') userId: string) {
+    async getFarmByOwnerId(@Param('userId') userId: number) {
         return await this.farmService.getFarmByOwner(userId);
     }
 
     @Public()
     @Get(':farmId')
-    async getFarm(@Param('farmId') farmId: string) {
+    async getFarm(@Param('farmId') farmId: number) {
         return await this.farmService.findFarmById(farmId);
     }
 
@@ -69,6 +90,25 @@ export class FarmController {
     async updateFarmImages(@Body() updateFarmDto: UpdateFarmImagesDto, @User() user: UserInterface) {
         return await this.farmService.updateFarmImages(user.farm_id!, updateFarmDto);
     }
+
+    @Get('my/product')
+    @Roles([UserRole.FARMER])
+    async getMyFarmProducts(@User() user: UserInterface, @Query() getProductByFarmDto: SearchProductsDto) {
+        return await this.farmService.getMyFarmProducts(user.farm_id!, getProductByFarmDto);
+    }
+
+    @Roles([UserRole.FARMER])
+    @Get('my/product/:id')
+    async getProduct(@Param('id') productId: number) {
+        return await this.farmService.getMyFarmProductById(productId);
+    }
+
+    @Get(':farmId/product')
+    @Public()
+    async getFarmProducts(@Param("farmId") farmId: number, @Query() getProductByFarmDto: SearchProductsDto) {
+        return await this.farmService.getFarmProducts(farmId, getProductByFarmDto);
+    }
+
 
     /*#########################################################################
                                      todo!                                   

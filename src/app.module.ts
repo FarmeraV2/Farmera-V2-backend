@@ -3,14 +3,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './core/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
-import { MailModule } from './core/mail/mail.module';
-import { SmsModule } from './core/sms/sms.module';
 import { RedisModule } from './core/redis/redis.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { typeOrmAsyncConfig } from './config/typeorm.config';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, RouterModule } from '@nestjs/core';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/role.guard';
 import { AdminModule } from './modules/admin/admin.module';
@@ -20,6 +18,17 @@ import { AddressModule } from './modules/address/address.module';
 import { ReviewModule } from './modules/review/review.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { OrderModule } from './modules/order/order.module';
+import { CropManagementModule } from './modules/crop-management/crop-management.module';
+import { TwilioModule } from './core/twilio/twilio.module';
+import { FirebaseModule } from './core/firebase/firebase.module';
+import { NotificationModule } from './modules/notification/notification.module';
+import { FileStorageModule } from './core/file-storage/file-storage.module';
+import { StringValue } from 'ms';
+import { AuditModule } from './core/audit/audit.module';
+import { QrModule } from './modules/qr/qr.module';
+import { BlockchainModule } from './modules/blockchain/blockchain.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
     imports: [
@@ -28,20 +37,26 @@ import { OrderModule } from './modules/order/order.module';
         // Configuration
         ConfigModule.forRoot({
             isGlobal: true,
-            envFilePath: '.env',
+            envFilePath: ['.env.dev', '.env']
         }),
 
         // JWT configuration
         JwtModule.registerAsync({
             global: true,
-            inject: [],
-            useFactory: () => ({
-                secret: process.env.JWT_ACCESS_TOKEN_SECRET || 'fallback_secret',
+            inject: [ConfigService],
+            useFactory: async (configService: ConfigService) => ({
+                secret: configService.get<string>("JWT_ACCESS_TOKEN_SECRET") || 'fallback_secret',
                 signOptions: {
-                    expiresIn: process.env.JWT_ACCESS_TOKEN_EXPIRATION || '15m',
+                    expiresIn: configService.get<StringValue>("JWT_ACCESS_TOKEN_EXPIRATION") || '15m',
                 },
             }),
         }),
+
+        // Cron jobs
+        ScheduleModule.forRoot(),
+
+        // Emitter
+        EventEmitterModule.forRoot(),
 
         // Rate limiting
         // ThrottlerModule.forRootAsync({
@@ -58,8 +73,6 @@ import { OrderModule } from './modules/order/order.module';
 
         AuthModule,
         UserModule,
-        MailModule,
-        SmsModule,
         RedisModule,
         AdminModule,
         ProductModule,
@@ -68,6 +81,29 @@ import { OrderModule } from './modules/order/order.module';
         ReviewModule,
         PaymentModule,
         OrderModule,
+        CropManagementModule,
+        TwilioModule,
+        FirebaseModule,
+        NotificationModule,
+        RouterModule.register([
+            {
+                path: "crop-management",
+                module: CropManagementModule
+            },
+            {
+                path: "admin",
+                module: AdminModule
+            },
+            {
+                path: "on-chain",
+                module: BlockchainModule
+            }
+        ]),
+        FileStorageModule,
+        AuditModule,
+        QrModule,
+        BlockchainModule,
+        EventEmitterModule.forRoot(),
     ],
     controllers: [AppController],
     providers: [
@@ -82,4 +118,4 @@ import { OrderModule } from './modules/order/order.module';
         },
     ],
 })
-export class AppModule {}
+export class AppModule { }

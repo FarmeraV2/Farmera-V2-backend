@@ -8,14 +8,16 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { CreateUserDto } from '../dtos/user/create-user.dto';
-import { PublicUserDto, publicUserFields, UserDto } from '../dtos/user/user.dto';
+import { PublicUserDto, UserDto } from '../dtos/user/user.dto';
 import { plainToInstance } from 'class-transformer';
 import { HashService } from 'src/services/hash.service';
 import { UpdateProfileDto } from '../dtos/user/update-profile.dto';
-import { isUUID } from 'class-validator';
+import { ResponseCode } from 'src/common/constants/response-code.const';
+import { UserRole } from 'src/common/enums/role.enum';
+import { DeliveryAddressService } from 'src/modules/address/delivery-address/delivery-address.service';
 
 @Injectable()
 export class UserService {
@@ -28,7 +30,8 @@ export class UserService {
         // @InjectRepository(PaymentMethod)
         // private paymentMethodsRepository: Repository<PaymentMethod>,
         private readonly hashService: HashService,
-    ) {}
+        private readonly deliveryAddressService: DeliveryAddressService,
+    ) { }
 
     /**
      * @function createUser - Creates a new user
@@ -41,20 +44,26 @@ export class UserService {
      *  - The phone number is already in use.
      * @throws {InternalServerErrorException} - Thrown if an unexpected error occurs during creation.
      */
-    async createUser(createUserDto: CreateUserDto): Promise<UserDto> {
+    async createUser(createUserDto: CreateUserDto, isAdmin?: boolean): Promise<UserDto> {
         try {
             const existingEmail = await this.userRepository.existsBy({
                 email: createUserDto.email,
             });
             if (existingEmail) {
-                throw new ConflictException('This email is already in use');
+                throw new ConflictException({
+                    message: 'This email is already in use',
+                    code: ResponseCode.EMAIL_CONFLICT
+                });
             }
 
             const existingPhone = await this.userRepository.existsBy({
-                email: createUserDto.email,
+                phone: createUserDto.phone,
             });
             if (existingPhone) {
-                throw new ConflictException('This phone number is already in use');
+                throw new ConflictException({
+                    message: 'This phone number is already in use',
+                    code: ResponseCode.PHONE_CONFLICT
+                });
             }
 
             // hash password
@@ -62,6 +71,7 @@ export class UserService {
             const hashed = await this.hashService.hashPassword(password);
 
             const newUser = this.userRepository.create({ ...createUserDto, hashed_pwd: hashed });
+            if (isAdmin) newUser.role = UserRole.ADMIN;
             const savedUser = await this.userRepository.save(newUser);
 
             // exclude unnecessary infomations e.g. password
@@ -69,7 +79,10 @@ export class UserService {
         } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to create user');
+            throw new InternalServerErrorException({
+                message: "Failed to create user",
+                code: ResponseCode.FAILED_TO_CREATE_USER
+            });
         }
     }
 
@@ -109,7 +122,10 @@ export class UserService {
     async validateUser(password: string, email?: string, phone?: string): Promise<UserDto> {
         try {
             if (!phone && !email) {
-                throw new BadRequestException('Email or phone is required');
+                throw new BadRequestException({
+                    message: 'Email or phone is required',
+                    code: ResponseCode.EMAIL_OR_PHONE_IS_REQUIRED
+                });
             }
 
             const where: any[] = [];
@@ -123,11 +139,17 @@ export class UserService {
                 // exclude unnecessary infomations
                 return plainToInstance(UserDto, user, { excludeExtraneousValues: true });
             }
-            throw new BadRequestException('Invalid email or password');
+            throw new BadRequestException({
+                message: 'Invalid email or password',
+                code: ResponseCode.INVALID_EMAIL_OR_PASSWORD
+            });
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to validate user');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to validate user',
+                code: ResponseCode.FAILED_TO_VALIDATE_USER
+            });
         }
     }
 
@@ -143,7 +165,10 @@ export class UserService {
      * @throws {InternalServerErrorException} - If the update fails or no rows are affected
      */
     async updateUserPassword(password: string, email?: string, phone?: string): Promise<void> {
-        if (!email && !password) throw new BadRequestException('Email or phone is required');
+        if (!email && !password) throw new BadRequestException({
+            message: 'Email or phone is required',
+            code: ResponseCode.EMAIL_OR_PHONE_IS_REQUIRED
+        });
 
         try {
             // hashing
@@ -152,9 +177,9 @@ export class UserService {
 
             // update
             if (email) {
-                result = (await this.userRepository.update(email, { hashed_pwd })).affected;
+                result = (await this.userRepository.update({ email: email }, { hashed_pwd })).affected;
             } else if (phone) {
-                result = (await this.userRepository.update(phone, { hashed_pwd })).affected;
+                result = (await this.userRepository.update({ phone: phone }, { hashed_pwd })).affected;
             }
 
             // validate result
@@ -162,8 +187,11 @@ export class UserService {
                 throw new InternalServerErrorException();
             }
         } catch (error) {
-            this.logger.error(error.message);
-            throw new InternalServerErrorException('Failed to update password');
+            this.logger.error(`Failed to update password: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: 'Failed to update password',
+                ResponseCode: ResponseCode.FAILED_TO_UPDATE_PASSWORD
+            });
         }
     }
 
@@ -181,7 +209,6 @@ export class UserService {
     async getUserById(id: number, addresses?: boolean, paymentMethod?: boolean): Promise<UserDto> {
         try {
             const relations: string[] = [];
-            if (addresses) relations.push('addresses');
             if (paymentMethod) relations.push('payment_methods');
 
             const user = await this.userRepository.findOne({
@@ -190,13 +217,28 @@ export class UserService {
             });
 
             if (!user) {
-                throw new NotFoundException(`User not found`);
+                throw new NotFoundException({
+                    message: `User not found`,
+                    code: ResponseCode.USER_NOT_FOUND
+                });
             }
-            return plainToInstance(UserDto, user, { excludeExtraneousValues: true });
+
+            const userDto = plainToInstance(UserDto, user, { excludeExtraneousValues: true });
+
+            if (addresses) {
+                const addresses = await this.deliveryAddressService.getUserAddresses(id);
+                userDto.addresses = addresses;
+            }
+
+            return userDto;
+
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to find user by ID');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to find user by ID',
+                code: ResponseCode.FAILED_TO_FIND_USER,
+            });
         }
     }
 
@@ -216,38 +258,56 @@ export class UserService {
             return await this.getUserById(id);
         } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException('Failed to update user profile');
+            throw new InternalServerErrorException({
+                message: 'Failed to update user profile',
+                code: ResponseCode.FAILED_TO_UPDATE_USER
+            });
         }
     }
 
     /**
-     * @function getPublicUser - Retrieves a user's public profile data by UUID
-     * @param {string} uuid - The unique identifier of the user
+     * @function getPublicUser - Retrieves a user's public profile data by user id
+     * @param {number} id - The unique identifier of the user
      *
      * @returns {Promise<PublicUserDto>} - Returns the user's public information, excluding sensitive fields
      *
      * @throws {NotFoundException} - If no user is found with the given UUID
      * @throws {InternalServerErrorException} - If there is an unexpected error during retrieval
      */
-    async getPublicUser(uuid: string): Promise<PublicUserDto> {
-        if (!isUUID(uuid)) throw new NotFoundException('User with ID ${uuid} not found');
+    async getPublicUser(id: number): Promise<PublicUserDto> {
         try {
-            const user = await this.userRepository.findOne({
-                select: publicUserFields,
-                where: { uuid },
-            });
-
+            const user = await this.userRepository.findOne({ where: { id } });
             if (!user) {
-                throw new NotFoundException(`User with ID ${uuid} not found`);
+                throw new NotFoundException({
+                    message: `User with ID ${id} is not found`,
+                    code: ResponseCode.USER_NOT_FOUND
+                });
             }
             return plainToInstance(PublicUserDto, user, { excludeExtraneousValues: true });
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to find user by uuid');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to find user by uuid',
+                code: ResponseCode.FAILED_TO_FIND_USER
+            });
         }
     }
 
+    async updateRole(id: number, role: UserRole, manager: EntityManager): Promise<void> {
+        try {
+            const result = await manager.update(User, id, { role: role })
+            if (!result || !result.affected || result.affected <= 0) {
+                throw new InternalServerErrorException();
+            }
+        } catch (error) {
+            this.logger.error("Failed to update user role");
+            throw new InternalServerErrorException({
+                message: "Failed to update user role",
+                code: ResponseCode.FAILED_TO_UPDATE_ROLE,
+            })
+        }
+    }
     // async getUserDetails(id: number, )
 
     // async deleteUser(id: string, hardDelete = false) {

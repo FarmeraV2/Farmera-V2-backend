@@ -6,12 +6,15 @@ import { LoginDto } from '../dtos/login.dto';
 import { UserStatus } from 'src/modules/user/enums/user-status.enum';
 import { JsonWebTokenError, JwtService, TokenExpiredError } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { Response } from 'express';
-import ms from 'ms';
+import e, { Response } from 'express';
+import ms, { StringValue } from 'ms';
 import { ForgotPasswordDto, UpdateNewPasswordDto } from '../dtos/forgot-password.dto';
 import { VerificationService } from '../verification/verification.service';
 import { FarmService } from 'src/modules/farm/farm/farm.service';
 import { UserRole } from 'src/common/enums/role.enum';
+import { CheckStatus } from 'src/core/twilio/enums/check-status.enum';
+import { PreferenceChannelService } from 'src/modules/notification/preference-channel/preference-channel.service';
+import { ResponseCode } from 'src/common/constants/response-code.const';
 
 export const REFRESH_TOKEN_COOKIES_KEY = 'refresh_token';
 
@@ -25,10 +28,38 @@ export class AuthService {
         private readonly configService: ConfigService,
         private readonly verificationService: VerificationService,
         private readonly farmService: FarmService,
-    ) {}
+        private readonly preferenceChannelService: PreferenceChannelService,
+    ) { }
 
     async register(registerDto: CreateUserDto): Promise<UserDto> {
-        return await this.userService.createUser(registerDto);
+        try {
+            await this.verificationService.checkVerify(registerDto.email, registerDto.phone);
+            const user = await this.userService.createUser(registerDto);
+
+            // register notification
+            setTimeout(() => {
+                void (async () => {
+                    try {
+                        const result = await this.preferenceChannelService.registerNotificationChannel(user.id);
+                        if (result.length > 0) {
+                            this.logger.log(`Notification preference is registered for user id ${user.id}`)
+                        } else {
+                            this.logger.error("Register notification preference return 0 result");
+                        }
+                    } catch (error) {
+                        this.logger.error("Failed to register user notification preference");
+                    }
+                })();
+            }, 0);
+
+            return user;
+        } catch (error) {
+            if (error instanceof HttpException) throw error;
+            throw new InternalServerErrorException({
+                message: "Failed to register user",
+                code: ResponseCode.FAILED_TO_REGISTER_USER,
+            })
+        }
     }
 
     /**
@@ -50,8 +81,8 @@ export class AuthService {
             const user = await this.userService.validateUser(req.password, req.email, req.phone);
 
             if (user) {
-                const { id, uuid, email, phone, first_name, last_name, role, status, avatar } = user;
-                const payload: any = { id, uuid, email, phone, first_name, last_name, role, status, avatar };
+                const { id, uuid, email, phone, first_name, last_name, role, status, avatar, gender, points, created_at, updated_at } = user;
+                const payload: any = { id, uuid, email, phone, first_name, last_name, role, status, avatar, gender, points, created_at, updated_at };
 
                 if (user.role === UserRole.FARMER) {
                     const farm = await this.farmService.validateFarmer(user.id);
@@ -65,10 +96,7 @@ export class AuthService {
                     throw new UnauthorizedException('Your account is banned');
                 }
 
-                const accessToken = this.jwtService.sign(payload as object, {
-                    secret: this.configService.get<string>('JWT_ACCESS_TOKEN_SECRET'),
-                    expiresIn: this.configService.get<string>('JWT_ACCESS_TOKEN_EXPIRATION'),
-                });
+                const accessToken = this.jwtService.sign(payload);
 
                 const refreshToken = this.createRefreshToken({
                     ...(payload as Record<string, unknown>),
@@ -81,10 +109,10 @@ export class AuthService {
                     const expirationSetting = this.configService.get<string>('JWT_REFRESH_TOKEN_EXPIRATION');
 
                     res.cookie(REFRESH_TOKEN_COOKIES_KEY, refreshToken, {
-                        httpOnly: false,
+                        httpOnly: true,
                         maxAge: ms(expirationSetting as ms.StringValue),
                         sameSite: 'none',
-                        secure: true,
+                        secure: this.configService.get<string>('NODE_ENV') === 'production',
                     });
                 }
 
@@ -94,10 +122,15 @@ export class AuthService {
                     user: payload,
                 };
             }
-            throw new InternalServerErrorException('Failed to login user');
+            throw new InternalServerErrorException();
         } catch (error) {
+            if (error instanceof HttpException) throw error;
             this.logger.error(error.message);
-            throw error;
+            throw new InternalServerErrorException({
+                message: 'Failed to login user',
+                code: ResponseCode.INTERNAL_ERROR
+            });
+
         }
     }
 
@@ -120,17 +153,15 @@ export class AuthService {
         let userDecoded: UserDto;
         // verify token
         try {
-            userDecoded = this.jwtService.verify<UserDto>(refreshToken, {
+            userDecoded = await this.jwtService.verifyAsync<UserDto>(refreshToken, {
                 secret: this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
             });
         } catch (error) {
             this.logger.error(error.message);
-            if (error instanceof TokenExpiredError) {
-                throw new UnauthorizedException('Refresh token expired');
-            } else if (error instanceof JsonWebTokenError) {
-                throw new UnauthorizedException('Invalid refresh token');
-            }
-            throw new InternalServerErrorException('Failed to verify token');
+            throw new InternalServerErrorException({
+                message: 'Failed to verify token',
+                code: ResponseCode.INTERNAL_ERROR
+            });
         }
 
         // generate new tokens
@@ -148,12 +179,13 @@ export class AuthService {
                     role: user.role,
                     status: user.status,
                     avatar: user.avatar,
+                    gender: user.gender,
+                    points: user.points,
+                    created_at: user.created_at,
+                    updated_at: user.updated_at,
                 };
 
-                const newAccessToken = this.jwtService.sign(payload, {
-                    secret: this.configService.get<string>('JWT_ACCESS_TOKEN_SECRET'),
-                    expiresIn: this.configService.get<string>('JWT_ACCESS_TOKEN_EXPIRATION'),
-                });
+                const newAccessToken = this.jwtService.sign(payload);
 
                 const newRefreshToken = this.createRefreshToken({
                     ...payload,
@@ -168,10 +200,10 @@ export class AuthService {
                     const expirationSetting = this.configService.get<string>('JWT_REFRESH_TOKEN_EXPIRATION');
 
                     res.cookie(REFRESH_TOKEN_COOKIES_KEY, newRefreshToken, {
-                        httpOnly: false, // Consider setting this to true for refresh tokens if possible
+                        httpOnly: true,
                         maxAge: ms(expirationSetting as ms.StringValue), // Type assertion here
                         sameSite: 'none',
-                        secure: true,
+                        secure: this.configService.get<string>('NODE_ENV') === 'production',
                     });
                 }
 
@@ -181,12 +213,18 @@ export class AuthService {
                     user: payload,
                 };
             } else {
-                throw new BadRequestException('Refresh token is invalid or expired');
+                throw new BadRequestException({
+                    message: 'Refresh token is invalid or expired',
+                    code: ResponseCode.TOKEN_INVALID_OR_EXPIRED
+                });
             }
         } catch (error) {
             this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to process refresh token');
+            throw new InternalServerErrorException({
+                message: 'Failed to process refresh token',
+                code: ResponseCode.INTERNAL_ERROR
+            });
         }
     }
 
@@ -221,24 +259,24 @@ export class AuthService {
      * @throws {InternalServerErrorException} - If updating the password fails internally
      */
     async updateNewPassword(req: UpdateNewPasswordDto): Promise<boolean> {
-        const { email, phone, newPassword } = req;
+        const { email, phone, new_password } = req;
 
-        // verify code
-        let verification: { result: string } | undefined;
-        if (email) {
-            verification = await this.verificationService.verifyEmail({ email, verification_code: req.code });
-        } else if (phone) {
-            verification = await this.verificationService.verifyPhone({ phone, verification_code: req.code });
+        try {
+            await this.verificationService.checkVerify(req.email, req.phone);
+
+            // update password
+            await this.userService.updateUserPassword(new_password, email, phone);
+
+            return true;
         }
-
-        if (!verification) {
-            throw new BadRequestException('Invalid verification code');
+        catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error(`Failed to update password: ${error.message}`)
+            throw new InternalServerErrorException({
+                message: "Failed to update password",
+                code: ResponseCode.FAILED_TO_UPDATE_PASSWORD
+            })
         }
-
-        // update password
-        await this.userService.updateUserPassword(newPassword, email, phone);
-
-        return true;
     }
 
     /*#########################################################################
@@ -246,8 +284,8 @@ export class AuthService {
     #########################################################################*/
     private createRefreshToken(payload: Record<string, string | number | boolean | object | undefined | null | Array<any>>) {
         const refreshToken = this.jwtService.sign(payload, {
-            secret: this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
-            expiresIn: this.configService.get<string>('JWT_REFRESH_TOKEN_EXPIRATION'),
+            secret: this.configService.get<StringValue>('JWT_REFRESH_TOKEN_SECRET'),
+            expiresIn: this.configService.get<StringValue>('JWT_REFRESH_TOKEN_EXPIRATION'),
         });
 
         return refreshToken;

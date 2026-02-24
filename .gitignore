@@ -2,6 +2,9 @@
 /dist
 /node_modules
 /build
+/temp
+/key
+/ref
 
 # Logs
 logs
@@ -27,9 +30,10 @@ lerna-debug.log*
 *.launch
 .settings/
 *.sublime-workspace
+.claude
 
 # IDE - VSCode
-.vscode/*
+.vscode/
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
@@ -41,10 +45,14 @@ lerna-debug.log*
 .env.test.local
 .env.production.local
 .env.local
+.env.dev
 
 # temp directory
 .temp
 .tmp
+
+# upload directory
+uploads/
 
 # Runtime data
 pids

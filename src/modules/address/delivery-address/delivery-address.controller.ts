@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Logger, Param, Post, Put } from '@nestjs/common';
 import { UserInterface } from 'src/common/types/user.interface';
 import { User } from 'src/common/decorators/user.decorator';
 import { DeliveryAddressService } from './delivery-address.service';
@@ -7,10 +7,12 @@ import { CreateAddressDto } from '../dtos/create-address.dto';
 
 @Controller('delivery-address')
 export class DeliveryAddressController {
-    constructor(private readonly deliveryAddressService: DeliveryAddressService) {}
+    private readonly logger = new Logger(DeliveryAddressController.name);
+    constructor(private readonly deliveryAddressService: DeliveryAddressService) { }
 
     @Put(':locationId')
     async updateAddress(@User() user: UserInterface, @Param('locationId') locationId: number, @Body() req: UpdateAddressDto) {
+        this.logger.log(`Updating address for user ID: ${user.id}, location ID: ${locationId}`);
         return await this.deliveryAddressService.updateUserAddress(user.id, locationId, req);
     }
 

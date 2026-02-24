@@ -10,20 +10,14 @@ export class Province {
     name: string;
 
     @Column()
-    full_name: string;
+    division_type: string;
 
     @Column()
-    name_en: string;
+    phone_code: number;
 
-    @Column()
-    full_name_en: string;
+    @OneToMany(() => Ward, (ward) => ward.province, { cascade: true })
+    wards: Ward[];
 
-    @Column()
-    type: string;
-
-    @Column()
-    type_en: string;
-
-    @OneToMany(() => Ward, (ward) => ward.province)
-    ward: Ward;
+    @Column({ nullable: true })
+    ghn_code?: string;
 }

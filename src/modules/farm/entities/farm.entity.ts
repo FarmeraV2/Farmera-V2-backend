@@ -1,9 +1,15 @@
-import { Entity, Column, CreateDateColumn, OneToOne, UpdateDateColumn, JoinColumn, BeforeInsert, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, CreateDateColumn, OneToOne, UpdateDateColumn, JoinColumn, BeforeInsert, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
 import { FarmStatus } from '../enums/farm-status.enum';
 import { Identification } from './identification.entity';
 import { User } from 'src/modules/user/entities/user.entity';
 import { DeliveryAddress } from 'src/modules/address/entities/delivery-address.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { Plot } from 'src/modules/crop-management/entities/plot.entity';
+import { Season } from 'src/modules/crop-management/entities/season.entity';
+import { Log } from 'src/modules/crop-management/entities/log.entity';
+import { Product } from 'src/modules/product/entities/product.entity';
+import { FarmCertificate } from './farm-certificate.entity';
+import { FarmTransparencyMetrics } from 'src/modules/ftes/interfaces/farm-transparency.interface';
 
 @Entity()
 export class Farm {
@@ -20,17 +26,14 @@ export class Farm {
     @Column({ unique: true })
     farm_name: string;
 
-    @Column({ nullable: true })
-    description?: string;
+    @Column()
+    description: string;
 
     @Column({ nullable: true })
     avatar_url: string;
 
     @Column('text', { array: true, nullable: true })
     profile_image_urls: string[];
-
-    @Column('text', { array: true, nullable: true })
-    certificate_img_urls: string[];
 
     @Column()
     email: string;
@@ -41,7 +44,7 @@ export class Farm {
     @Column()
     tax_number: string;
 
-    @Column({ type: 'enum', enum: FarmStatus, default: FarmStatus.PENDING })
+    @Column({ type: 'enum', enum: FarmStatus, enumName: 'farm_status', default: FarmStatus.PENDING })
     status: FarmStatus;
 
     @OneToOne(() => Identification, (identification) => identification.farm, { cascade: true })
@@ -50,6 +53,12 @@ export class Farm {
     @OneToOne(() => User, (user) => user.farm)
     @JoinColumn({ name: 'user_id' })
     owner: User;
+
+    @Column({ nullable: true })
+    establish: number;
+
+    @Column({ nullable: true })
+    farm_size: number;
 
     @Column()
     user_id: number;
@@ -69,6 +78,19 @@ export class Farm {
     @JoinColumn({ name: 'address_id' })
     address: DeliveryAddress;
 
-    // @OneToMany(() => Product, (product) => product.farm, { cascade: true })
-    // products: Product[];
+    @OneToMany(() => Product, (product) => product.farm, { cascade: true })
+    products: Product[];
+
+    @OneToMany(() => Plot, (plot) => plot.farm)
+    plots: Plot[]
+    @OneToMany(() => Season, (season) => season.farm)
+    seasons?: Season[]
+    @OneToMany(() => Log, (log) => log.farm)
+    logs?: Log[]
+
+    @OneToMany(() => FarmCertificate, (cert) => cert.farm)
+    certificate?: FarmCertificate;
+
+    @Column({ type: "jsonb", nullable: true })
+    transparency_score?: FarmTransparencyMetrics
 }

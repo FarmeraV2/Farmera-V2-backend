@@ -10,21 +10,34 @@ export class CreateAddressDto {
     @IsPhoneNumber('VN')
     phone: string;
 
+    @IsOptional()
     @IsNumber()
     @IsPositive()
-    province_code: number;
+    province_code?: number;
 
+    @IsOptional()
     @IsNumber()
     @IsPositive()
-    ward_code: number;
+    ward_code?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @IsPositive()
+    old_province_code?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @IsPositive()
+    old_district_code?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @IsPositive()
+    old_ward_code?: number;
 
     @IsString()
     @IsNotEmpty()
     street: string;
-
-    @IsString()
-    @IsNotEmpty()
-    address_line: string;
 
     @IsString()
     @IsOptional()
@@ -49,13 +62,27 @@ export class CreateFarmAddressDto {
     @IsPhoneNumber('VN')
     phone: string;
 
+    @IsOptional()
     @IsNumber()
     @IsPositive()
-    province_code: number;
+    province_code?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @IsPositive()
+    ward_code?: number;
 
     @IsNumber()
     @IsPositive()
-    ward_code: number;
+    old_province_code: number;
+
+    @IsNumber()
+    @IsPositive()
+    old_district_code: number;
+
+    @IsNumber()
+    @IsPositive()
+    old_ward_code: number;
 
     @IsString()
     @IsNotEmpty()

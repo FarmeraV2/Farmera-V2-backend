@@ -7,9 +7,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { PaymentMethod } from './entities/payment-method.entity';
 import { HashService } from 'src/services/hash.service';
+import { AddressModule } from '../address/address.module';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([User, PaymentMethod])],
+    imports: [TypeOrmModule.forFeature([User, PaymentMethod]), AddressModule],
     controllers: [UserController, PaymentMethodController],
     providers: [UserService, PaymentMethodService, HashService],
     exports: [UserService],

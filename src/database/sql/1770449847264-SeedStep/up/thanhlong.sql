@@ -1,0 +1,107 @@
+INSERT INTO "step"
+(name, description, "order", repeated, is_optional, min_logs, type, interval_date, min_day_duration, max_day_duration, crop_id)
+VALUES
+(
+    'Chuẩn bị đất trồng',
+    'Vùng đất cao cần bón nhiều phân hữu cơ để cải tạo đất. Sau khi chôn trụ, đào quanh trụ sâu 20 cm, đường kính 1,5 m, bón lót phân chuồng rồi phủ đất mặt trước khi đặt hom. Vùng đất thấp phải lên liếp cách mặt nước trong mương 50–70 cm, lên mô cao 10–20 cm, rộng 0,8–1 m, đất cày bừa kỹ, phơi đất và trừ cỏ dại.',
+    10,
+    false,
+    true,
+    1,
+    'PREPARE',
+    NULL,
+    NULL,
+    NULL,
+    7
+),
+(
+    'Trồng cây',
+    'Bón lót 10–20 kg phân chuồng hoai mục và 200 g NPK 16-16-8 hoặc 0,5 kg super lân kết hợp 0,2–0,5 kg vôi. Mỗi trụ trồng 4 hom, mỗi mặt trụ 1 hom. Hom đặt sâu 2–5 cm, áp phần phẳng của hom vào mặt trụ.',
+    20,
+    false,
+    true,
+    1,
+    'PLANTING',
+    NULL,
+    NULL,
+    NULL,
+    7
+),
+(
+    'Tưới nước',
+    'Cung cấp đủ nước cho cây, đặc biệt trong giai đoạn phân hóa mầm hoa, ra hoa và nuôi quả. Áp dụng các phương pháp tưới phun mưa, tưới tràn hoặc tưới nhỏ giọt và tủ gốc giữ ẩm.',
+    31,
+    true,
+    false,
+    1,
+    'CARE',
+    NULL,
+    1,
+    NULL,
+    7
+),
+(
+    'Bón phân',
+    'Quản lý dinh dưỡng cho cây thanh long theo từng giai đoạn sinh trưởng. Kết hợp sử dụng phân hữu cơ, phân vô cơ và các hóa chất bổ sung phù hợp. Bón phân đúng liều lượng, đúng thời điểm nhằm giúp cây sinh trưởng tốt, ra hoa, đậu quả và nuôi quả hiệu quả, đồng thời đảm bảo yêu cầu sản xuất theo tiêu chuẩn VietGAP.',
+    32,
+    true,
+    false,
+    1,
+    'CARE',
+    NULL,
+    1,
+    NULL,
+    7
+),
+(
+    'Tỉa cành và tạo tán',
+    'Tỉa bỏ cành yếu, cành mọc ngang, giữ lại cành khỏe cho leo trụ tạo tán. Thường xuyên cắt bỏ cành già, cành sâu bệnh để duy trì bộ tán thông thoáng.',
+    33,
+    true,
+    false,
+    1,
+    'CARE',
+    NULL,
+    1,
+    NULL,
+    7
+),
+(
+    'Quản lý dịch hại',
+    'Thực hiện quản lý dịch hại tổng hợp bằng các biện pháp canh tác, cơ học, sinh học và hóa học. Sử dụng thuốc bảo vệ thực vật theo nguyên tắc 4 đúng, ưu tiên thuốc ít độc và sinh học, bảo vệ thiên địch, thu gom và xử lý tàn dư, quả bị nhiễm bệnh nhằm hạn chế sâu bệnh hại và đảm bảo sản xuất theo tiêu chuẩn VietGAP.',
+    34,
+    true,
+    false,
+    1,
+    'CARE',
+    NULL,
+    1,
+    NULL,
+    7
+),
+(
+    'Thu hoạch',
+    'Thu hoạch quả khi đạt độ chín thích hợp. Thời gian từ khi hoa nở đến thu hoạch khoảng 29–34 ngày tùy giống và điều kiện canh tác.',
+    40,
+    false,
+    false,
+    1,
+    'HARVEST',
+    NULL,
+    NULL,
+    NULL,
+    7
+),
+(
+    'Xử lý sau thu hoạch',
+    'Thực hiện thu gom, phân loại và xử lý quả sau thu hoạch đảm bảo vệ sinh, an toàn thực phẩm theo quy định VietGAP.',
+    50,
+    false,
+    false,
+    1,
+    'POST_HARVEST',
+    NULL,
+    NULL,
+    NULL,
+    7
+);

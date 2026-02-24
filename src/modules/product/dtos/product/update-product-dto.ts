@@ -1,5 +1,5 @@
-import { Type } from 'class-transformer';
-import { IsArray, IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsArray, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
 
 export class UpdateProductDto {
     @IsString()
@@ -8,10 +8,10 @@ export class UpdateProductDto {
     @IsString()
     description: string;
 
-    @Type(() => Number)
-    @IsNumber()
-    @IsPositive()
-    price_per_unit: number;
+    @IsNotEmpty()
+    @IsString()
+    @Transform(({ value }) => BigInt(value))
+    price_per_unit: bigint;
 
     @IsString()
     unit: string;

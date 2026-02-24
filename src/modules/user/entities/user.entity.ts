@@ -40,22 +40,22 @@ export class User {
     @Column()
     hashed_pwd: string;
 
-    @Column({ enum: Gender, default: Gender.UNSPECIFIED })
+    @Column({ type: 'enum', enum: Gender, enumName: 'gender', default: Gender.UNSPECIFIED })
     gender: Gender;
 
     @Column({ nullable: true })
     avatar?: string;
 
-    @Column({ nullable: true })
+    @Column({ nullable: true, type: 'date' })
     birthday?: Date;
 
-    @Column({ enum: UserRole, default: UserRole.BUYER })
+    @Column({ type: 'enum', enum: UserRole, enumName: 'user_role', default: UserRole.BUYER })
     role: UserRole;
 
     @Column({ default: 0 })
     points: number;
 
-    @Column({ enum: UserStatus, default: UserStatus.ACTIVE })
+    @Column({ type: 'enum', enum: UserStatus, enumName: 'user_status', default: UserStatus.ACTIVE })
     status: UserStatus;
 
     @OneToMany(() => DeliveryAddress, (address) => address.user, { cascade: true })

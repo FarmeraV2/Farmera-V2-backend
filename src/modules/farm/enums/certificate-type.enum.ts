@@ -1,0 +1,8 @@
+export enum CertificateType {
+    BUSINESS_LICENSE = 'BUSINESS_LICENSE',
+    FOOD_SAFETY = 'FOOD_SAFETY',
+    VIETGAP = 'VIETGAP',
+    GLOBALGAP = 'GLOBALGAP',
+    ORGANIC = 'ORGANIC',
+    OTHER = 'OTHER',
+}

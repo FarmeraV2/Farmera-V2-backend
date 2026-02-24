@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, InternalServerErrorException, Param, Post, Query } from '@nestjs/common';
 import { ReviewService } from './review.service';
 import { User } from 'src/common/decorators/user.decorator';
 import { UserInterface } from 'src/common/types/user.interface';
@@ -11,16 +11,16 @@ import { GetReviewsDto } from '../dtos/review/get-review.dto';
 
 @Controller('review')
 export class ReviewController {
-    constructor(private readonly reviewService: ReviewService) {}
+    constructor(private readonly reviewService: ReviewService) { }
 
     @Post()
     // @Roles([UserRole.BUYER])
     async createReview(@User() user: UserInterface, @Body() createReviewDto: CreateReviewDto) {
-        return await this.reviewService.createReview(createReviewDto, user.id);
+        return await this.reviewService.createReview(createReviewDto, user);
     }
 
     @Post('reply')
-    @Roles([UserRole.FARMER])
+    // @Roles([UserRole.FARMER])
     async createReply(@User() user: UserInterface, @Body() createReplyDto: CreateReplyDto) {
         return await this.reviewService.createReply(createReplyDto, user.id);
     }

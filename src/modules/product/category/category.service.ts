@@ -5,6 +5,14 @@ import { Category } from '../entities/category.entity';
 import { Subcategory } from '../entities/sub-category.entity';
 import { CreateCategoryDto } from '../dtos/category/create-category.dto';
 import { CreateSubcategoryDto } from '../dtos/category/create-sub-category.dto';
+import { ResponseCode } from 'src/common/constants/response-code.const';
+import { GetCategoryDto } from '../dtos/category/search-category.dto';
+import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
+import { plainToInstance } from 'class-transformer';
+import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
+import { CategorySortFields } from '../enums/category-sort-fields.enum';
+import { PaginationTransform } from 'src/common/dtos/pagination/pagination-option.dto';
+import { applyPagination } from 'src/common/utils/pagination.util';
 
 @Injectable()
 export class CategoryService {
@@ -15,7 +23,7 @@ export class CategoryService {
         private readonly categoriesRepository: Repository<Category>,
         @InjectRepository(Subcategory)
         private readonly subcategoriesRepository: Repository<Subcategory>,
-    ) {}
+    ) { }
 
     /**
      * @function createCategory - Creates a new category
@@ -32,7 +40,10 @@ export class CategoryService {
             return this.categoriesRepository.save(category);
         } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException(`Failed to create category`);
+            throw new InternalServerErrorException({
+                message: `Failed to create category`,
+                code: ResponseCode.FAILED_TO_CREATE_CATEGORY
+            });
         }
     }
 
@@ -49,7 +60,10 @@ export class CategoryService {
         try {
             const existingSubcategory = await this.categoriesRepository.findOne({ where: { category_id: createSub.category_id } });
             if (!existingSubcategory) {
-                throw new NotFoundException(`Category ${createSub.category_id} not found`);
+                throw new NotFoundException({
+                    message: `Category ${createSub.category_id} not found`,
+                    code: ResponseCode.CATEGORY_NOT_FOUND,
+                });
             }
             const subcategory = this.subcategoriesRepository.create({
                 ...createSub,
@@ -57,9 +71,12 @@ export class CategoryService {
             });
             return this.subcategoriesRepository.save(subcategory);
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to crate sub category');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to crate sub category',
+                code: ResponseCode.FAILED_TO_CREATE_SUBCATEGORY,
+            });
         }
     }
 
@@ -80,13 +97,19 @@ export class CategoryService {
                 relations: include_subs ? ['subcategories'] : undefined,
             });
             if (!category) {
-                throw new NotFoundException(`Category with ID ${categoryId} not found`);
+                throw new NotFoundException({
+                    message: `Category with ID ${categoryId} not found`,
+                    code: ResponseCode.CATEGORY_NOT_FOUND
+                });
             }
             return category;
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException(`Failed to get category with ID ${categoryId}`);
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: `Failed to get category with ID ${categoryId}`,
+                code: ResponseCode.FAILED_TO_GET_CATEGORY
+            });
         }
     }
 
@@ -107,13 +130,19 @@ export class CategoryService {
                 relations: includeCategory ? ['category'] : undefined, // Lấy thông tin category liên quan
             });
             if (!subcategory) {
-                throw new NotFoundException(`Subcategory with ID ${id} not found`);
+                throw new NotFoundException({
+                    message: `Subcategory with ID ${id} not found`,
+                    code: ResponseCode.SUBCATEGORY_NOT_FOUND,
+                });
             }
             return subcategory;
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException(`Failed to get subcategory with ID ${id}`);
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: `Failed to get subcategory with ID ${id}`,
+                code: ResponseCode.FAILED_TO_GET_SUBCATEGORY
+            });
         }
     }
 
@@ -125,9 +154,12 @@ export class CategoryService {
             });
             return categories;
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to get subcategories with IDs');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to get subcategories with IDs',
+                code: ResponseCode.FAILED_TO_GET_SUBCATEGORY
+            });
         }
     }
 
@@ -209,68 +241,51 @@ export class CategoryService {
     //     return new PaginationResult(categories, meta);
     // }
 
-    // async searchCategory(searchDto: SearchCategoryDto): Promise<PaginationResult<Category>> {
-    //     const paginationOptions = plainToInstance(PaginationOptions, searchDto);
+    async searchCategory(getCategoryDto: GetCategoryDto): Promise<PaginationResult<Category>> {
+        const paginationOptions = plainToInstance(PaginationTransform<CategorySortFields>, getCategoryDto);
+        const { sort_by, order } = paginationOptions;
 
-    //     const queryBuilder = this.categoriesRepository
-    //         .createQueryBuilder('category')
-    //         .leftJoinAndSelect('category.subcategories', 'subcategories')
-    //         .where('category.name ILIKE :search', { search: `%${searchDto.query.trim()}%` })
+        try {
+            const queryBuilder = this.categoriesRepository
+                .createQueryBuilder('category')
 
-    //     // Add sorting if specified
-    //     if (paginationOptions.sort_by) {
-    //         const validSortValue = ["created", "name"];
-    //         if (!validSortValue.includes(paginationOptions.sort_by)) {
-    //             throw new BadRequestException("Cột sắp xếp không hợp lệ.")
-    //         }
+            if (getCategoryDto.search) {
+                queryBuilder.where('category.name ILIKE :search', { search: `%${getCategoryDto.search.trim()}%` })
+            }
 
-    //         const order = (paginationOptions.order || 'ASC') as 'ASC' | 'DESC';
-    //         switch (paginationOptions.sort_by) {
-    //             case 'name':
-    //                 queryBuilder.orderBy('category.name', order);
-    //                 break;
-    //             case 'created':
-    //                 queryBuilder.orderBy('category.category_id', order);
-    //                 break;
-    //             default:
-    //                 queryBuilder.orderBy('category.category_id', 'DESC');
-    //         }
-    //     }
-    //     else {
-    //         queryBuilder.orderBy(
-    //             'category.category_id',
-    //             (paginationOptions.order || 'DESC') as 'ASC' | 'DESC',
-    //         );
-    //     }
+            if (sort_by) {
+                switch (sort_by) {
+                    case CategorySortFields.NAME:
+                        queryBuilder.orderBy('category.name', order);
+                        break;
+                    case CategorySortFields.ID:
+                        queryBuilder.orderBy('category.category_id', order);
+                        break;
+                    case CategorySortFields.UPDATED:
+                        queryBuilder.orderBy('category.updated', order);
+                        break;
+                    default:
+                        queryBuilder.orderBy('category.category_id', 'DESC');
+                }
+            }
 
-    //     // If all=true, return all results without pagination
-    //     if (paginationOptions.all) {
-    //         const categories = await queryBuilder.getMany();
-    //         return new PaginationResult(categories);
-    //     }
-
-    //     // Apply pagination
-    //     const totalItems = await queryBuilder.getCount();
-
-    //     const totalPages = Math.ceil(totalItems / (paginationOptions.limit ?? 10));
-    //     const currentPage = paginationOptions.page ?? 1;
-
-    //     if (totalPages > 0 && currentPage > totalPages) {
-    //         throw new NotFoundException(`Không tìm thấy dữ liệu ở trang ${currentPage}.`);
-    //     }
-
-    //     const categories = await queryBuilder
-    //         .skip(paginationOptions.skip)
-    //         .take(paginationOptions.limit)
-    //         .getMany();
-
-    //     const meta = new PaginationMeta({
-    //         paginationOptions,
-    //         totalItems,
-    //     });
-
-    //     return new PaginationResult(categories, meta);
-    // }
+            const totalItems = await applyPagination(queryBuilder, paginationOptions);
+            const categories = await queryBuilder.getMany();
+            const meta = new PaginationMeta({
+                paginationOptions,
+                totalItems,
+            });
+            return new PaginationResult(categories, meta);
+        }
+        catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to get categories',
+                code: ResponseCode.FAILED_TO_GET_CATEGORY
+            });
+        }
+    }
 
     // // verified
     // async getSubCategoryTree(category_id: number): Promise<Category> {

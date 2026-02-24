@@ -1,19 +1,39 @@
-import { ConflictException, HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, HttpException, Inject, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { Farm } from '../entities/farm.entity';
-import { FptIdrCardFrontData, FptIdrCccdFrontData } from '../interfaces/fpt-idr-front.interface';
 import { BiometricService } from '../biometric/biometric.service';
 import { Identification } from '../entities/identification.entity';
-import { IdentificationMethod, IdentificationStatus } from '../enums/identification.enums';
 import { FarmStatus } from '../enums/farm-status.enum';
 import { plainToInstance } from 'class-transformer';
-import { FarmRegistrationDto } from '../dtos/farm-registration.dto';
+import { FarmRegistrationDto } from '../dtos/farm/farm-registration.dto';
 import { DeliveryAddressService } from 'src/modules/address/delivery-address/delivery-address.service';
 import { CreateFarmAddressDto } from 'src/modules/address/dtos/create-address.dto';
-import { isUUID } from 'class-validator';
-import { UpdateFarmDto } from '../dtos/update-farm.dto';
-import { UpdateFarmAvatarDto, UpdateFarmImagesDto } from '../dtos/update-farm-images.dto';
+import { UpdateFarmDto } from '../dtos/farm/update-farm.dto';
+import { UpdateFarmAvatarDto, UpdateFarmImagesDto } from '../dtos/farm/update-farm-images.dto';
+import { ResponseCode } from 'src/common/constants/response-code.const';
+import { FileStorageService } from 'src/core/file-storage/interfaces/file-storage.interface';
+import { FarmDto, farmDtoSelectFields } from '../dtos/farm/farm.dto';
+import { publicUserFields } from 'src/modules/user/dtos/user/user.dto';
+import { MyFarmDto } from '../dtos/farm/my-farm.dto';
+import { AuditService } from 'src/core/audit/audit.service';
+import { ActorType } from 'src/core/audit/enums/actor-type';
+import { AuditEventID } from 'src/core/audit/enums/audit_event_id';
+import { AuditResult } from 'src/core/audit/enums/audit-result';
+import { HashService } from 'src/services/hash.service';
+import { UserService } from 'src/modules/user/user/user.service';
+import { UserRole } from 'src/common/enums/role.enum';
+import { ProductService } from 'src/modules/product/product/product.service';
+import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
+import { SearchProductsDto } from 'src/modules/product/dtos/product/search-product.dto';
+import { FarmProductDetailDto } from 'src/modules/product/dtos/product/farm-product-detail.dto';
+import { FarmProductDto } from 'src/modules/product/dtos/product/farm-product.dto';
+import { ProductDto } from 'src/modules/product/dtos/product/product.dto';
+import { FarmTransparencyMetricsDto } from '../dtos/farm/farm-transparency-metrics.dto';
+import { FptIdrCardFrontData } from '../interfaces/fpt-idr-front.interface';
+import { FptLivenessResponse } from '../interfaces/fpt-liveness.interfaces';
+import { parseDateDMY } from 'src/utils/format';
+import { IdentificationStatus } from '../enums/identification.enums';
 
 @Injectable()
 export class FarmService {
@@ -21,56 +41,24 @@ export class FarmService {
 
     constructor(
         @InjectRepository(Farm) private farmRepository: Repository<Farm>,
+        @InjectRepository(Identification) private identificationRepository: Repository<Identification>,
         @InjectDataSource() private dataSource: DataSource,
-        // @InjectRepository(Product)
-        // private productRepository: Repository<Product>,
         private readonly biometricsService: BiometricService,
         private readonly deliveryAddressService: DeliveryAddressService,
-        // private readonly fileStorageService: AzureBlobService,
-        // private readonly GhnService: GhnService,
-    ) {}
+        private readonly userService: UserService,
+        @Inject('FileStorageService') private readonly fileStorage: FileStorageService,
+        private readonly auditService: AuditService,
+        private readonly hashService: HashService,
+        private readonly productService: ProductService,
+    ) { }
 
-    async farmRegister(registerDto: FarmRegistrationDto, userId: number): Promise<Farm> {
+    async farmRegister(registerDto: FarmRegistrationDto, userId: number): Promise<MyFarmDto> {
         const isExistingFarm = await this.farmRepository.existsBy({ user_id: userId });
         if (isExistingFarm) {
-            throw new ConflictException('Farm already exists');
-        }
-
-        // todo!();
-        try {
-            // validate address
-            // const ghn_province_id = await this.GhnService.getIdProvince(
-            //     registerDto.city,
-            // );
-            // if (!ghn_province_id) {
-            //     throw new NotFoundException(
-            //         `Không tìm thấy ID tỉnh GHN cho thành phố ${registerDto.city}`,
-            //     );
-            // }
-            // const ghn_district_id = await this.GhnService.getIdDistrict(
-            //     registerDto.district,
-            //     ghn_province_id,
-            // );
-            // if (!ghn_district_id) {
-            //     throw new NotFoundException(
-            //         `Không tìm thấy ID quận huyện GHN cho ${registerDto.district} trong tỉnh ${registerDto.city}`,
-            //     );
-            // }
-            // const ghn_ward_id = await this.GhnService.getIdWard(
-            //     registerDto.ward,
-            //     ghn_district_id,
-            // );
-            // if (!ghn_ward_id) {
-            //     throw new NotFoundException(
-            //         `Không tìm thấy ID phường xã GHN cho ${registerDto.ward} trong quận ${registerDto.district}`,
-            //     );
-            // }
-        } catch (error) {
-            this.logger.error(error.message);
-            if (error instanceof HttpException) {
-                throw error;
-            }
-            throw new InternalServerErrorException('Failed to register farm');
+            throw new ConflictException({
+                message: 'Farm already exists',
+                code: ResponseCode.FARM_EXISTED,
+            });
         }
 
         const queryRunner = this.dataSource.createQueryRunner();
@@ -78,105 +66,158 @@ export class FarmService {
         await queryRunner.startTransaction();
 
         try {
-            // const ghnAddress = new AddressGHN();
-            // ghnAddress.province_id = ghn_province_id;
-            // ghnAddress.district_id = ghn_district_id;
-            // ghnAddress.ward_code = ghn_ward_id;
-            // const savedGhnAddress = await queryRunner.manager.save(ghnAddress);
-
             // create address
-            const address = await this.deliveryAddressService.addFarmAddress(
+            const address_id = await this.deliveryAddressService.addFarmAddress(
                 plainToInstance(CreateFarmAddressDto, {
                     name: registerDto.farm_name,
                     ...registerDto,
                 }),
+                queryRunner.manager
             );
 
             // create farm
             const farm = this.farmRepository.create({
                 ...registerDto,
                 user_id: userId,
-                address,
+                address_id: address_id,
             });
             const savedFarm = await queryRunner.manager.save(farm);
 
+            await this.auditService.log({
+                actor_type: ActorType.USER,
+                audit_event_id: AuditEventID.FARM01,
+                actor_id: userId,
+                result: AuditResult.SUCCESS,
+            }, queryRunner.manager);
+
             await queryRunner.commitTransaction();
-            // this.logger.debug(
-            //     `[Register] Đăng ký farm thành công cho user ${userId}, Farm ID: ${savedFarm.farm_id}`,
-            // );
 
-            // // delete biometric video
-            // await this.fileStorageService.deleteFile(registerDto.biometric_video_url);
+            const address = await this.deliveryAddressService.getAddressById(address_id);
 
-            return savedFarm;
+            return plainToInstance(MyFarmDto, { ...savedFarm, address: address }, { excludeExtraneousValues: true });
         } catch (dbError) {
             await queryRunner.rollbackTransaction();
+            try {
+                await this.auditService.log({
+                    actor_type: ActorType.USER,
+                    audit_event_id: AuditEventID.FARM01,
+                    actor_id: userId,
+                    result: AuditResult.FAILED,
+                    metadata: dbError.message
+                }, queryRunner.manager);
+            } catch (_) { }
             this.logger.error(dbError.message);
-            throw new InternalServerErrorException('Failed to register farm');
+            throw new InternalServerErrorException({
+                message: 'Failed to register farm',
+                code: ResponseCode.FAILED_TO_REGISTER_FARM,
+            });
         } finally {
             await queryRunner.release();
         }
     }
 
-    async verifyBiometric(ssnImg: Express.Multer.File, faceVideo: Express.Multer.File, farmId: number, userId: number): Promise<Farm> {
-        let idrData: FptIdrCardFrontData;
-
+    async verifyBiometric(ssnImg: Express.Multer.File, faceVideo: Express.Multer.File, farmId: number, userId: number): Promise<MyFarmDto> {
         const farm = await this.farmRepository.findOne({
             where: { id: farmId, user_id: userId },
         });
         if (!farm) {
-            throw new NotFoundException('Farm not found');
+            throw new NotFoundException({
+                message: 'Farm not found',
+                code: ResponseCode.FARM_NOT_FOUND,
+            });
+        }
+        const address = await this.deliveryAddressService.getAddressById(farm.address_id);
+        if (farm.status !== FarmStatus.PENDING) {
+            return plainToInstance(MyFarmDto, { ...farm, address: address }, { excludeExtraneousValues: true });
         }
 
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
         try {
-            // validate ssn by calling fpt api
-            // this.logger.debug(`[Register] Bước 1: Gọi FPT IDR cho user ${userId}, file ${ssnImg.originalname}`);
             const idrCardDataArray = await this.biometricsService.callFptIdrApiForFront(ssnImg);
+            const idrData: FptIdrCardFrontData = idrCardDataArray[0];
 
-            idrData = idrCardDataArray[0];
-            // this.logger.debug(`[Register] FPT IDR thành công cho user ${userId}. Loại thẻ: ${idrData.type}, Loại mới: ${idrData.type_new}`);
+            await this.auditService.log({
+                actor_type: ActorType.USER,
+                audit_event_id: AuditEventID.EKYC01,
+                actor_id: userId,
+                result: AuditResult.SUCCESS,
+            })
 
-            // this.logger.log(`[Register] Bước 2: Gọi FPT Liveness cho user ${userId}, ảnh ${ssnImg.originalname}, video ${faceVideo.originalname}`);
-            // const livenessResult = await this.biometricsService.callFptLivenessApi(ssnImg, faceVideo);
-            // this.logger.log(
-            //     `[Register] FPT Liveness thành công cho user ${userId}. Liveness: ${livenessResult.liveness?.is_live}, Match: ${livenessResult.face_match?.isMatch}`,
-            // );
+            const livenessData: FptLivenessResponse = await this.biometricsService.callFptLivenessApi(ssnImg, faceVideo);
 
-            // this.logger.log(
-            //     `[Register] Bước 3: Lưu thông tin đăng ký vào database cho user ${userId}.`,
-            // );
+            await this.auditService.log({
+                actor_type: ActorType.USER,
+                audit_event_id: AuditEventID.EKYC02,
+                actor_id: userId,
+                result: AuditResult.SUCCESS,
+                metadata: { liveness: livenessData.liveness, face_match: livenessData.face_match }
+            })
+
+            const ssnImgUrl = await this.fileStorage.uploadFile(
+                [ssnImg],
+                `private/biometric/${userId}`,
+            );
 
             // save identification
-            const identification = new Identification();
-            identification.status = IdentificationStatus.APPROVED;
-            identification.method = IdentificationMethod.BIOMETRIC;
-
-            identification.id_number = idrData.id || 'N/A';
-            identification.full_name = idrData.name || 'N/A';
-
-            if ('nationality' in idrData) {
-                identification.nationality = (idrData as FptIdrCccdFrontData).nationality || 'N/A';
-            } else {
-                identification.nationality = 'N/A';
+            const partial: Partial<Identification> = {
+                full_name: idrData.name,
+                hashed_id_number: await this.hashService.hashPassword(idrData.id),
+                dob: parseDateDMY(idrData.dob),
+                gender: idrData.sex || 'N/A',
+                nationality: idrData.nationality || 'N/A',
+                address: idrData.address || 'N/A',
+                address_entity: idrData.address_entities,
+                doe: parseDateDMY(idrData.doe),
+                face_match_score: livenessData.face_match ? parseFloat(livenessData.face_match.similarity) : 0,
+                liveness_score: livenessData.liveness.spoof_prob ? 1 - parseFloat(livenessData.liveness.spoof_prob) : 0,
+                status: IdentificationStatus.APPROVED,
             }
 
-            // todo!("handle external file storage")
-            // const ssn_img_url = await this.fileStorageService.uploadFile(
-            //     ssnImg,
-            //     userId,
-            // );
+            const identification = this.identificationRepository.create(partial);
 
-            // identification.id_card_image_url = ssn_img_url;
+            if (ssnImgUrl.length > 0) {
+                identification.id_card_image_url = ssnImgUrl[0];
+            }
+
             farm.identification = identification;
             farm.status = FarmStatus.VERIFIED;
 
-            return await this.farmRepository.save(farm);
+            const savedFarm = await queryRunner.manager.save(farm);
+
+            await this.userService.updateRole(userId, UserRole.FARMER, queryRunner.manager);
+
+            await this.auditService.log({
+                actor_type: ActorType.SYSTEM,
+                audit_event_id: AuditEventID.FARM02,
+                result: AuditResult.SUCCESS,
+            })
+
+            await queryRunner.commitTransaction();
+
+            return plainToInstance(MyFarmDto, { ...savedFarm, address: address }, { excludeExtraneousValues: true });
         } catch (error) {
-            this.logger.error(error.message);
+            await queryRunner.rollbackTransaction();
+            try {
+                await this.auditService.log({
+                    actor_type: ActorType.USER,
+                    audit_event_id: AuditEventID.EKYC02,
+                    actor_id: userId,
+                    result: AuditResult.FAILED,
+                    metadata: error.message
+                })
+            } catch (_) { }
             if (error instanceof HttpException) {
                 throw error;
             }
-            throw new InternalServerErrorException('Failed to verify biometric');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to verify biometric',
+                code: ResponseCode.FAILED_TO_VERIFY_BIOMETRIC
+            });
+        } finally {
+            await queryRunner.release();
         }
     }
 
@@ -188,16 +229,24 @@ export class FarmService {
      *
      * @throws {NotFoundException} - If the farm for the given user is not found
      */
-    async getUserFarm(id: number): Promise<Farm> {
+    async getUserFarm(id: number): Promise<MyFarmDto> {
         const farm = await this.farmRepository.findOne({
-            where: { user_id: id },
-            relations: ['address'],
+            where: { user_id: id }
         });
         if (!farm) {
-            this.logger.error(`Farm not found`);
-            throw new NotFoundException(`Farm not found`);
+            throw new NotFoundException({
+                message: `Farm not found`,
+                code: ResponseCode.FARM_NOT_FOUND,
+            });
         }
-        return farm;
+        const address = await this.deliveryAddressService.getAddressById(farm.address_id);
+        if (!address) {
+            throw new InternalServerErrorException({
+                message: `Farm address not found`,
+                code: ResponseCode.INTERNAL_ERROR,
+            });
+        }
+        return plainToInstance(MyFarmDto, { ...farm, address: address }, { excludeExtraneousValues: true });
     }
 
     /**
@@ -208,25 +257,33 @@ export class FarmService {
      *
      * @throws {NotFoundException} - If no matching farm is found for the user
      */
-    async getFarmByOwner(userId: string): Promise<Farm> {
-        if (!isUUID(userId)) throw new NotFoundException(`Farm not found`);
+    async getFarmByOwner(userId: number): Promise<FarmDto> {
         try {
-            const farm = await this.farmRepository.findOne({
-                where: {
-                    owner: { uuid: userId },
-                    status: In([FarmStatus.VERIFIED, FarmStatus.APPROVED]),
-                },
-                relations: ['address'],
-            });
+            const queryBuilder = this.farmRepository.createQueryBuilder('farm').select([...farmDtoSelectFields, 'farm.address_id'])
+                .where('farm.user_id = :userId', { userId })
+                .andWhere('farm.status IN (:...statuses)', {
+                    statuses: [FarmStatus.VERIFIED, FarmStatus.APPROVED],
+                })
+                .leftJoin('farm.owner', 'user').addSelect(publicUserFields.map((prop) => `user.${prop}`));
+
+            const farm = await queryBuilder.getOne();
+
             if (!farm) {
-                this.logger.error(`Farm not found`);
-                throw new NotFoundException(`Farm not found`);
+                throw new NotFoundException({
+                    message: `Farm not found`,
+                    code: ResponseCode.FARM_NOT_FOUND,
+                });
             }
-            return farm;
+            const address = await this.deliveryAddressService.getAddressById(farm.address_id);
+
+            return plainToInstance(FarmDto, { ...farm, address: address }, { excludeExtraneousValues: true });
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to find farm');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to find farm',
+                code: ResponseCode.FAILED_TO_GET_FARM,
+            });
         }
     }
 
@@ -238,25 +295,33 @@ export class FarmService {
      *
      * @throws {NotFoundException} - If no farm is found with the given UUID
      */
-    async findFarmById(farmId: string): Promise<Farm> {
-        if (!isUUID(farmId)) throw new NotFoundException(`Farm not found`);
+    async findFarmById(farmId: number): Promise<FarmDto> {
         try {
-            const farm = await this.farmRepository.findOne({
-                where: {
-                    farm_id: farmId,
-                    status: In([FarmStatus.VERIFIED, FarmStatus.APPROVED]),
-                },
-                relations: ['address'],
-            });
+            const queryBuilder = this.farmRepository.createQueryBuilder('farm').select([...farmDtoSelectFields, 'farm.address_id'])
+                .where('farm.id = :farmId', { farmId })
+                .andWhere('farm.status IN (:...statuses)', {
+                    statuses: [FarmStatus.VERIFIED, FarmStatus.APPROVED],
+                })
+                .leftJoin('farm.owner', 'user').addSelect(publicUserFields.map((prop) => `user.${prop}`));
+
+            const farm = await queryBuilder.getOne();
 
             if (!farm) {
-                throw new NotFoundException(`Farm not found`);
+                throw new NotFoundException({
+                    message: `Farm not found`,
+                    code: ResponseCode.FARM_NOT_FOUND,
+                });
             }
-            return farm;
+            const address = await this.deliveryAddressService.getAddressById(farm.address_id);
+
+            return plainToInstance(FarmDto, { ...farm, address: address }, { excludeExtraneousValues: true });
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to find farm');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to find farm',
+                code: ResponseCode.FAILED_TO_GET_FARM
+            });
         }
     }
 
@@ -270,15 +335,21 @@ export class FarmService {
      */
     async validateFarmer(userId: number): Promise<{ id: number; uuid: string } | undefined> {
         try {
-            const farm = await this.farmRepository.findOne({ select: ['id', 'farm_id'], where: { user_id: userId } });
+            const farm = await this.farmRepository.findOne({ select: ['id', 'farm_id'], where: { user_id: userId, status: In([FarmStatus.APPROVED, FarmStatus.VERIFIED]) } });
             if (!farm || farm.id <= 0) {
-                throw new InternalServerErrorException("Something ưent wrong, you're a farmer but your Farm is not found");
+                throw new InternalServerErrorException({
+                    message: "Something went wrong, you're a farmer but your Farm is not found",
+                    code: ResponseCode.INTERNAL_ERROR
+                });
             }
             return { id: farm.id, uuid: farm.farm_id };
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to validate farmer');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to validate farmer',
+                code: ResponseCode.FAILED_TO_VALIDATE,
+            });
         }
     }
 
@@ -289,13 +360,19 @@ export class FarmService {
 
             const newFarm = await this.farmRepository.findOne({ where: { id } });
             if (!newFarm) {
-                throw new NotFoundException(`Farm not found`);
+                throw new NotFoundException({
+                    message: `Farm not found`,
+                    code: ResponseCode.FARM_NOT_FOUND,
+                });
             }
             return newFarm;
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to update farm');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to update farm',
+                code: ResponseCode.FAILED_TO_UPDATE_FARM,
+            });
         }
     }
 
@@ -305,14 +382,16 @@ export class FarmService {
         await queryRunner.startTransaction();
 
         const oldProfileImageUrlsToDelete: string[] = [];
-        const oldCertificateImageUrlsToDelete: string[] = [];
 
         try {
             const farm = await this.farmRepository.findOne({
                 where: { id: id },
             });
 
-            if (!farm) throw new NotFoundException('Farm not found');
+            if (!farm) throw new NotFoundException({
+                message: 'Farm not found',
+                code: ResponseCode.FARM_NOT_FOUND,
+            });
 
             // update profile images
             const currentProfileImageUrls = farm.profile_image_urls || [];
@@ -325,17 +404,6 @@ export class FarmService {
             }
 
             farm.profile_image_urls = incomingProfileImageUrls;
-
-            // update certification images
-            const currentCertificateImageUrls = farm.certificate_img_urls || [];
-            const incomingCertificateImageUrls = updateFarmDto.certificate_image_urls || [];
-
-            for (const existingUrl of currentCertificateImageUrls) {
-                if (!incomingCertificateImageUrls.includes(existingUrl)) {
-                    oldCertificateImageUrlsToDelete.push(existingUrl);
-                }
-            }
-            farm.certificate_img_urls = incomingCertificateImageUrls;
 
             farm.updated = new Date();
             const newFarm = await queryRunner.manager.save(Farm, farm);
@@ -368,9 +436,12 @@ export class FarmService {
             return newFarm;
         } catch (error) {
             await queryRunner.rollbackTransaction();
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to update images');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to update images',
+                code: ResponseCode.FAILED_TO_UPDATE_FARM,
+            });
         } finally {
             await queryRunner.release();
         }
@@ -384,7 +455,10 @@ export class FarmService {
             });
 
             if (!farm) {
-                throw new NotFoundException('Farm not found');
+                throw new NotFoundException({
+                    message: 'Farm not found',
+                    code: ResponseCode.FARM_NOT_FOUND,
+                });
             }
 
             // const oldAvatarUrlToDelete = farm.avatar_url;
@@ -403,15 +477,22 @@ export class FarmService {
             if (result.affected && result.affected > 0) {
                 return { avatar_url: updateFarmDto.avatar_url };
             }
-            throw new InternalServerErrorException('Failed to update farm avatar');
+            throw new InternalServerErrorException({
+                message: 'Failed to update farm avatar',
+                code: ResponseCode.FAILED_TO_UPDATE_FARM,
+            });
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException('Failed to update farm avatar');
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to update farm avatar',
+                code: ResponseCode.FAILED_TO_UPDATE_FARM
+            });
         }
     }
 
     /**
+     * DEPRECATED
      * @function getId - Retrieves the numeric ID of a farm by its UUID
      * @param {string} uuid - The UUID of the farm
      *
@@ -428,6 +509,66 @@ export class FarmService {
         });
         if (farm) return farm.id;
         return null;
+    }
+
+    async updateFarmStatus(farmId: number, status: FarmStatus, manager?: EntityManager): Promise<void> {
+        const repo = manager ? manager.getRepository(Farm) : this.farmRepository;
+        try {
+            const result = await repo.update(farmId, { status: status });
+            if (!result || !result.affected || result.affected <= 0) {
+                throw new InternalServerErrorException();
+            }
+        } catch (error) {
+            this.logger.error("Failed to update farm status");
+            throw new InternalServerErrorException({
+                message: "Failed to update farm status",
+                code: ResponseCode.FAILED_TO_UPDATE_FARM
+            })
+        }
+    }
+
+    async getMyFarmProducts(farmId: number, getProductDto: SearchProductsDto): Promise<PaginationResult<FarmProductDto>> {
+        return await this.productService.getFarmProducts(farmId, getProductDto);
+    }
+
+    async getFarmProducts(farmId: number, getProductDto: SearchProductsDto): Promise<PaginationResult<ProductDto>> {
+        return await this.productService.searchAndFilterProducts(getProductDto, farmId);
+    }
+
+    async getMyFarmProductById(productId: number): Promise<FarmProductDetailDto> {
+        return await this.productService.getFarmProductById(productId);
+    }
+
+    async getAllFarmIds(): Promise<number[]> {
+        try {
+            const farms = await this.farmRepository.find({
+                select: ["id"]
+            })
+            return farms.map((f) => f.id);
+        }
+        catch (error) {
+            throw Error(`Failed to get all farm ids: ${error.message}`);
+        }
+    }
+
+    async getFarmProductRating(farmId: number): Promise<number[]> {
+        return await this.productService.getProductRatings(farmId);
+    }
+
+    async updateTransparencyScore(farmId: number, score: FarmTransparencyMetricsDto, manager?: EntityManager): Promise<void> {
+        try {
+            const repo = manager ? manager.getRepository(Farm) : this.farmRepository;
+            await repo.update(
+                { id: farmId },
+                { transparency_score: score })
+        }
+        catch (error) {
+            this.logger.error(`Failed to update season transparency score: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: "Failed to update season transparency score",
+                code: ResponseCode.FAILED_TO_UPDATE_SEASON
+            })
+        }
     }
 
     //   async findFarmsByIds(farmIds: string[]): Promise<Farm[]> {

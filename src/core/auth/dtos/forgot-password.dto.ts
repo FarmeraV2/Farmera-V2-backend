@@ -20,8 +20,5 @@ export class UpdateNewPasswordDto {
     phone?: string;
 
     @IsNotEmpty()
-    code: string;
-
-    @IsNotEmpty()
-    newPassword: string;
+    new_password: string;
 }

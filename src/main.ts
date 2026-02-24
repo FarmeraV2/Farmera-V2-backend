@@ -1,13 +1,21 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 import helmet from 'helmet';
 import compression from 'compression';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import cookieParser from 'cookie-parser';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 async function bootstrap() {
-    const app = await NestFactory.create(AppModule);
+    const isProd = process.env.NODE_ENV === 'production';
+
+    const app = await NestFactory.create(AppModule, {
+        logger: isProd
+            ? ['log', 'error', 'warn']
+            : ['log', 'error', 'warn', 'debug', 'verbose'],
+    });
 
     app.setGlobalPrefix('api');
 
@@ -23,7 +31,16 @@ async function bootstrap() {
     // Global response transform interceptor
     const reflector = app.get(Reflector);
     app.useGlobalInterceptors(new TransformInterceptor(reflector));
+    // Global request logging interceptor
+    app.useGlobalInterceptors(new LoggingInterceptor());
+    // Global response exception filter interceptor
+    app.useGlobalFilters(new GlobalExceptionFilter())
     // app.useGlobalInterceptors(new ClassSerializerInterceptor(reflector)); // exclude fields in entities
+
+    // versioning
+    app.enableVersioning({
+        type: VersioningType.URI,
+    });
 
     app.useGlobalPipes(
         new ValidationPipe({

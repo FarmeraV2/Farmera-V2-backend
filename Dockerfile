@@ -1,4 +1,4 @@
-FROM node:24-alpine AS builder
+FROM node:25-alpine AS builder
 WORKDIR /usr/app
 
 COPY --chown=node:node package*.json ./
@@ -9,21 +9,20 @@ COPY --chown=node:node ./ ./
 
 RUN npm run build
 
-RUN npm prune --production
-
 USER node
 
-FROM node:24-alpine AS production
+FROM node:25-alpine AS production
 WORKDIR /usr/app
 
+RUN mkdir -p /usr/app/uploads/temp \
+    && chown -R node:node /usr/app/uploads
 COPY --chown=node:node package*.json ./
-COPY --chown=node:node --from=builder /usr/app/dist ./dist
-COPY --chown=node:node --from=builder /usr/app/node_modules ./node_modules
+RUN npm ci --only=production && npm cache clean --force
 
-ENV NODE_ENV=production
+COPY --chown=node:node --from=builder /usr/app/dist ./dist
 
 EXPOSE 3000
 
 USER node
 
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]

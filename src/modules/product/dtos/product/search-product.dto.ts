@@ -1,8 +1,10 @@
-import { IsOptional, IsString, IsNumber, IsEnum, IsBoolean } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsEnum, IsBoolean, IsNotEmpty } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaginationOptions } from 'src/common/dtos/pagination/pagination-option.dto';
 import { ProductStatus } from '../../enums/product-status.enum';
 import { ProductSortField } from '../../enums/product-sort-fields.enum';
+import { ParseNumberArray } from 'src/common/decorators/parse-number-array';
+import { ParseEnumArray } from 'src/common/decorators/parse-enum-array';
 
 export class SearchProductsDto extends PaginationOptions<ProductSortField> {
     @IsOptional()
@@ -11,6 +13,7 @@ export class SearchProductsDto extends PaginationOptions<ProductSortField> {
 
     @IsOptional()
     @IsString()
+    @IsNotEmpty()
     search?: string;
 
     @IsOptional()
@@ -39,13 +42,12 @@ export class SearchProductsDto extends PaginationOptions<ProductSortField> {
     min_total_sold?: number;
 
     @IsOptional()
-    @IsEnum(ProductStatus)
-    status?: ProductStatus;
+    @ParseEnumArray(ProductStatus)
+    status?: ProductStatus[];
 
     @IsOptional()
-    @Type(() => Number)
-    @IsNumber()
-    subcategory_id?: number;
+    @ParseNumberArray()
+    subcategory_ids?: number[];
 
     @IsOptional()
     @Type(() => Boolean)

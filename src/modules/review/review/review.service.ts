@@ -12,6 +12,10 @@ import { ReviewSortField } from '../enums/review-sort-fields.enum';
 import { CursorPaginationResult } from 'src/common/dtos/pagination/cursor-pagination-result.dto';
 import { RatingStatsDto } from '../dtos/review/rating-stats.dto';
 import { Order } from 'src/common/enums/pagination.enum';
+import { ResponseCode } from 'src/common/constants/response-code.const';
+import { replySelectFields, ReviewDto, reviewSelectFields } from '../dtos/review/review.dto';
+import { publicUserFields } from 'src/modules/user/dtos/user/user.dto';
+import { UserInterface } from 'src/common/types/user.interface';
 
 @Injectable()
 export class ReviewService {
@@ -21,21 +25,25 @@ export class ReviewService {
         @InjectRepository(Review) private readonly reviewRepository: Repository<Review>,
         @InjectRepository(Reply) private readonly replyRepository: Repository<Reply>,
         // private readonly fileStorageService: AzureBlobService,
-    ) {}
+    ) { }
 
-    async createReview(createReviewDto: CreateReviewDto, userId: number): Promise<Review> {
+    async createReview(createReviewDto: CreateReviewDto, user: UserInterface): Promise<ReviewDto> {
         try {
             // todo!("check if user has purchased the product")
             // const orderDetailId = 0;
 
             const review = this.reviewRepository.create(createReviewDto);
-            review.user_id = userId;
+            review.user_id = user.id;
             // review.order_detailId = orderDetailId;
 
-            return await this.reviewRepository.save(review);
+            const result = await this.reviewRepository.save(review);
+            return plainToInstance(ReviewDto, { ...result, user: user }, { excludeExtraneousValues: true });
         } catch (error) {
             this.logger.error(error.message);
-            throw new InternalServerErrorException(`Failed to create review`);
+            throw new InternalServerErrorException({
+                message: `Failed to create review`,
+                code: ResponseCode.FAILED_TO_CREATE_REVIEW
+            });
         }
     }
 
@@ -50,15 +58,21 @@ export class ReviewService {
                 reply.user_id = userId;
                 return await this.replyRepository.save(reply);
             }
-            throw new NotFoundException('Review not found');
+            throw new NotFoundException({
+                message: 'Review not found',
+                code: ResponseCode.REVIEW_NOT_FOUND
+            });
         } catch (error) {
-            this.logger.error(error.message);
             if (error instanceof HttpException) throw error;
-            throw new InternalServerErrorException(`Failed to create reply`);
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: `Failed to create reply`,
+                code: ResponseCode.FAILED_TO_CREATE_REPLY
+            });
         }
     }
 
-    async getProductReviewsByCursor(productId: number, getReviewDto: GetReviewsDto) {
+    async getProductReviewsByCursor(productId: number, getReviewDto: GetReviewsDto): Promise<CursorPaginationResult<ReviewDto>> {
         // extract pagination options
         const paginationOptions = plainToInstance(CursorPaginationTransform<ReviewSortField>, getReviewDto);
         const { limit, sort_by, order, cursor } = paginationOptions;
@@ -66,10 +80,12 @@ export class ReviewService {
 
         // build query
         const qb = this.reviewRepository
-            .createQueryBuilder('review')
+            .createQueryBuilder('review').select(reviewSelectFields)
             .where('review.is_deleted = false')
-            .leftJoinAndSelect('review.replies', 'reply', 'reply.is_deleted = false')
+            .leftJoin('review.replies', 'reply', 'reply.is_deleted = false').addSelect(replySelectFields)
             .andWhere('review.product_id = :productId', { productId })
+            .leftJoin('review.user', 'user1').addSelect(publicUserFields.map((prop) => `user1.${prop}`))
+            .leftJoin('reply.user', 'user2').addSelect(publicUserFields.map((prop) => `user2.${prop}`))
             .take(limit);
 
         if (sort_by === ReviewSortField.CREATED) {
@@ -126,20 +142,29 @@ export class ReviewService {
             nextCursor = this.encodeCursor(nextCursor);
         }
 
-        return new CursorPaginationResult(reviews, { next_cursor: nextCursor });
+        return new CursorPaginationResult(
+            plainToInstance(ReviewDto, reviews, { excludeExtraneousValues: true }),
+            { next_cursor: nextCursor }
+        );
     }
 
     async deleteReview(reviewId: number, userId: number): Promise<boolean> {
         try {
             const result = await this.reviewRepository.update({ review_id: reviewId, user_id: userId }, { is_deleted: true });
             if (result.affected === 0) {
-                throw new InternalServerErrorException(`Failed to delete review`);
+                throw new InternalServerErrorException({
+                    message: `Failed to delete review`,
+                    code: ResponseCode.FAILED_TO_DELETE_REVIEW
+                });
             }
             return true;
         } catch (err) {
-            this.logger.error(err.message);
             if (err instanceof HttpException) throw err;
-            throw new InternalServerErrorException('Failed to delete review');
+            this.logger.error(err.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to delete review',
+                code: ResponseCode.FAILED_TO_DELETE_REVIEW
+            });
         }
     }
 
@@ -147,13 +172,19 @@ export class ReviewService {
         try {
             const result = await this.replyRepository.update({ id: replyId, user_id: userId }, { is_deleted: true });
             if (result.affected == 0) {
-                throw new InternalServerErrorException(`Failed to delete reply`);
+                throw new InternalServerErrorException({
+                    message: `Failed to delete reply`,
+                    code: ResponseCode.FAILED_TO_DELETE_REPLY
+                });
             }
             return true;
         } catch (err) {
-            this.logger.error(err.message);
             if (err instanceof HttpException) throw err;
-            throw new InternalServerErrorException('Failed to delete reply');
+            this.logger.error(err.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to delete reply',
+                code: ResponseCode.FAILED_TO_DELETE_REPLY
+            });
         }
     }
 
@@ -161,13 +192,19 @@ export class ReviewService {
         try {
             const result = await this.reviewRepository.update({ review_id: reviewId }, { seller_approved: approve });
             if (result.affected == 0) {
-                throw new InternalServerErrorException(`Approve failed`);
+                throw new InternalServerErrorException({
+                    message: `Approve failed`,
+                    code: ResponseCode.FAILED_TO_APPROVE_REVIEW,
+                });
             }
             return true;
         } catch (err) {
-            this.logger.error(err.message);
             if (err instanceof HttpException) throw err;
-            throw new InternalServerErrorException('Approve failed');
+            this.logger.error(err.message);
+            throw new InternalServerErrorException({
+                message: 'Approve failed',
+                code: ResponseCode.FAILED_TO_APPROVE_REVIEW
+            });
         }
     }
 
@@ -282,7 +319,10 @@ export class ReviewService {
         try {
             return Buffer.from(cursor, 'base64').toString('utf8');
         } catch {
-            throw new BadRequestException('Invalid cursor');
+            throw new BadRequestException({
+                message: 'Invalid cursor',
+                code: ResponseCode.INVALID_INPUT
+            });
         }
     }
 }
