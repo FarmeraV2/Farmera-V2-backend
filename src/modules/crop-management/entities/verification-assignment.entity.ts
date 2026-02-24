@@ -1,6 +1,7 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { AuditorProfile } from './auditor-profile.entity';
 import { Log } from './log.entity';
+import { LogVerificationIdentifier } from '../enums/log-verification-identifier';
 
 @Entity('verification_assignment')
 export class VerificationAssignment {
@@ -20,6 +21,9 @@ export class VerificationAssignment {
     @ManyToOne(() => Log)
     @JoinColumn({ name: 'log_id' })
     log: Log;
+
+    @Column({ type: "enum", enum: LogVerificationIdentifier, enumName: "log_verification_identifier", nullable: true })
+    type: LogVerificationIdentifier;
 
     @Column({ type: 'varchar', length: 66, nullable: true })
     vote_transaction_hash: string | null;

@@ -36,11 +36,11 @@ import { ProcessTrackingService } from 'src/modules/blockchain/process-tracking/
 import { LogSkipReviewEvent } from 'src/common/events/log-skip-review.event';
 import { TrustComputationService } from 'src/modules/blockchain/trustworthiness/trust-computation.service';
 import { TrustedLogAuditor, TrustedLogDefault } from 'src/modules/blockchain/interfaces/trusted-log.interface';
-import { VerificationIdentifier } from '../enums/verification-identifier.enum';
 import { TrustProcessedEvent } from 'src/modules/blockchain/interfaces/trust-computation-event.interface';
-import { AuditorRegistryService } from 'src/modules/blockchain/auditor/auditor-registry.service';
 import Web3 from 'web3';
 import { StepStatus } from '../enums/step-status.enum';
+import { StepType } from '../enums/step-type.enum';
+import { VerificationIdentifier } from '../enums/verification-identifier.enum';
 
 @Injectable()
 export class SeasonService {
@@ -57,7 +57,6 @@ export class SeasonService {
         private readonly productService: ProductService,
         private readonly processTrackingService: ProcessTrackingService,
         private readonly trustComputionService: TrustComputationService,
-        private readonly auditorRegistryService: AuditorRegistryService,
         private readonly emitter: EventEmitter2,
     ) { }
 
@@ -338,56 +337,44 @@ export class SeasonService {
         }
     }
 
-    async finishStep(seasonStepId: number): Promise<void> {
+    async finishStep(seasonStepId: number): Promise<boolean> {
         try {
-            // const { active } = await this.logService.countActiveLogs(seasonStepId);
-            // const logCount = active;
-            // if (logCount <= 0) throw new BadRequestException({
-            //     message: "Can not finish a step without any log",
-            //     code: ResponseCode.NOT_ENOUGH_LOG
-            // });
+            const { active } = await this.logService.countActiveLogs(seasonStepId);
+            const logCount = active;
+            if (logCount <= 0) throw new BadRequestException({
+                message: "Can not finish a step without any log",
+                code: ResponseCode.NOT_ENOUGH_LOG
+            });
+            // const hasPending = await this.logService.hasPendingLogs(seasonStepId);
 
-            // // Block finishing if any logs have pending auditor verification
-            // const hasPending = await this.verificationService.hasStepPendingVerification(seasonStepId);
-            // if (hasPending) {
-            //     throw new BadRequestException({
-            //         message: "Cannot finish step while logs have pending verification",
-            //         code: ResponseCode.STEP_HAS_PENDING_VERIFICATION,
-            //     });
-            // }
+            if (await this.stepService.updateSeasonStepStatus(seasonStepId, StepStatus.DONE)) {
+                // update season detail status IN_PROGRESS -> DONE
+                const step = await this.stepService.getSeasonStep(seasonStepId);
 
-            // if (await this.stepService.updateSeasonStepStatus(seasonStepId, StepStatus.DONE)) {
-            //     // update season detail status IN_PROGRESS -> DONE
-            //     const step = await this.stepService.getSeasonStep(seasonStepId);
-
-            //     const transaction = await this.processTrackingService.addStep(step);
-            //     await this.stepService.updateTransactionHash(
-            //         seasonStepId,
-            //         transaction.transactionHash,
-            //     );
-
-            //     // calc step transparency score
-            //     const stepTransparencyScore = await this.transparencyService.calcStepTransparencyScore(seasonStepId);
-            //     await this.stepService.updateTransparencyScore(seasonStepId, stepTransparencyScore);
-
-            //     // if last step of the season, update season status IN_PROGRESS -> DONE to finish season
-            //     if (step.step_type === StepType.POST_HARVEST) {
-            //         // update status
-            //         await this.updateSeasonStatus(step.season_id, SeasonStatus.DONE);
-
-            //         // calc season transparency score
-            //         const seasonTransparencyScore = await this.transparencyService.calcSeasonTransparencyScore(step.season_id);
-            //         await this.updateTransparencyScore(step.season_id, seasonTransparencyScore);
-
-            //         // calc plot score
-            //         const plotId = await this.getSeasonPlotId(step.season_id);
-            //         const plotTransparencyScore = await this.transparencyService.calcPlotTransparencyScore(plotId);
-            //         await this.plotService.updateTransparencyScore(plotId, plotTransparencyScore);
-            //     }
-            // }
+                // if last step of the season, update season status IN_PROGRESS -> DONE to finish season
+                if (step.step_type === StepType.POST_HARVEST) {
+                    // update status
+                    await this.updateSeasonStatus(step.season_id, SeasonStatus.DONE);
 
 
-            // return true;
+                }
+
+                setTimeout(() => {
+                    void (async () => {
+                        try {
+                            const transaction = await this.processTrackingService.addStep(step);
+                            await this.stepService.updateTransactionHash(
+                                seasonStepId,
+                                transaction.transactionHash,
+                            );
+                        } catch (error) {
+                            this.logger.error(`Failed to upload step ${seasonStepId} to blockchain`);
+                        }
+                    })();
+                }, 0);
+            }
+
+            return true;
         }
         catch (error) {
             if (error instanceof HttpException) throw error;
@@ -482,53 +469,29 @@ export class SeasonService {
         }
     }
 
-    private async updateTransparencyScore(seasonId: number, score: number, manager?: EntityManager): Promise<void> {
+    /**
+     * Returns on-chain trust scores for all audited logs of a farm.
+     *
+     * Used by the farm-level Geometric Mean score (T_farm).
+     * Inclusion criterion: trust_score IS NOT NULL (log was processed by on-chain contract).
+     * is_active is intentionally NOT used — a log audited on-chain is immutable evidence
+     * regardless of whether the farmer later deactivates it. This prevents score inflation
+     * by hiding rejected logs via soft-delete.
+     *
+     * @param farmId  The farm's internal ID
+     * @returns       Array of trust_score values [0–100] for all on-chain audited logs
+     */
+    async getFarmLogScores(farmId: number): Promise<number[]> {
         try {
-            const repo = manager ? manager.getRepository(Season) : this.seasonRepository;
-            await repo.update(
-                { id: seasonId },
-                { transparency_score: score })
-        }
-        catch (error) {
-            this.logger.error(`Failed to update season transparency score: ${error.message}`);
+            const logIds = await this.logService.getLogIds(farmId);
+            const record = await this.trustComputionService.getTrustRecords(VerificationIdentifier.LOG, logIds);
+            return record.map((r) => r.trustScore);
+        } catch (error) {
+            this.logger.error(`Failed to get farm log trust scores: ${error.message}`);
             throw new InternalServerErrorException({
-                message: "Failed to update season transparency score",
-                code: ResponseCode.FAILED_TO_UPDATE_SEASON
-            })
-        }
-    }
-
-    async getSeasonsScores(plotId: number): Promise<{ id: number, score: number, endDate?: Date }[]> {
-        try {
-            const seasons = await this.seasonRepository.find({
-                select: ["id", "transparency_score", "actual_end_date"],
-                where: { plot_id: plotId }
+                message: 'Failed to get farm log trust scores',
+                code: ResponseCode.INTERNAL_ERROR,
             });
-            return seasons.map((s) => ({ id: s.id, score: s.transparency_score ?? 0, endDate: s.actual_end_date }))
-        }
-        catch (error) {
-            this.logger.error(`Failed to get season transparency scores: ${error.message}`);
-            throw new InternalServerErrorException({
-                message: "Failed to get season transparency scores",
-                code: ResponseCode.INTERNAL_ERROR
-            })
-        }
-    }
-
-    async getFarmAllAssignedSeasonsScores(farmId: number): Promise<{ id: number, score: number, endDate?: Date }[]> {
-        try {
-            const seasons = await this.seasonRepository.find({
-                select: ["id", "transparency_score", "actual_end_date"],
-                where: { farm_id: farmId, is_assigned: true }
-            });
-            return seasons.map((s) => ({ id: s.id, score: s.transparency_score ?? 0, endDate: s.actual_end_date }))
-        }
-        catch (error) {
-            this.logger.error(`Failed to get season transparency scores: ${error.message}`);
-            throw new InternalServerErrorException({
-                message: "Failed to get season transparency scores",
-                code: ResponseCode.INTERNAL_ERROR
-            })
         }
     }
 
@@ -616,7 +579,7 @@ export class SeasonService {
     @OnEvent(LogVerified.name)
     async handleLogVerified(payload: LogVerified): Promise<void> {
         try {
-            const { id, consensus, totalVote } = payload;
+            const { id, consensus } = payload;
             const log = await this.logService.getLog(id);
             if (!log) throw new Error();
 
@@ -624,13 +587,9 @@ export class SeasonService {
 
             const plotLocation = await this.stepService.getPlotLocation(log.season_detail_id);
 
-            const minAuditor = await this.auditorRegistryService.getMinAuditors();
-
             const result = await this.trustComputionService.processData<TrustedLogAuditor>(VerificationIdentifier.LOG, log.id, "log", "auditor", {
                 identifier: Web3.utils.keccak256(VerificationIdentifier.LOG),
                 id: log.id,
-                auditorCount: totalVote,
-                minAuditors: minAuditor,
                 imageCount: log.image_urls.length,
                 videoCount: log.video_urls.length,
                 logLocation: {
@@ -642,12 +601,10 @@ export class SeasonService {
                     longitude: plotLocation.lng * 1000000,
                 },
             }, {
-                abiType: "tuple(bytes32,uint64,uint128,uint128,uint128,uint128,(int128,int128),(int128,int128))",
+                abiType: "tuple(bytes32,uint64,uint128,uint128,(int128,int128),(int128,int128))",
                 map: (data) => [
                     data.identifier,
                     data.id,
-                    data.auditorCount,
-                    data.minAuditors,
                     data.imageCount,
                     data.videoCount,
                     [
@@ -723,6 +680,11 @@ export class SeasonService {
         const savedLog = await this.logService.save(log);
         const transaction = await this.processTrackingService.addLog(savedLog);
         await this.logService.updateTransactionHash(log.id, transaction.transactionHash);
+
+        // Tier 2 → Tier 1 mapping: step score = log trust score
+        // trustScore is uint128 [0–100] from on-chain (SCALE=100); normalize to [0,1] for DB
+        const stepScore = Number(res.trustScore) / 100;
+        await this.stepService.updateTransparencyScore(log.season_detail_id, stepScore);
     }
 
     // todo!("handle cron job to update status every day")

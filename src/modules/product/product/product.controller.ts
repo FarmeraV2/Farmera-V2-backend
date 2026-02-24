@@ -27,11 +27,6 @@ export class ProductController {
         return await this.productService.updateProduct(productId, updateProductDto);
     }
 
-    // @Patch('status/:product_id')
-    // async updateProductStatus(@User() user: UserInterface, @Param('product_id', ParseIntPipe) productId: number, @Body() status: UpdateProductStatusDto) {
-    //     return await this.productService.updateProductStatus(user.id, productId, status.status);
-    // }
-
     // @Post('open-for-sale/:product_id')
     // async openProductForSale(@User() user: UserInterface, @Param('product_id', ParseIntPipe) productId: number,) {
     //     return await this.productService.openProductForSale(user.id, productId);

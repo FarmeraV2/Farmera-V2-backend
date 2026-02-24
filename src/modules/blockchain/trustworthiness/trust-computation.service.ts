@@ -5,7 +5,6 @@ import { TransactionReceipt } from "../interfaces/transaction-receipt.interface"
 import { TrustRecord } from "../interfaces/trust-score-record.interface";
 import { AbiEncoderDescriptor } from "../interfaces/abi-encoder-descriptor.interface";
 import { trustComputationContractAbi } from "../contracts/TrustComputation";
-import { VerificationIdentifier } from "src/modules/crop-management/enums/verification-identifier.enum";
 
 @Injectable()
 export class TrustComputationService {
@@ -34,7 +33,7 @@ export class TrustComputationService {
         this.contract = new this.web3.eth.Contract(abi, contractAddress);
     }
 
-    async processData<T>(identifier: VerificationIdentifier, id: number, dataType: string, context: string, data: T, descriptor: AbiEncoderDescriptor<T>): Promise<TransactionReceipt> {
+    async processData<T>(identifier: string, id: number, dataType: string, context: string, data: T, descriptor: AbiEncoderDescriptor<T>): Promise<TransactionReceipt> {
         try {
             const identifierBytes32 = Web3.utils.keccak256(identifier);
 
@@ -60,7 +59,7 @@ export class TrustComputationService {
         }
     }
 
-    async getTrustRecord(identifier: VerificationIdentifier, id: number): Promise<TrustRecord> {
+    async getTrustRecord(identifier: string, id: number): Promise<TrustRecord> {
         try {
             const identifierBytes32 = Web3.utils.keccak256(identifier);
             const result = await this.contract.methods

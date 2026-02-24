@@ -65,7 +65,4 @@ export class Season {
 
     @Column()
     farm_id: number;
-
-    @Column({ type: "float", nullable: true })
-    transparency_score?: number;
 }

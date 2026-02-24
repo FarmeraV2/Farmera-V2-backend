@@ -14,6 +14,7 @@ import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
 import { HashedLog } from '../dtos/log/hashed-log.dto';
 import { InactiveLogDto } from '../dtos/log/inactive-log.dto';
 import { ProcessTrackingService } from 'src/modules/blockchain/process-tracking/process-tracking.service';
+import { OnChainLogStatus } from '../enums/onchain-log-status.enum';
 
 @Injectable()
 export class LogService {
@@ -208,19 +209,33 @@ export class LogService {
         }
     }
 
-    async getActiveLogIds(seasonDetailId: number): Promise<number[]> {
+    async getLogIds(farmId: number): Promise<number[]> {
         try {
             const logs = await this.logRepository.find({
                 select: ["id"],
                 where: {
-                    season_detail_id: seasonDetailId,
-                    is_active: true,
+                    season_detail: {
+                        season: { farm_id: farmId }
+                    }
                 }
             });
             return logs.map(log => log.id);
         } catch (error) {
             throw new InternalServerErrorException({
                 message: "Failed to get active log ids",
+                code: ResponseCode.INTERNAL_ERROR
+            });
+        }
+    }
+
+    async hasPendingLogs(seasonDetailId: number): Promise<boolean> {
+        try {
+            return await this.logRepository.exists({
+                where: { season_detail_id: seasonDetailId, status: OnChainLogStatus.Pending }
+            });
+        } catch (error) {
+            throw new InternalServerErrorException({
+                message: "Failed to get pending logs",
                 code: ResponseCode.INTERNAL_ERROR
             });
         }

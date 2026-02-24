@@ -27,7 +27,6 @@ export class SeasonDetailDto {
     @Expose() yield_unit: string;
     @Expose() notes?: string;
     @Expose() plot_id: number;
-    @Expose() transparency_score?: number;
     @Expose() created: Date;
     @Expose() updated: Date;
 }
