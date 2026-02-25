@@ -22,7 +22,6 @@ import { Season } from '../entities/season.entity';
 import { ProcessTrackingService } from 'src/modules/blockchain/process-tracking/process-tracking.service';
 import { LocationDto } from 'src/common/dtos/location/location.dto';
 import { AddLogDto } from '../dtos/log/add-log.dto';
-import { CropType } from '../enums/crop-type.enum';
 
 @Injectable()
 export class StepService {
@@ -363,7 +362,6 @@ export class StepService {
                 select: ["order"],
                 where: {
                     crop_id: season.plot.crop_id,
-                    is_optional: false
                 },
                 order: { order: "ASC" }
             });

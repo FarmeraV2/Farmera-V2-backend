@@ -1,15 +1,18 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3 } from 'aws-sdk';
+import { extname } from 'path';
+import { lookup } from 'mime-types';
 import { SIGNED_URL_EXP } from 'src/common/constants/constants';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { StoragePermission } from '../enums/storage-permission.enum';
 import { FileStorageService } from '../interfaces/file-storage.interface';
 import { MediaGroupType } from '../enums/media-group-type.enum';
 import { generateFileName } from '../utils/file.util';
-import { createReadStream } from 'fs';
 import { HashService } from 'src/services/hash.service';
 import * as fs from 'fs/promises';
+
+const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv', '.flv'];
 
 @Injectable()
 export class CloudflareR2Service implements FileStorageService {
@@ -72,6 +75,49 @@ export class CloudflareR2Service implements FileStorageService {
                 message: "Failed to get signed url",
                 code: ResponseCode.FAILED_TO_GET_SIGNED_URL,
             })
+        }
+    }
+
+    async serveFile(key: string): Promise<{ buffer?: Buffer; filePath?: string; isVideo: boolean; mimeType: string }> {
+        if (!this.r2 || !this.bucketName) {
+            throw new InternalServerErrorException({
+                message: 'R2 Storage is disabled',
+                code: ResponseCode.STORAGE_IS_DISABLED,
+            });
+        }
+
+        try {
+            const data = await this.r2.getObject({ Bucket: this.bucketName, Key: key }).promise();
+            if (!data.Body) {
+                throw new Error(`Empty body from R2 for key: ${key}`);
+            }
+
+            let buffer: Buffer;
+
+            if (Buffer.isBuffer(data.Body)) {
+                buffer = data.Body;
+            } else if (data.Body instanceof Uint8Array) {
+                buffer = Buffer.from(data.Body);
+            } else {
+                const chunks: Buffer[] = [];
+                for await (const chunk of data.Body as any) {
+                    chunks.push(Buffer.from(chunk));
+                }
+                buffer = Buffer.concat(chunks);
+            }
+
+            const ext = extname(key).toLowerCase();
+            const isVideo = VIDEO_EXTENSIONS.includes(ext);
+            const mimeType = (data.ContentType as string) || lookup(ext) || 'application/octet-stream';
+
+            return { buffer, isVideo, mimeType };
+        } catch (error) {
+            console.log(error);
+            this.logger.error(`Failed to serve file from R2 (key=${key}): ${error.message}`);
+            throw new InternalServerErrorException({
+                message: 'Failed to fetch file from R2',
+                code: ResponseCode.FAILED_TO_READ_FILE,
+            });
         }
     }
 
