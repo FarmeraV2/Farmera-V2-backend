@@ -15,7 +15,7 @@ Person(farmer, "Nông Dân (Farmer)", "Chủ trang trại quản lý quy trình 
 
 System(farmera, "Farmera V2", "Nền tảng truy xuất nguồn gốc nông sản, quản lý sản xuất và giao dịch, tích hợp blockchain và dịch vụ xác minh.")
 
-System_Ext(zksync, "zkSync Network (Layer 2 on Ethereum)", "Lưu trữ nhật ký bất biến và tính điểm tin cậy.")
+System_Ext(ethereum, "Ethereum Network", "Lưu trữ nhật ký bất biến và tính điểm tin cậy.")
 System_Ext(gcloud_vision, "Google Cloud Vision API", "Phân tích hình ảnh nông nghiệp.")
 System_Ext(twilio, "Twilio / SendGrid", "Gửi OTP SMS và Email xác minh.")
 System_Ext(file_storage, "R2 Storage", "Lưu trữ ảnh và video.")
@@ -25,7 +25,7 @@ System_Ext(fpt, "FPT API", "Xác thực CCCD và khuôn mặt.")
 Rel(buyer, farmera, "Sử dụng hệ thống")
 Rel(farmer, farmera, "Sử dụng hệ thống")
 
-Rel(farmera, zksync, "Ghi nhật ký và đọc dữ liệu blockchain")
+Rel(farmera, ethereum, "Ghi nhật ký và đọc dữ liệu blockchain")
 Rel(farmera, gcloud_vision, "Phân tích hình ảnh")
 Rel(farmera, twilio, "Gửi OTP xác minh")
 Rel(farmera, file_storage, "Lưu trữ tệp")
@@ -54,7 +54,7 @@ System_Boundary(farmera, "Hệ thống Farmera V2") {
     ContainerDb(postgres, "PostgreSQL Database", "PostgreSQL", "Lưu trữ toàn bộ dữ liệu quan hệ.")
 }
 
-System_Ext(zksync, "zkSync Network (Layer 2 on Ethereum)", "Lưu trữ nhật ký bất biến, tính điểm tin cậy và quản lý xác thực auditor.")
+System_Ext(ethereum, "Ethereum Network", "Lưu trữ nhật ký bất biến, tính điểm tin cậy và quản lý xác thực auditor.")
 System_Ext(gcloud_vision, "Google Cloud Vision API", "Phân tích ảnh nông nghiệp.")
 System_Ext(twilio, "Twilio / SendGrid", "Gửi OTP SMS và Email.")
 System_Ext(file_storage, "R2 Storage", "Lưu trữ ảnh và video.")
@@ -66,7 +66,7 @@ Rel(farmer, mobile_app, "Quản lý trang trại,\nghi chép quy trình sản xu
 
 Rel(mobile_app, nestjs_api, "Gọi REST API", "HTTPS/JSON Bearer JWT")
 Rel(nestjs_api, postgres, "Reads/Writes dữ liệu", "TCP:5432 via TypeORM")
-Rel(nestjs_api, zksync, "Gửi signed transaction và đọc dữ liệu on-chain", "JSON-RPC over HTTPS")
+Rel(nestjs_api, ethereum, "Gửi signed transaction và đọc dữ liệu on-chain", "JSON-RPC over HTTPS")
 Rel(nestjs_api, gcloud_vision, "Phân tích ảnh", "HTTPS REST API")
 Rel(nestjs_api, fpt, "Xác thực danh tính", "HTTPS REST API")
 Rel(nestjs_api, twilio, "Gửi OTP", "HTTPS REST API")
