@@ -176,7 +176,7 @@ export class VerificationService {
     //     }
     // }
 
-    @Cron("*0 * * * * *")
+    @Cron("0 * * * * *")
     async handleRequestEvents() {
         await this.auditorRegistryService.handleEvent(
             AuditorRegistryEvent.VERIFICATION_REQUESTED,
@@ -239,7 +239,7 @@ export class VerificationService {
     }
 
 
-    @Cron("*0 * * * * *")
+    @Cron("0 * * * * *")
     async handleFinalizedEvents() {
         await this.auditorRegistryService.handleEvent(
             AuditorRegistryEvent.VERIFICATION_FINALIZED,
