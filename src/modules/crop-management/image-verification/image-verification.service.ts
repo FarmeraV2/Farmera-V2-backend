@@ -53,7 +53,7 @@ export class ImageVerificationService {
                 return await this.saveResult(log, 0, false);
             }
 
-            // fetch image buffers from storage // todo: fetch from cloud
+            // fetch image buffers from storage (local path or R2 key)
             const imageBuffers = await this.fetchImageBuffers(log.image_urls);
             if (imageBuffers.length === 0) {
                 this.logger.warn(`No images could be fetched for log ${log.id}`);
@@ -74,7 +74,8 @@ export class ImageVerificationService {
             await this.saveHashes(hashes, log.farm_id, log.id, VerificationIdentifier.LOG);
 
             // AI analysis with Google Cloud Vision
-            const aiAnalysis = this.mockAnalyzeWithVision(imageBuffers, "LOW") // todo: await this.analyzeWithVision(imageBuffers);
+            // const aiAnalysis = this.mockAnalyzeWithVision(imageBuffers, "LOW");
+            const aiAnalysis = await this.analyzeWithVision(imageBuffers);
 
             const overallScore = this.calculateOverallScore(aiAnalysis, duplicateResult.isDuplicate);
 
@@ -107,8 +108,24 @@ export class ImageVerificationService {
                     this.logger.warn('FileStorageService does not implement serveFile');
                     break;
                 }
-                const filePath = url.substring(url.indexOf("uploads"));
-                const { buffer, mimeType } = await this.fileStorageService.serveFile(filePath);
+
+                let key = url;
+                if (url.startsWith('http')) {
+                    const parsedUrl = new URL(url);
+                    const pathname = parsedUrl.pathname;
+
+                    if (pathname.includes('/api/file-storage/')) {
+                        // LOCAL
+                        key = pathname.split('/api/file-storage/')[1];
+                    } else {
+                        // R2
+                        key = pathname.startsWith('/')
+                            ? pathname.substring(1)
+                            : pathname;
+                    }
+                }
+
+                const { buffer, mimeType } = await this.fileStorageService.serveFile(key);
                 if (buffer) {
                     results.push({ buffer: buffer, url, mimeType: mimeType });
                 }
@@ -350,8 +367,6 @@ export class ImageVerificationService {
         }
     }
 
-
-
     /**
      * Calculate overall verification score (0-1).
      *
@@ -378,6 +393,8 @@ export class ImageVerificationService {
 
         // Duplicate score
         const duplicateScore = isDuplicate ? 0.0 : 1.0;
+
+        if (relevanceScore === 0 || originalityScore === 0 || duplicateScore === 0) return 0;
 
         const overall =
             relevanceScore * 0.35 +
