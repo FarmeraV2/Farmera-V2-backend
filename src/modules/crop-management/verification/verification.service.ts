@@ -6,9 +6,7 @@ import { AuditorProfileService } from '../auditor-profile/auditor-profile.servic
 import { VerificationAssignment } from '../entities/verification-assignment.entity';
 import { ImageVerificationService } from '../image-verification/image-verification.service';
 import { ProcessTrackingService } from 'src/modules/blockchain/process-tracking/process-tracking.service';
-import { TrustComputationService } from 'src/modules/blockchain/trustworthiness/trust-computation.service';
 import { AuditorRegistryService } from 'src/modules/blockchain/auditor/auditor-registry.service';
-import { VerificationIdentifier } from '../enums/verification-identifier.enum';
 import Web3 from 'web3';
 import { LogImageVerificationResult } from '../entities/log-image-verification-result.entity';
 import { LogVerificationPackage } from '../dtos/verification/log-verification-package.dto';
@@ -20,11 +18,13 @@ import { AuditorRegistryEvent } from 'src/modules/blockchain/enums/auditor-regis
 import { LogVerified } from 'src/common/events/log-verified.event';
 import { LogSkipReviewEvent } from 'src/common/events/log-skip-review.event';
 import { Cron } from '@nestjs/schedule';
+import { VerificationRequested } from 'src/modules/blockchain/interfaces/auditor-event.interface';
+import { VerificationIdentifier } from '../enums/verification-identifier.enum';
+import { LogVerificationIdentifier } from '../enums/log-verification-identifier';
 
 const AUTO_VERIFY_THRESHOLD = 0.6;
 const SKIP_VERIFY_THRESHOLD = 0.8;
 const SAMPLING_RATE = 0.2;
-const MIN_AUDITORS = 2;
 const VERIFICATION_DEADLINE_DAYS = 7;
 
 @Injectable()
@@ -157,6 +157,25 @@ export class VerificationService {
         }
     }
 
+    // @OnEvent(LogInactiveEvent.name)
+    // async requestInactiveLog(payload: LogInactiveEvent): Promise<void> {
+    //     try {
+    //         const log = payload.log;
+    //         // Blockchain request verification
+    //         const deadline = new Date();
+    //         deadline.setDate(deadline.getDate() + VERIFICATION_DEADLINE_DAYS);
+
+    //         try {
+    //             await this.auditorRegistryService.requestVerfication(VerificationIdentifier.LOG_INACTIVE, log.id, deadline);
+    //         } catch (error) {
+    //             this.logger.error("Failed to request verification");
+    //         }
+
+    //     } catch (error) {
+    //         this.logger.error(`Failed to evaluate for verification: ${error.message}`);
+    //     }
+    // }
+
     @Cron("*/10 * * * * *")
     async handleRequestEvents() {
         await this.auditorRegistryService.handleEvent(
@@ -164,13 +183,22 @@ export class VerificationService {
             async (from, to) => await this.auditorRegistryService.getRecentVerificationRequestEvents(from, to),
             async (events) => {
                 this.logger.log(`Running handle verification request event cron job - event count: ${events.length}`);
-                const filteredEvents = events.filter(
-                    (e) =>
-                        Web3.utils.keccak256(VerificationIdentifier.LOG) === e.identifier,
-                );
+                const addLogEvents: VerificationRequested[] = [];
+                const inactiveLogEvents: VerificationRequested[] = [];
 
-                const results = await Promise.all(
-                    filteredEvents.map(async (e) => {
+                for (const e of events) {
+                    switch (e.identifier) {
+                        case Web3.utils.keccak256(VerificationIdentifier.LOG):
+                            addLogEvents.push(e);
+                            break;
+                        case Web3.utils.keccak256(VerificationIdentifier.LOG_INACTIVE):
+                            inactiveLogEvents.push(e);
+                            break;
+                    }
+                }
+
+                const addLogResults = await Promise.all(
+                    addLogEvents.map(async (e) => {
                         const auditorIds =
                             await this.auditorProfileService.getAuditorIdsByAddresses(
                                 e.assignedAuditors,
@@ -181,12 +209,31 @@ export class VerificationService {
                                 auditor_profile_id: id,
                                 log_id: e.id,
                                 deadline: new Date(e.deadline * 1000),
+                                type: LogVerificationIdentifier.LOG
                             }),
                         );
                     }),
                 );
 
-                const assignments = results.flat();
+                const inactiveLogResults = await Promise.all(
+                    addLogEvents.map(async (e) => {
+                        const auditorIds =
+                            await this.auditorProfileService.getAuditorIdsByAddresses(
+                                e.assignedAuditors,
+                            );
+
+                        return auditorIds.map((id) =>
+                            this.assignmentRepo.create({
+                                auditor_profile_id: id,
+                                log_id: e.id,
+                                deadline: new Date(e.deadline * 1000),
+                                type: LogVerificationIdentifier.LOG_INACTIVE
+                            }),
+                        );
+                    }),
+                );
+
+                const assignments = [...addLogResults.flat(), ...inactiveLogResults.flat()];
                 await this.assignmentRepo.save(assignments);
             });
     }

@@ -13,8 +13,6 @@ export interface TrustedLogDefault {
 export interface TrustedLogAuditor {
     identifier: string,
     id: number,
-    auditorCount: number;
-    minAuditors: number;
     imageCount: number;
     videoCount: number
     logLocation: { latitude: number, longitude: number }

@@ -5,6 +5,7 @@
 /temp
 /key
 /ref
+/claude
 
 # Logs
 logs
@@ -50,6 +51,7 @@ lerna-debug.log*
 # temp directory
 .temp
 .tmp
+/ref
 
 # upload directory
 uploads/

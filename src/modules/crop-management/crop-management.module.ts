@@ -49,7 +49,8 @@ import { FileStorageModule } from 'src/core/file-storage/file-storage.module';
         AuditorProfileController, VerificationController
     ],
     exports: [
-        SeasonService, StepService, LogService, PlotService
+        SeasonService, StepService, LogService, PlotService, ImageVerificationService,
+        TypeOrmModule,
     ],
 })
 export class CropManagementModule { }

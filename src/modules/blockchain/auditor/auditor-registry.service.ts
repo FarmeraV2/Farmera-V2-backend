@@ -5,8 +5,8 @@ import { auditRegistryAbi } from "../contracts/AuditRegistry";
 import { AuditorInfo, VerificationRecord } from "../interfaces/auditor.interface";
 import { VerificationFinalized, VerificationRequested } from "../interfaces/auditor-event.interface";
 import { StateService } from "../state/state.service";
-import { VerificationIdentifier } from "src/modules/crop-management/enums/verification-identifier.enum";
 import { AuditorRegistryEvent } from "../enums/auditor-registry.enum";
+import { VerificationIdentifier } from "src/modules/crop-management/enums/verification-identifier.enum";
 
 @Injectable()
 export class AuditorRegistryService {

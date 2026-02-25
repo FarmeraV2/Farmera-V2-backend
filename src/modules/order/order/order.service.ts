@@ -6,7 +6,7 @@ import { DeliveryAddressService } from 'src/modules/address/delivery-address/del
 import { PaymentService } from 'src/modules/payment/payment/payment.service';
 import { Product } from 'src/modules/product/entities/product.entity';
 import { ProductStatus } from 'src/modules/product/enums/product-status.enum';
-import { Between, DataSource, FindOptionsWhere, Repository } from 'typeorm';
+import { Between, DataSource, FindOptionsWhere, In, Repository } from 'typeorm';
 import { CalculateShippingFeeRequestDto } from '../dtos/calculate-shipping-fee.request.dto';
 import { CreateBatchOrderDto } from '../dtos/create-order.dto';
 import { GetMyOrdersDto, OrderDto } from '../dtos/oder.dto';
@@ -891,8 +891,8 @@ export class OrderService {
 
 
     async confirmOrderDelivery(
-        orderId: number, 
-        farmerId: number, 
+        orderId: number,
+        farmerId: number,
         shipping_carrier: string,
         required_note: GhnRequiredNote
     ): Promise<OrderDto> {
@@ -906,7 +906,7 @@ export class OrderService {
                 include_address_code: true,
                 include_address_detail: true
             });
-            
+
             if (!data.order) {
                 throw new NotFoundException({
                     message: 'Order not found',
@@ -1053,14 +1053,14 @@ export class OrderService {
             if (queryRunner.isTransactionActive) {
                 await queryRunner.rollbackTransaction();
             }
-            
+
             if (error instanceof BadRequestException ||
                 error instanceof NotFoundException ||
                 error instanceof ForbiddenException ||
                 error instanceof InternalServerErrorException) {
                 throw error;
             }
-            
+
             throw new InternalServerErrorException({
                 message: `Failed to confirm order delivery: ${error.message}`,
                 code: ResponseCode.FAILED_TO_CONFIRM_ORDER_DELIVERY
@@ -1097,23 +1097,23 @@ export class OrderService {
                 case GhnWebhookType.CREATE:
                     await this.handleCreateWebhook(queryRunner, delivery, webhookData);
                     break;
-                
+
                 case GhnWebhookType.SWITCH_STATUS:
                     await this.handleSwitchStatusWebhook(queryRunner, delivery, webhookData);
                     break;
-                
+
                 case GhnWebhookType.UPDATE_WEIGHT:
                     await this.handleUpdateWeightWebhook(queryRunner, delivery, webhookData);
                     break;
-                
+
                 case GhnWebhookType.UPDATE_COD:
                     await this.handleUpdateCodWebhook(queryRunner, delivery, webhookData);
                     break;
-                
+
                 case GhnWebhookType.UPDATE_FEE:
                     await this.handleUpdateFeeWebhook(queryRunner, delivery, webhookData);
                     break;
-                
+
                 default:
                     this.logger.warn(`Unknown webhook type: ${webhookData.Type}`);
             }
@@ -1136,7 +1136,7 @@ export class OrderService {
 
     private async handleCreateWebhook(queryRunner: any, delivery: Delivery, webhookData: GhnWebhookDto): Promise<void> {
         this.logger.log(`Processing CREATE webhook for order: ${webhookData.OrderCode}`);
-        
+
         const updateData: any = {
             tracking_number: webhookData.OrderCode,
             total_fee: webhookData.TotalFee,
@@ -1157,14 +1157,14 @@ export class OrderService {
         }
 
         const deliveryStatus = this.mapGhnStatusToDeliveryStatus(webhookData.Status);
-        
+
         await queryRunner.manager.update(Delivery, { id: delivery.id }, {
             status: deliveryStatus,
         });
 
         // Cập nhật trạng thái order dựa trên trạng thái delivery
         let orderStatus: OrderStatus | null = null;
-        
+
         switch (webhookData.Status) {
             case GhnOrderStatus.DELIVERED:
                 orderStatus = OrderStatus.DELIVERED;
@@ -1265,7 +1265,7 @@ export class OrderService {
 
         try {
             const ghnOrderDetail = await this.GHNService.getOrderDetailByGHN(delivery.ghn_order_code);
-            
+
             const updates: Partial<Delivery> = {};
             let hasChanges = false;
 
@@ -1298,7 +1298,7 @@ export class OrderService {
                 await this.deliveryRepository.update(deliveryId, updates);
                 if (updates.status && delivery.order_id) {
                     let orderStatus: OrderStatus | null = null;
-                    
+
                     switch (updates.status) {
                         case DeliveryStatus.DELIVERED:
                             orderStatus = OrderStatus.DELIVERED;
@@ -1328,13 +1328,13 @@ export class OrderService {
 
         } catch (error) {
             this.logger.error(`Failed to update delivery from GHN: ${error.message}`, error.stack);
-            
+
             if (error instanceof BadRequestException ||
                 error instanceof NotFoundException ||
                 error instanceof InternalServerErrorException) {
                 throw error;
             }
-            
+
             throw new InternalServerErrorException({
                 message: `Failed to update delivery from GHN: ${error.message}`,
                 code: ResponseCode.FAILED_TO_UPDATE_DELIVERY
@@ -1342,5 +1342,16 @@ export class OrderService {
         }
     }
 
-
+    // OFR = fulfilled / (fulfilled + cancelled)
+    // fulfilled = DELIVERED + COMPLETED; not-fulfilled = CANCELLED
+    async getOrderFulfillmentRate(farmId: number): Promise<number | null> {
+        const fulfilled = await this.orderRepository.count({
+            where: { store_id: farmId, status: In([OrderStatus.DELIVERED, OrderStatus.COMPLETED]) },
+        });
+        const cancelled = await this.orderRepository.count({
+            where: { store_id: farmId, status: OrderStatus.CANCELLED },
+        });
+        if (fulfilled + cancelled === 0) return null;
+        return fulfilled / (fulfilled + cancelled);
+    }
 }

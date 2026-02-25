@@ -27,6 +27,7 @@ import { StringValue } from 'ms';
 import { AuditModule } from './core/audit/audit.module';
 import { QrModule } from './modules/qr/qr.module';
 import { BlockchainModule } from './modules/blockchain/blockchain.module';
+import { FtesModule } from './modules/ftes/ftes.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 
@@ -97,12 +98,17 @@ import { ScheduleModule } from '@nestjs/schedule';
             {
                 path: "on-chain",
                 module: BlockchainModule
+            },
+            {
+                path: "ftes",
+                module: FtesModule
             }
         ]),
         FileStorageModule,
         AuditModule,
         QrModule,
         BlockchainModule,
+        FtesModule,
         EventEmitterModule.forRoot(),
     ],
     controllers: [AppController],

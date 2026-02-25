@@ -20,6 +20,7 @@ export class ProductDetailDto {
     @Expose() created: Date;
     @Expose() updated: Date;
     @Expose() season_id?: number;
+    @Expose() low_stock_threshold?: number;
 
     @Expose()
     @Type(() => FarmSummaryDto)
