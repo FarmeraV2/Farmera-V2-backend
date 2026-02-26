@@ -272,9 +272,21 @@ export class ImageVerificationService {
                 const labels = [...new Set([...labelNames, ...objectNames])];
                 labels.forEach(l => allLabels.add(l));
 
+                const cleanAgLabels = AGRICULTURAL_LABELS
+                    .map(l => l.toLowerCase().trim())
+                    .filter(l => l.length > 2);
+
                 const isAgricultural = labels.some(label =>
-                    AGRICULTURAL_LABELS.some(agLabel => label.includes(agLabel))
+                    cleanAgLabels.includes(label)
                 );
+
+                if (isAgricultural) {
+                    this.logger.debug("Matched agriculture label:",
+                        labels.filter(label =>
+                            AGRICULTURAL_LABELS.some(agLabel => label.includes(agLabel))
+                        )
+                    );
+                }
 
                 // Web detection
                 const webDetection = result.webDetection;
