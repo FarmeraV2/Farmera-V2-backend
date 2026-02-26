@@ -49,7 +49,7 @@ export class Log {
     @Column({ default: true })
     is_active: boolean;
 
-    @Column({ default: OnChainLogStatus.None })
+    @Column({ default: OnChainLogStatus.Pending })
     status: OnChainLogStatus;
 
     //
