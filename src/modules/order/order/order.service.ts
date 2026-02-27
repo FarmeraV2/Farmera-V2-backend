@@ -25,6 +25,7 @@ import { CreateGhnOrderDto, GhnPaymentTypeId, GhnRequiredNote } from 'src/module
 import { Delivery } from '../entities/delivery.entity';
 import { DeliveryPaymentType, DeliveryRequiredNote, DeliveryStatus } from '../enums/delivery-status.enum';
 import { GhnWebhookDto, GhnOrderStatus, GhnWebhookType } from '../dtos/ghn-webhook.dto';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class OrderService {
@@ -1382,6 +1383,7 @@ export class OrderService {
     }
 
     async farmerConfirmOrder(orderId: number, farmerId: number): Promise<OrderDto> {
+        const generatedQrToken = uuidv4();
         const result = await this.orderRepository.update(
             {
                 id: orderId,
@@ -1389,7 +1391,8 @@ export class OrderService {
                 status: OrderStatus.PENDING_CONFIRMATION
             },
             {
-                status: OrderStatus.CONFIRMED
+                status: OrderStatus.CONFIRMED,
+                qr_token: generatedQrToken
             }
         );
 
@@ -1448,6 +1451,47 @@ export class OrderService {
 
         order.status = OrderStatus.CANCELLED;
         await this.orderRepository.save(order);
+
+        return plainToInstance(OrderDto, order, { excludeExtraneousValues: true });
+    }
+    
+    // async generateQRForOrder(orderId: number, farmerId: number): Promise<{ qrToken: string }> {
+     
+        
+    //     return {qrToken: ''};
+    // }
+
+    async getOrderDetailsByQR(qrToken: string, userId: number): Promise<OrderDto> {
+        const order = await this.orderRepository.findOne({
+            where: {
+                qr_token: qrToken,
+                cus_id: userId
+            },
+            relations: [
+                'order_details',
+                'order_details.product',
+                'order_details.product.farm',
+                'payment',
+                'delivery',
+                'delivery_address',
+                'farm',
+                'user'
+            ]
+        });
+
+        if (!order) {
+            throw new NotFoundException({
+                message: 'Order not found',
+                code: ResponseCode.ORDER_NOT_FOUND || 'ORDER_NOT_FOUND'
+            });
+        }
+
+        if (order.cus_id !== userId) {
+            throw new ForbiddenException({
+                message: 'You can only access your own orders',
+                code: ResponseCode.FORBIDDEN || 'FORBIDDEN'
+            });
+        }
 
         return plainToInstance(OrderDto, order, { excludeExtraneousValues: true });
     }

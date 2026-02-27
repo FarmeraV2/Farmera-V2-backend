@@ -148,4 +148,25 @@ export class OrderController {
         const farmerID = user.farm_id;
         return await this.orderService.farmerCancelOrder(orderId, farmerID);
     }
+    
+    
+    // @Post(':order_id/generate-qr')
+    // @Roles([UserRole.FARMER])
+    // async generateQR(@User() user: UserInterface, @Param('order_id', ParseIntPipe) orderId: number) {
+    //     if (!user.farm_id) {
+    //         throw new BadRequestException({
+    //             message: 'No farm found for this farmer',
+    //             code: ResponseCode.FARM_NOT_FOUND || 'FARM_NOT_FOUND',
+    //         });
+    //     }
+    //     const farmerID = user.farm_id;
+    //     return await this.orderService.generateQRForOrder(orderId, farmerID);
+    // }
+
+    @Get('details/qr/:qr_token')
+    @Roles([UserRole.FARMER, UserRole.BUYER])
+    async getOrderDetailsByQR(@User() user: UserInterface, @Param('qr_token' ) qrToken: string) {
+        const userId = user.id;
+        return await this.orderService.getOrderDetailsByQR(qrToken, userId);
+    }
 }

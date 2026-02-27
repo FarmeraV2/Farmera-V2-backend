@@ -104,4 +104,7 @@ export class OrderDto {
     @Expose()
     @Type(() => DeliveryAddressDto)
     delivery_address: DeliveryAddressDto;
+    
+    @Expose()
+    qr_token?: string;
 }
