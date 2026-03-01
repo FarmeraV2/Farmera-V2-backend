@@ -524,6 +524,24 @@ export class StepService {
         }
     }
 
+    async getStepInactivatedLog(seasonDetailId: number): Promise<number> {
+        try {
+            const detail = await this.seasonDetailRepository.findOne({
+                select: ["inactive_logs"],
+                where: { id: seasonDetailId }
+            })
+            if (!detail) throw new Error("Failed to get inactive logs");
+            return detail.inactive_logs;
+        }
+        catch (error) {
+            this.logger.error("Failed to get inactive logs: ", error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to get inactive logs",
+                code: ResponseCode.INTERNAL_ERROR
+            })
+        }
+    }
+
     private applySorting(qb: SelectQueryBuilder<Step>, sortBy: StepSortFields, order: Order) {
         switch (sortBy) {
             case StepSortFields.NAME:

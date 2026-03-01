@@ -41,6 +41,9 @@ import Web3 from 'web3';
 import { StepStatus } from '../enums/step-status.enum';
 import { StepType } from '../enums/step-type.enum';
 import { VerificationIdentifier } from '../enums/verification-identifier.enum';
+import { SeasonScoreData } from '../interfaces/season-score.interface';
+import { HashedStep } from '../dtos/step/hashed-step.dto';
+import { SeasonDetail } from '../entities/season-detail.entity';
 
 @Injectable()
 export class SeasonService {
@@ -355,8 +358,6 @@ export class SeasonService {
                 if (step.step_type === StepType.POST_HARVEST) {
                     // update status
                     await this.updateSeasonStatus(step.season_id, SeasonStatus.DONE);
-
-
                 }
 
                 setTimeout(() => {
@@ -412,6 +413,11 @@ export class SeasonService {
 
     async unactiveLog(dto: InactiveLogDto): Promise<boolean> {
         try {
+            const currentInactive = await this.stepService.getStepInactivatedLog(dto.season_step_id);
+            if (currentInactive >= 2) throw new BadRequestException({
+                message: "Exceeds max inactive log count",
+                code: ResponseCode.INACTIVE_EXCEED
+            })
             const result = this.dataSource.transaction(async (manager) => {
                 const result = await this.logService.unactiveLog(dto, manager);
                 await this.stepService.updateInactiveLogNum(dto.season_step_id, manager);
@@ -490,6 +496,55 @@ export class SeasonService {
             this.logger.error(`Failed to get farm log trust scores: ${error.message}`);
             throw new InternalServerErrorException({
                 message: 'Failed to get farm log trust scores',
+                code: ResponseCode.INTERNAL_ERROR,
+            });
+        }
+    }
+
+    async getFarmSeasonStepsForScoring(farmId: number): Promise<SeasonScoreData[]> {
+        try {
+            const seasons = await this.seasonRepository
+                .createQueryBuilder('season')
+                .select(['season.id'])
+                .leftJoin('season.season_details', 'sd')
+                .addSelect(['sd.id', 'sd.season_id', 'sd.step_id', 'sd.transparency_score', 'sd.created'])
+                .leftJoin('sd.step', 'step')
+                .addSelect(['step.order', 'step.min_day_duration', 'step.max_day_duration'])
+                .where('season.farm_id = :farmId', { farmId })
+                .andWhere('sd.transparency_score IS NOT NULL')
+                .orderBy('season.id', 'ASC')
+                .addOrderBy('step.order', 'ASC')
+                .getMany();
+
+            for (const season of seasons) {
+                const steps = season.season_details;
+                let hashedSteps: { id: number, hash: string }[] = [];
+                try {
+                    hashedSteps = await this.processTrackingService.getHashedSteps(season.id);
+                } catch (error) {
+                    this.logger.error("Failed to hashed steps: ", error.message);
+                }
+                hashedSteps.map((data) => {
+                    const step = steps.find((log) => log.id === data.id);
+                    if (step && !(this.processTrackingService.hashData(HashedStep, step) === data.hash)) {
+                        step.transparency_score = 0;
+                    }
+                })
+            }
+
+            return seasons.map((season) => ({
+                seasonId: season.id,
+                steps: (season.season_details ?? []).map((sd) => ({
+                    transparencyScore: sd.transparency_score!,
+                    startedAt: sd.created,
+                    minDayDuration: sd.step?.min_day_duration ?? null,
+                    maxDayDuration: sd.step?.max_day_duration ?? null,
+                })),
+            }));
+        } catch (error) {
+            this.logger.error(`Failed to get farm season steps for scoring: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: 'Failed to get farm season steps for scoring',
                 code: ResponseCode.INTERNAL_ERROR,
             });
         }

@@ -1,7 +1,7 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { ResponseCode } from 'src/common/constants/response-code.const';
-import { GM_EPSILON, W_FARM_AI, W_FARM_OFR, W_FARM_MV } from '../../crop-management/constants/weight.constant';
+import { GM_EPSILON, TEMPORAL_LAMBDA_OVER, TEMPORAL_LAMBDA_UNDER, W_FARM_AI, W_FARM_OFR, W_FARM_MV } from '../constants/weight.constant';
 import { SeasonService } from 'src/modules/crop-management/season/season.service';
 import { FarmService } from 'src/modules/farm/farm/farm.service';
 import { AuditService } from 'src/core/audit/audit.service';
@@ -10,6 +10,8 @@ import { AuditEventID } from 'src/core/audit/enums/audit_event_id';
 import { AuditResult } from 'src/core/audit/enums/audit-result';
 import { FarmOverallScore, FarmTransparencyScore } from '../interfaces/farm-transparency.interface';
 import { OrderService } from 'src/modules/order/order/order.service';
+
+const MS_PER_DAY = 86_400_000;
 
 @Injectable()
 export class TransparencyService {
@@ -28,58 +30,73 @@ export class TransparencyService {
 
     // ─── Farm Transparency Score (AI dimension) ────────────────────────────────
     //
-    // This function computes the Audit Integrity (AI) component of a farm's
-    // transparency profile. It is one input to FarmOverallScore, not the
-    // composite score itself.
+    // Computes the Audit Integrity (AI) component using a temporally-penalized
+    // hierarchical geometric mean over (season → step) pairs.
     //
     // ── Formula ────────────────────────────────────────────────────────────────
     //
-    //   T_farm = exp( (1/N) × Σ ln(max(sᵢ, ε)) )     [Geometric mean]
+    //   For step j in season k, with on-chain step score s_j ∈ [0, 1]:
     //
-    //   where:
-    //     sᵢ = trust_score_i / 100  ∈ [0, 1]   (on-chain score, normalized)
-    //     ε  = GM_EPSILON = 0.01                (floor to prevent ln(0))
-    //     N  = total logs with trust_score IS NOT NULL
+    //     Temporal penalty (between consecutive steps in the same season):
+    //       P_j = 1                                      if lo ≤ Δt_j ≤ hi
+    //       P_j = exp(−λ_u × (lo − Δt_j) / lo)         if Δt_j < lo  [rushed]
+    //       P_j = exp(−λ_o × (Δt_j − hi) / hi)         if Δt_j > hi  [overdue]
+    //       P_j = 1  (no penalty)                        if j = 0 or no duration bounds
     //
-    // ── Why Geometric Mean ───────────────────────────────────────────────────
+    //     Penalized step score:  s̃_j = max(s_j × P_j, ε)
     //
-    // [1] AM-GM inequality: GM ≤ AM — geometric mean is inherently more
-    //     conservative; appropriate for trust/risk assessment.
+    //     Season AI:   AI_k = exp( (1/M_k) × Σ_j ln(s̃_j) )
     //
-    // [2] Outlier sensitivity: one low-scoring log (sᵢ → ε) pulls T_farm
-    //     down sharply. Arithmetic mean dilutes it by factor 1/N.
-    //     Example: 9 logs at 1.0, 1 log at 0.01 →
-    //       AM = 0.901,  GM = 0.631  (GM penalises the anomaly)
+    //     Farm AI (steps-weighted GM, equivalent to flat GM over all steps):
+    //       AI_farm = exp( (1/M_total) × Σ_k Σ_j ln(s̃_j^(k)) )
     //
-    // [3] Ordinal robustness: geometric mean rankings are stable under
-    //     monotone rescaling of the on-chain score formula (counterexample
-    //     proof in academic framework). Arithmetic mean rankings are not.
+    // ── Why This Formula ────────────────────────────────────────────────────
     //
-    // [4] UNDP HDI (2010) Technical Note 1:
-    //     "The geometric mean reduces the level of substitutability between
-    //     dimensions … a 1% decline in any index has the same impact."
-    //     Applied here: a weak log cannot be offset by strong logs.
-    //     UNDP (2010). Human Development Report 2010. UN Dev. Programme.
-    //     https://hdr.undp.org/content/human-development-report-2010
+    // [1] Step-level aggregation (not log-level): each step's quality is its
+    //     last on-chain trust score. Averaging over all logs conflates within-step
+    //     retry attempts with between-step performance (Tier 1 → Tier 2 mapping).
+    //
+    // [2] Temporal penalty is season-scoped — cross-season gaps (fallow periods)
+    //     are never penalised. λ_u > λ_o: rushing is a stronger omission signal
+    //     than delay, which is common in agriculture (Cui et al. 2024 [P2]).
+    //
+    // [3] Multiplicative penalty preserves GM structure: ln(s̃_j) = ln(s_j) + ln(P_j)
+    //     — the penalty is additive in log-space, equivalent to a lower step score.
+    //
+    // [4] Steps-weighted farm GM: seasons with more evidence steps carry more
+    //     weight (Jøsang & Ismail 2002 — Beta Reputation; Saaty 1980 — GM).
 
     private async calcFarmTransparencyScore(farmId: number): Promise<FarmTransparencyScore | null> {
         try {
-            const trustScores = await this.seasonService.getFarmLogScores(farmId);
-            const N = trustScores.length;
+            const seasons = await this.seasonService.getFarmSeasonStepsForScoring(farmId);
+            const scoredSeasons = seasons.filter((s) => s.steps.length > 0);
 
-            // No on-chain evidence yet — score is undefined, not 0.5.
-            // Geometric mean of an empty set is undefined; returning null
-            // prevents writing a spurious score to the farm record.
-            if (N === 0) return null;
+            if (scoredSeasons.length === 0) return null;
 
-            // ── [1–4] Geometric mean of normalized on-chain trust scores ──────
-            // sᵢ = trust_score / 100 ∈ [0,1]; floor at ε to avoid ln(0)
-            const logSum = trustScores.reduce((acc, s) => acc + Math.log(Math.max(s / 100, GM_EPSILON)), 0);
-            const score = Math.exp(logSum / N);
+            const M_total = scoredSeasons.reduce((sum, s) => sum + s.steps.length, 0);
 
-            this.logger.debug(`Farm #${farmId}: N=${N}, T_farm=${score.toFixed(3)}`);
+            // Flat weighted GM: Σ_k Σ_j ln(s̃_j) / M_total
+            let logSum = 0;
+            for (const { steps } of scoredSeasons) {
+                for (let j = 0; j < steps.length; j++) {
+                    const { transparencyScore, startedAt, minDayDuration, maxDayDuration } = steps[j];
 
-            return { score, total_evidence: N };
+                    const penalty = j === 0
+                        ? 1
+                        : this.calcTemporalPenalty(
+                            (startedAt.getTime() - steps[j - 1].startedAt.getTime()) / MS_PER_DAY,
+                            minDayDuration,
+                            maxDayDuration,
+                        );
+
+                    logSum += Math.log(Math.max(transparencyScore * penalty, GM_EPSILON));
+                }
+            }
+
+            const score = Math.exp(logSum / M_total);
+            this.logger.debug(`Farm #${farmId}: M_total=${M_total}, T_farm=${score.toFixed(3)}`);
+
+            return { score, total_evidence: M_total };
         } catch (error) {
             this.logger.error(`Failed to calculate farm transparency score: ${error.message}`);
             throw new InternalServerErrorException({
@@ -88,8 +105,6 @@ export class TransparencyService {
             });
         }
     }
-
-    // ─── Daily Cron: Recalculate Farm Scores ─────────────────────────────────
 
     @Cron('0 3 * * *')
     async handleCalcFarmTSCron() {
@@ -185,5 +200,12 @@ export class TransparencyService {
         if (ratings.length === 0) return { score: 0, count: 0 };
         const avgRating = ratings.reduce((prev, cur) => prev + cur, 0) / ratings.length;
         return { score: avgRating / 5, count: ratings.length };
+    }
+
+    private calcTemporalPenalty(deltaDays: number, minDays: number | null, maxDays: number | null): number {
+        if (minDays === null || maxDays === null) return 1;
+        if (deltaDays >= minDays && deltaDays <= maxDays) return 1;
+        if (deltaDays < minDays) return Math.exp(-TEMPORAL_LAMBDA_UNDER * (minDays - deltaDays) / minDays);
+        return Math.exp(-TEMPORAL_LAMBDA_OVER * (deltaDays - maxDays) / maxDays);
     }
 }

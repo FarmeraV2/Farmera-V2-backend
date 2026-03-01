@@ -176,7 +176,7 @@ export class VerificationService {
     //     }
     // }
 
-    @Cron("0 * * * * *")
+    @Cron("*/30 * * * * *")
     async handleRequestEvents() {
         await this.auditorRegistryService.handleEvent(
             AuditorRegistryEvent.VERIFICATION_REQUESTED,
@@ -216,7 +216,7 @@ export class VerificationService {
                 );
 
                 const inactiveLogResults = await Promise.all(
-                    addLogEvents.map(async (e) => {
+                    inactiveLogEvents.map(async (e) => {
                         const auditorIds =
                             await this.auditorProfileService.getAuditorIdsByAddresses(
                                 e.assignedAuditors,
@@ -238,8 +238,7 @@ export class VerificationService {
             });
     }
 
-
-    @Cron("0 * * * * *")
+    @Cron("*/30 * * * * *")
     async handleFinalizedEvents() {
         await this.auditorRegistryService.handleEvent(
             AuditorRegistryEvent.VERIFICATION_FINALIZED,

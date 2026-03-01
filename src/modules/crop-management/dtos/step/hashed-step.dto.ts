@@ -5,4 +5,5 @@ export class HashedStep {
     @Expose() season_id: number;
     @Expose() step_id: number;
     @Expose() created: Date;
+    @Expose() transparency_score: number;
 }
