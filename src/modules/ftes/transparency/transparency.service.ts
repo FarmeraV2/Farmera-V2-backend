@@ -203,9 +203,14 @@ export class TransparencyService {
     }
 
     private calcTemporalPenalty(deltaDays: number, minDays: number | null, maxDays: number | null): number {
-        if (minDays === null || maxDays === null) return 1;
-        if (deltaDays >= minDays && deltaDays <= maxDays) return 1;
-        if (deltaDays < minDays) return Math.exp(-TEMPORAL_LAMBDA_UNDER * (minDays - deltaDays) / minDays);
-        return Math.exp(-TEMPORAL_LAMBDA_OVER * (deltaDays - maxDays) / maxDays);
+        if (minDays === null && maxDays === null) return 1;
+        if (minDays && deltaDays < minDays) {
+            return Math.exp(-TEMPORAL_LAMBDA_UNDER * (minDays - deltaDays) / minDays);
+        }
+        if (minDays && maxDays && deltaDays >= minDays && deltaDays <= maxDays) return 1;
+        if (maxDays && deltaDays > maxDays) {
+            return Math.exp(-TEMPORAL_LAMBDA_OVER * (deltaDays - maxDays) / maxDays);
+        }
+        return 0;
     }
 }
