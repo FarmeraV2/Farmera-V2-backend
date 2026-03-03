@@ -3,7 +3,6 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './core/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
-import { RedisModule } from './core/redis/redis.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { typeOrmAsyncConfig } from './config/typeorm.config';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -74,7 +73,6 @@ import { ScheduleModule } from '@nestjs/schedule';
 
         AuthModule,
         UserModule,
-        RedisModule,
         AdminModule,
         ProductModule,
         FarmModule,
