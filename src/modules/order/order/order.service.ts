@@ -1454,10 +1454,10 @@ export class OrderService {
 
         return plainToInstance(OrderDto, order, { excludeExtraneousValues: true });
     }
-    
+
     // async generateQRForOrder(orderId: number, farmerId: number): Promise<{ qrToken: string }> {
-     
-        
+
+
     //     return {qrToken: ''};
     // }
 
@@ -1606,6 +1606,7 @@ export class OrderService {
         } finally {
             await queryRunner.release();
         }
+    }
     // OFR = fulfilled / (fulfilled + cancelled)
     // fulfilled = DELIVERED + COMPLETED; not-fulfilled = CANCELLED
     async getOrderFulfillmentRate(farmId: number): Promise<number | null> {
