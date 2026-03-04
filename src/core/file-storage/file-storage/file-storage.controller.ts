@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpException, Inject, InternalServerErrorException, MaxFileSizeValidator, Param, ParseFilePipe, Post, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpException, Inject, InternalServerErrorException, MaxFileSizeValidator, Param, ParseFilePipe, Post, Query, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FileStorageService } from '../interfaces/file-storage.interface';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { StoragePermission } from '../enums/storage-permission.enum';

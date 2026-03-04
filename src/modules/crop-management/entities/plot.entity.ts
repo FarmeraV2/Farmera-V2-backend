@@ -51,7 +51,4 @@ export class Plot {
 
     @Column({ nullable: true })
     crop_id: number;
-
-    @Column({ type: "float", nullable: true })
-    transparency_score?: number;
 }

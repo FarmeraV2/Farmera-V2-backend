@@ -25,28 +25,4 @@ export class UserController {
     async getUserById(@Param('userId') userId: number) {
         return await this.userService.getPublicUser(userId);
     }
-
-    // @Roles([UserRole.ADMIN])
-    // @Get("detail/:userId")
-    // async getUserDetail(@Param("userId") userId: number, @Query() getDetailDto: GetUserDetailDto) {
-    //     return await this.userService.getUserDetail(userId, getDetailDto);
-    // }
-
-    // @Roles(UserRole.ADMIN)
-    // @Put("role")
-    // async updateUserRole(@Body() updateUserRoleDto: UpdateUserRoleDto) {
-    //     return await this.userService.updateUserRole(updateUserRoleDto.user_id, updateUserRoleDto.role, updateUserRoleDto.farm_id);
-    // }
-
-    // @Roles(UserRole.ADMIN)
-    // @Put("status")
-    // async updateUserStatus(@Body() updateUserStatusDto: UpdateUserStatus) {
-    //     return await this.userService.updateUserStatus(updateUserStatusDto.user_id, updateUserStatusDto.status);
-    // }
-
-    // @Roles(UserRole.ADMIN)
-    // @Get("all")
-    // async listUsers(@Query() listUserDto: ListUserDto) {
-    //     return await this.userService.listUsers(listUserDto);
-    // }
 }

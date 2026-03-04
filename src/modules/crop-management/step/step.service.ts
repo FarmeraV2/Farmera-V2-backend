@@ -22,7 +22,6 @@ import { Season } from '../entities/season.entity';
 import { ProcessTrackingService } from 'src/modules/blockchain/process-tracking/process-tracking.service';
 import { LocationDto } from 'src/common/dtos/location/location.dto';
 import { AddLogDto } from '../dtos/log/add-log.dto';
-import { CropType } from '../enums/crop-type.enum';
 
 @Injectable()
 export class StepService {
@@ -363,7 +362,6 @@ export class StepService {
                 select: ["order"],
                 where: {
                     crop_id: season.plot.crop_id,
-                    is_optional: false
                 },
                 order: { order: "ASC" }
             });
@@ -521,6 +519,24 @@ export class StepService {
             this.logger.error("Failed to update step: ", error.message);
             throw new InternalServerErrorException({
                 message: "Failed to update step",
+                code: ResponseCode.INTERNAL_ERROR
+            })
+        }
+    }
+
+    async getStepInactivatedLog(seasonDetailId: number): Promise<number> {
+        try {
+            const detail = await this.seasonDetailRepository.findOne({
+                select: ["inactive_logs"],
+                where: { id: seasonDetailId }
+            })
+            if (!detail) throw new Error("Failed to get inactive logs");
+            return detail.inactive_logs;
+        }
+        catch (error) {
+            this.logger.error("Failed to get inactive logs: ", error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to get inactive logs",
                 code: ResponseCode.INTERNAL_ERROR
             })
         }

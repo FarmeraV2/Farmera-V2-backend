@@ -223,22 +223,6 @@ export class PlotService {
         }
     }
 
-    async updateTransparencyScore(plotId: number, score: number, manager?: EntityManager): Promise<void> {
-        try {
-            const repo = manager ? manager.getRepository(Plot) : this.plotRepository;
-            await repo.update(
-                { id: plotId },
-                { transparency_score: score })
-        }
-        catch (error) {
-            this.logger.error(`Failed to update plot transparency score: ${error.message}`);
-            throw new InternalServerErrorException({
-                message: "Failed to update plot transparency score",
-                code: ResponseCode.FAILED_TO_UPDATE_PLOT
-            })
-        }
-    }
-
     async getFarmPlots(farmId: number): Promise<Plot[]> {
         try {
             return await this.plotRepository.find({

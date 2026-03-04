@@ -1,5 +1,5 @@
 import { Expose, Type } from 'class-transformer';
-import { IsEnum, IsOptional, IsDateString } from 'class-validator';
+import { IsEnum, IsOptional, IsDateString, IsInt } from 'class-validator';
 import { PaginationOptions } from 'src/common/dtos/pagination/pagination-option.dto';
 import { OrderStatus } from '../enums/order-status.enum';
 import { OrderSortField } from '../enums/order-sort-fields.enum';
@@ -10,6 +10,11 @@ import { DeliveryDto } from './delivery.dto';
 import { DeliveryAddressDto } from 'src/modules/address/dtos/delivery-address.dto';
 
 export class GetMyOrdersDto extends PaginationOptions<OrderSortField> {
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    order_id?: number;
+
     @IsOptional()
     @IsEnum(OrderStatus)
     status?: OrderStatus;
@@ -99,4 +104,7 @@ export class OrderDto {
     @Expose()
     @Type(() => DeliveryAddressDto)
     delivery_address: DeliveryAddressDto;
+    
+    @Expose()
+    qr_token?: string;
 }

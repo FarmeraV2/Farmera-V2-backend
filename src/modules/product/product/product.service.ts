@@ -297,7 +297,7 @@ export class ProductService {
 
     async findOneById(productId: number): Promise<Product> {
         try {
-            const product = await this.productsRepository.createQueryBuilder('product')
+            const product = await this.productsRepository.createQueryBuilder('product').select(productDetailSelectFields)
                 .where("product.product_id = :id", { id: productId })
                 .getOne();
             if (!product) {

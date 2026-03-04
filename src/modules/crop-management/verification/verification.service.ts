@@ -1,14 +1,12 @@
 import { HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { AuditorProfileService } from '../auditor-profile/auditor-profile.service';
 import { VerificationAssignment } from '../entities/verification-assignment.entity';
 import { ImageVerificationService } from '../image-verification/image-verification.service';
 import { ProcessTrackingService } from 'src/modules/blockchain/process-tracking/process-tracking.service';
-import { TrustComputationService } from 'src/modules/blockchain/trustworthiness/trust-computation.service';
 import { AuditorRegistryService } from 'src/modules/blockchain/auditor/auditor-registry.service';
-import { VerificationIdentifier } from '../enums/verification-identifier.enum';
 import Web3 from 'web3';
 import { LogImageVerificationResult } from '../entities/log-image-verification-result.entity';
 import { LogVerificationPackage } from '../dtos/verification/log-verification-package.dto';
@@ -20,11 +18,20 @@ import { AuditorRegistryEvent } from 'src/modules/blockchain/enums/auditor-regis
 import { LogVerified } from 'src/common/events/log-verified.event';
 import { LogSkipReviewEvent } from 'src/common/events/log-skip-review.event';
 import { Cron } from '@nestjs/schedule';
+import { VerificationRequested } from 'src/modules/blockchain/interfaces/auditor-event.interface';
+import { VerificationIdentifier } from '../enums/verification-identifier.enum';
+import { LogVerificationIdentifier } from '../enums/log-verification-identifier';
+import { SubmitVoteDto } from '../dtos/verification/submit-vote.dto';
+import { VerificationStatus } from '../enums/verification-status.enum';
+import { GetVerificationDto } from '../dtos/verification/get-verification.dto';
+import { PaginationTransform } from 'src/common/dtos/pagination/pagination-option.dto';
+import { applyPagination } from 'src/common/utils/pagination.util';
+import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
+import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
 
 const AUTO_VERIFY_THRESHOLD = 0.6;
 const SKIP_VERIFY_THRESHOLD = 0.8;
 const SAMPLING_RATE = 0.2;
-const MIN_AUDITORS = 2;
 const VERIFICATION_DEADLINE_DAYS = 7;
 
 @Injectable()
@@ -41,15 +48,28 @@ export class VerificationService {
         private readonly emitter: EventEmitter2,
     ) { }
 
-    async getPendingVerificationsByUser(userId: number): Promise<VerificationAssignment[]> {
+    async getPendingVerificationsByUser(userId: number, dto: GetVerificationDto): Promise<PaginationResult<VerificationAssignment>> {
+        const paginationOptions = plainToInstance(PaginationTransform<string>, dto);
+        const { status } = dto;
         try {
             const profileId = await this.auditorProfileService.validateAuditor(userId);
-            return this.assignmentRepo.find({
-                where: {
-                    auditor_profile_id: profileId,
-                    vote_transaction_hash: undefined
-                },
+            const queryBuilder = this.assignmentRepo.createQueryBuilder('verification_assignment')
+                .where('verification_assignment.auditor_profile_id = :id', { id: profileId })
+
+            if (status === VerificationStatus.PENDING) {
+                queryBuilder.andWhere('verification_assignment.vote_transaction_hash IS NULL')
+            } else {
+                queryBuilder.andWhere('verification_assignment.vote_transaction_hash IS NOT NULL')
+            }
+
+            const totalItems = await applyPagination(queryBuilder, paginationOptions);
+            const assignments = await queryBuilder.getMany();
+
+            const meta = new PaginationMeta({
+                paginationOptions,
+                totalItems,
             });
+            return new PaginationResult(assignments, meta);
         }
         catch (error) {
             if (error instanceof HttpException) throw error;
@@ -116,6 +136,26 @@ export class VerificationService {
         }
     }
 
+    async setVerified(id: number, userId: number, submitVote: SubmitVoteDto): Promise<boolean> {
+        try {
+            const profileId = await this.auditorProfileService.validateAuditor(userId);
+            const result = await this.assignmentRepo.update({ id: id, auditor_profile_id: profileId }, {
+                vote_transaction_hash: submitVote.transaction_hash,
+                voted_at: new Date()
+            });
+            if (result && result.affected && result.affected > 0) return true;
+            return false;
+        }
+        catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error(`Failed to get pending verification: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: "Failed to get pending verificaton",
+                code: ResponseCode.INTERNAL_ERROR
+            })
+        }
+    }
+
     @OnEvent(LogAddedEvent.name)
     async evaluateForVerification(payload: LogAddedEvent): Promise<void> {
         try {
@@ -157,20 +197,48 @@ export class VerificationService {
         }
     }
 
-    @Cron("*/10 * * * * *")
+    // @OnEvent(LogInactiveEvent.name)
+    // async requestInactiveLog(payload: LogInactiveEvent): Promise<void> {
+    //     try {
+    //         const log = payload.log;
+    //         // Blockchain request verification
+    //         const deadline = new Date();
+    //         deadline.setDate(deadline.getDate() + VERIFICATION_DEADLINE_DAYS);
+
+    //         try {
+    //             await this.auditorRegistryService.requestVerfication(VerificationIdentifier.LOG_INACTIVE, log.id, deadline);
+    //         } catch (error) {
+    //             this.logger.error("Failed to request verification");
+    //         }
+
+    //     } catch (error) {
+    //         this.logger.error(`Failed to evaluate for verification: ${error.message}`);
+    //     }
+    // }
+
+    // @Cron("*/30 * * * * *")
     async handleRequestEvents() {
         await this.auditorRegistryService.handleEvent(
             AuditorRegistryEvent.VERIFICATION_REQUESTED,
             async (from, to) => await this.auditorRegistryService.getRecentVerificationRequestEvents(from, to),
             async (events) => {
                 this.logger.log(`Running handle verification request event cron job - event count: ${events.length}`);
-                const filteredEvents = events.filter(
-                    (e) =>
-                        Web3.utils.keccak256(VerificationIdentifier.LOG) === e.identifier,
-                );
+                const addLogEvents: VerificationRequested[] = [];
+                const inactiveLogEvents: VerificationRequested[] = [];
 
-                const results = await Promise.all(
-                    filteredEvents.map(async (e) => {
+                for (const e of events) {
+                    switch (e.identifier) {
+                        case Web3.utils.keccak256(VerificationIdentifier.LOG):
+                            addLogEvents.push(e);
+                            break;
+                        case Web3.utils.keccak256(VerificationIdentifier.LOG_INACTIVE):
+                            inactiveLogEvents.push(e);
+                            break;
+                    }
+                }
+
+                const addLogResults = await Promise.all(
+                    addLogEvents.map(async (e) => {
                         const auditorIds =
                             await this.auditorProfileService.getAuditorIdsByAddresses(
                                 e.assignedAuditors,
@@ -181,18 +249,36 @@ export class VerificationService {
                                 auditor_profile_id: id,
                                 log_id: e.id,
                                 deadline: new Date(e.deadline * 1000),
+                                type: LogVerificationIdentifier.LOG
                             }),
                         );
                     }),
                 );
 
-                const assignments = results.flat();
+                const inactiveLogResults = await Promise.all(
+                    inactiveLogEvents.map(async (e) => {
+                        const auditorIds =
+                            await this.auditorProfileService.getAuditorIdsByAddresses(
+                                e.assignedAuditors,
+                            );
+
+                        return auditorIds.map((id) =>
+                            this.assignmentRepo.create({
+                                auditor_profile_id: id,
+                                log_id: e.id,
+                                deadline: new Date(e.deadline * 1000),
+                                type: LogVerificationIdentifier.LOG_INACTIVE
+                            }),
+                        );
+                    }),
+                );
+
+                const assignments = [...addLogResults.flat(), ...inactiveLogResults.flat()];
                 await this.assignmentRepo.save(assignments);
             });
     }
 
-
-    @Cron("*/10 * * * * *")
+    // @Cron("*/30 * * * * *")
     async handleFinalizedEvents() {
         await this.auditorRegistryService.handleEvent(
             AuditorRegistryEvent.VERIFICATION_FINALIZED,

@@ -64,5 +64,8 @@ export class Order {
     
     @Column({ type: 'text', nullable: true })
     delivery_note?: string;
+    
+    @Column({ type: 'text', nullable: true })
+    qr_token?: string;
 
 }

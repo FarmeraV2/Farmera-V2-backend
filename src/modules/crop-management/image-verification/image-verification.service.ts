@@ -12,12 +12,25 @@ import { ImageAnalysisResult, ImagePerImageResult } from '../interfaces/image-an
 import { VerificationIdentifier } from '../enums/verification-identifier.enum';
 
 const AGRICULTURAL_LABELS = [
+    // General agriculture
     'agriculture', 'farm', 'crop', 'plant', 'soil', 'field', 'harvest',
     'vegetable', 'fruit', 'seed', 'irrigation', 'greenhouse', 'livestock',
     'garden', 'land', 'terrain', 'leaf', 'flower', 'tree', 'grass',
     'organic', 'plantation', 'cultivation', 'fertilizer', 'compost',
     'tractor', 'plowing', 'rice', 'corn', 'wheat', 'paddy', 'orchard',
     'farming', 'rural', 'countryside', 'food', 'produce', 'growth',
+    'nursery', 'mulch', 'pruning', 'spraying', 'pesticide', 'herbicide',
+    'vegetation', 'flora', 'nature', 'tropical', 'canopy', 'branch',
+    'trunk', 'woody plant', 'shrub', 'bush', 'grove', 'jungle',
+    'rainforest', 'forest', 'outdoor', 'natural environment',
+    'durian', 'mango', 'banana', 'coconut', 'jackfruit', 'dragon fruit',
+    'pineapple', 'lychee', 'longan', 'papaya', 'guava', 'rambutan',
+    'mangosteen', 'pomelo', 'orange', 'lemon', 'lime', 'coffee',
+    'rubber', 'cacao', 'cocoa', 'pepper', 'sugarcane', 'cassava',
+    'sweet potato', 'pumpkin', 'eggplant', 'chili', 'ginger', 'turmeric',
+    'tomato', 'cucumber', 'cabbage', 'lettuce', 'spinach', 'broccoli',
+    'soybean', 'peanut', 'sesame', 'sunflower', 'strawberry', 'grape',
+    'watermelon', 'melon', 'avocado', 'passion fruit',
 ];
 
 @Injectable()
@@ -53,7 +66,7 @@ export class ImageVerificationService {
                 return await this.saveResult(log, 0, false);
             }
 
-            // fetch image buffers from storage // todo: fetch from cloud
+            // fetch image buffers from storage (local path or R2 key)
             const imageBuffers = await this.fetchImageBuffers(log.image_urls);
             if (imageBuffers.length === 0) {
                 this.logger.warn(`No images could be fetched for log ${log.id}`);
@@ -74,7 +87,8 @@ export class ImageVerificationService {
             await this.saveHashes(hashes, log.farm_id, log.id, VerificationIdentifier.LOG);
 
             // AI analysis with Google Cloud Vision
-            const aiAnalysis = this.mockAnalyzeWithVision(imageBuffers, "LOW") // todo: await this.analyzeWithVision(imageBuffers);
+            // const aiAnalysis = this.mockAnalyzeWithVision(imageBuffers, "LOW");
+            const aiAnalysis = await this.analyzeWithVision(imageBuffers);
 
             const overallScore = this.calculateOverallScore(aiAnalysis, duplicateResult.isDuplicate);
 
@@ -107,8 +121,24 @@ export class ImageVerificationService {
                     this.logger.warn('FileStorageService does not implement serveFile');
                     break;
                 }
-                const filePath = url.substring(url.indexOf("uploads"));
-                const { buffer, mimeType } = await this.fileStorageService.serveFile(filePath);
+
+                let key = url;
+                if (url.startsWith('http')) {
+                    const parsedUrl = new URL(url);
+                    const pathname = parsedUrl.pathname;
+
+                    if (pathname.includes('/api/file-storage/')) {
+                        // LOCAL
+                        key = pathname.split('/api/file-storage/')[1];
+                    } else {
+                        // R2
+                        key = pathname.startsWith('/')
+                            ? pathname.substring(1)
+                            : pathname;
+                    }
+                }
+
+                const { buffer, mimeType } = await this.fileStorageService.serveFile(key);
                 if (buffer) {
                     results.push({ buffer: buffer, url, mimeType: mimeType });
                 }
@@ -178,7 +208,7 @@ export class ImageVerificationService {
 
     /**
      * Analyze images using Google Cloud Vision API.
-     * Uses: label detection, web detection, safe search, and image properties.
+     * Uses: label detection, object localization, web detection, safe search, and image properties.
      */
     private async analyzeWithVision(
         imageBuffers: { buffer: Buffer; url: string; mimeType: string }[],
@@ -187,6 +217,7 @@ export class ImageVerificationService {
             safe_search: { adult: 'UNKNOWN', violence: 'UNKNOWN', racy: 'UNKNOWN' },
             web_detection: {
                 full_matching_images_count: 0,
+                partial_matching_images_count: 0,
                 pages_with_matching_images_count: 0,
                 is_stock_or_web_image: false,
             },
@@ -203,6 +234,7 @@ export class ImageVerificationService {
 
         try {
             let totalFullMatches = 0;
+            let totalPartialMatches = 0;
             let totalPageMatches = 0;
             let isAnyStockImage = false;
             const allLabels: Set<string> = new Set();
@@ -211,7 +243,6 @@ export class ImageVerificationService {
             let safeSearch = defaultAnalysis.safe_search;
 
             for (const img of imageBuffers) {
-                // Resize for API efficiency (max 1024px)
                 const resizedBuffer = await sharp(img.buffer)
                     .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
                     .toBuffer();
@@ -219,35 +250,68 @@ export class ImageVerificationService {
                 const [result] = await this.visionClient.annotateImage({
                     image: { content: resizedBuffer.toString('base64') },
                     features: [
-                        { type: 'LABEL_DETECTION', maxResults: 15 },
-                        { type: 'WEB_DETECTION', maxResults: 10 },
+                        { type: 'LABEL_DETECTION', maxResults: 30 },
+                        { type: 'OBJECT_LOCALIZATION', maxResults: 20 },
+                        { type: 'WEB_DETECTION', maxResults: 20 },
                         { type: 'SAFE_SEARCH_DETECTION' },
                         { type: 'IMAGE_PROPERTIES' },
                     ],
                 });
 
-                // Label detection
-                const labels = (result.labelAnnotations ?? [])
+                // Label detection — merge general labels + localised objects into one pool.
+                // LABEL_DETECTION gives scene-level tags; OBJECT_LOCALIZATION gives specific
+                // object names (e.g. "Durian", "Tropical fruit") that label detection may miss.
+                const labelNames = (result.labelAnnotations ?? [])
                     .map(l => l.description?.toLowerCase() ?? '')
                     .filter(Boolean);
+
+                const objectNames = (result.localizedObjectAnnotations ?? [])
+                    .map(o => o.name?.toLowerCase() ?? '')
+                    .filter(Boolean);
+
+                const labels = [...new Set([...labelNames, ...objectNames])];
                 labels.forEach(l => allLabels.add(l));
 
+                const cleanAgLabels = AGRICULTURAL_LABELS
+                    .map(l => l.toLowerCase().trim())
+                    .filter(l => l.length > 2);
+
                 const isAgricultural = labels.some(label =>
-                    AGRICULTURAL_LABELS.some(agLabel => label.includes(agLabel))
+                    cleanAgLabels.includes(label)
                 );
+
+                if (isAgricultural) {
+                    this.logger.debug("Matched agriculture label:",
+                        labels.filter(label =>
+                            AGRICULTURAL_LABELS.some(agLabel => label.includes(agLabel))
+                        )
+                    );
+                }
 
                 // Web detection
                 const webDetection = result.webDetection;
                 const fullMatchCount = webDetection?.fullMatchingImages?.length ?? 0;
+                const partialMatchCount = webDetection?.partialMatchingImages?.length ?? 0;
                 const pageMatchCount = webDetection?.pagesWithMatchingImages?.length ?? 0;
+
                 totalFullMatches += fullMatchCount;
+                totalPartialMatches += partialMatchCount;
                 totalPageMatches += pageMatchCount;
 
-                // Check if image is stock/web sourced
-                const bestGuessLabels = webDetection?.bestGuessLabels?.map(l => l.label?.toLowerCase() ?? '') ?? [];
-                const isStockImage = bestGuessLabels.some(l =>
-                    l.includes('stock') || l.includes('getty') || l.includes('shutterstock') || l.includes('adobe')
-                ) || fullMatchCount >= 3;
+                const bestGuessLabels =
+                    webDetection?.bestGuessLabels?.map(l => l.label?.toLowerCase() ?? '') ?? [];
+
+                const isStockImage =
+                    bestGuessLabels.some(l =>
+                        l.includes('stock') ||
+                        l.includes('getty') ||
+                        l.includes('shutterstock') ||
+                        l.includes('adobe')
+                    ) ||
+                    fullMatchCount >= 1 ||                                   // any exact match is definitive
+                    partialMatchCount >= 2 ||                                // 2+ partial matches (1 alone is too noisy)
+                    pageMatchCount >= 3 ||                                   // appears on 3+ web pages
+                    (partialMatchCount >= 1 && pageMatchCount >= 2);          // combination: partial + pages
 
                 if (isStockImage) isAnyStockImage = true;
 
@@ -260,11 +324,12 @@ export class ImageVerificationService {
                     };
                 }
 
-                // Compile flags
+                // Compile per-image flags (all flags must be added BEFORE the allFlags merge)
                 const imageFlags: string[] = [];
                 if (!isAgricultural) imageFlags.push('irrelevant_content');
                 if (isStockImage) imageFlags.push('stock_photo');
-                if (fullMatchCount >= 3) imageFlags.push('web_sourced');
+                if (fullMatchCount >= 1 || partialMatchCount >= 2 || pageMatchCount >= 3) imageFlags.push('web_sourced');
+                if (partialMatchCount >= 1) imageFlags.push('partial_web_match');
                 if (safeSearch.adult === 'LIKELY' || safeSearch.adult === 'VERY_LIKELY') imageFlags.push('inappropriate_content');
                 imageFlags.forEach(f => { if (!allFlags.includes(f)) allFlags.push(f); });
 
@@ -272,6 +337,7 @@ export class ImageVerificationService {
                     image_url: img.url,
                     is_agricultural: isAgricultural,
                     web_match_count: fullMatchCount,
+                    web_partial_match_count: partialMatchCount,
                     labels,
                     flags: imageFlags,
                 });
@@ -285,6 +351,7 @@ export class ImageVerificationService {
                 safe_search: safeSearch,
                 web_detection: {
                     full_matching_images_count: totalFullMatches,
+                    partial_matching_images_count: totalPartialMatches,
                     pages_with_matching_images_count: totalPageMatches,
                     is_stock_or_web_image: isAnyStockImage,
                 },
@@ -309,6 +376,7 @@ export class ImageVerificationService {
             web_detection: {
                 full_matching_images_count: 0,
                 pages_with_matching_images_count: 0,
+                partial_matching_images_count: 0,
                 is_stock_or_web_image: false,
             },
             label_annotations: [],
@@ -350,8 +418,6 @@ export class ImageVerificationService {
         }
     }
 
-
-
     /**
      * Calculate overall verification score (0-1).
      *
@@ -368,16 +434,23 @@ export class ImageVerificationService {
         // Relevance score: is the content agricultural?
         const relevanceScore = aiAnalysis.is_agricultural ? 1.0 : 0;
 
-        // Originality score: not from stock/web
+        // Originality score: not from stock/web.
+        // Cumulative penalties so that partial matches (common for re-photographed internet
+        // images) and page matches both reduce the score even when there are no exact copies.
         let originalityScore = 1.0;
         if (aiAnalysis.web_detection.is_stock_or_web_image) {
             originalityScore = 0;
-        } else if (aiAnalysis.web_detection.full_matching_images_count > 0) {
-            originalityScore = Math.max(0.3, 1.0 - aiAnalysis.web_detection.full_matching_images_count * 0.15);
+        } else {
+            const fullPenalty = aiAnalysis.web_detection.full_matching_images_count * 0.25;
+            const partialPenalty = aiAnalysis.web_detection.partial_matching_images_count * 0.15;
+            const pagePenalty = Math.min(aiAnalysis.web_detection.pages_with_matching_images_count * 0.05, 0.25);
+            originalityScore = Math.max(0, 1.0 - fullPenalty - partialPenalty - pagePenalty);
         }
 
         // Duplicate score
         const duplicateScore = isDuplicate ? 0.0 : 1.0;
+
+        if (relevanceScore === 0 || originalityScore === 0 || duplicateScore === 0) return 0;
 
         const overall =
             relevanceScore * 0.35 +

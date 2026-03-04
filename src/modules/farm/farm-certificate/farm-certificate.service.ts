@@ -1,7 +1,7 @@
 import { HttpException, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FarmCertificate } from '../entities/farm-certificate.entity';
-import { DataSource, EntityManager, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, IsNull, Not, Repository } from 'typeorm';
 import { FarmCertificateDto } from '../dtos/farm-cert/farm-certificate.dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { FarmService } from '../farm/farm.service';
@@ -26,7 +26,7 @@ export class FarmCertificateService {
                 where: {
                     farm_id: farmId,
                     is_deleted: false,
-                    status: In(getCertDto.status)
+                    status: getCertDto.status ? In(getCertDto.status) : Not(IsNull())
                 }
             })
         } catch (error) {

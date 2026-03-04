@@ -1,6 +1,6 @@
 import { PaginationOptions } from "src/common/dtos/pagination/pagination-option.dto";
 import { StepSortFields } from "../../enums/step-sort-fields.enum";
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from "class-validator";
 import { StepType } from "../../enums/step-type.enum";
 
 export class ListStepDto extends PaginationOptions<StepSortFields> {
