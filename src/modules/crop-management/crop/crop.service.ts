@@ -11,6 +11,7 @@ import { GetCropDto } from '../dtos/crop/get-crop.dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { applyPagination } from 'src/common/utils/pagination.util';
 import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
+import { CreateCropDto } from '../dtos/crop/create-crop.dto';
 
 @Injectable()
 export class CropService {
@@ -66,6 +67,20 @@ export class CropService {
             throw new InternalServerErrorException({
                 message: "Failed to add log",
                 code: ResponseCode.FAILED_TO_GET_CROPS
+            })
+        }
+    }
+
+    async createCrop(createCropDto: CreateCropDto): Promise<Crop> {
+        try {
+            const crop = this.cropRepository.create(createCropDto);
+            return await this.cropRepository.save(crop);
+        }
+        catch (error) {
+            this.logger.error("Failed to create crop: ", error.message);
+            throw new InternalServerErrorException({
+                message: "Failed to create crop",
+                code: ResponseCode.FAILED_TO_CREATE_CROP
             })
         }
     }

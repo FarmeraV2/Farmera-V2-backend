@@ -49,7 +49,7 @@ import { FileStorageModule } from 'src/core/file-storage/file-storage.module';
         AuditorProfileController, VerificationController
     ],
     exports: [
-        SeasonService, StepService, LogService, PlotService, ImageVerificationService,
+        SeasonService, CropService, StepService, LogService, PlotService, ImageVerificationService,
         TypeOrmModule,
     ],
 })

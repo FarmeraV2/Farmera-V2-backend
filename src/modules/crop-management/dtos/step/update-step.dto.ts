@@ -1,16 +1,11 @@
 import { IsBoolean, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString } from "class-validator";
-import { CropType } from "../../enums/crop-type.enum";
 import { StepType } from "../../enums/step-type.enum";
 import { Type } from "class-transformer";
 
-export class CreateStepDto {
+export class UpdateStepDto {
     @IsNumber()
     @Type(() => Number)
-    crop_id: number;
-
-    @IsString()
-    @IsNotEmpty()
-    name: string;
+    step_id: number;
 
     @IsString()
     @IsNotEmpty()
