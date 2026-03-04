@@ -10,9 +10,10 @@ import { UserManagementService } from './user-management/user-management.service
 import { CropManagementController } from './crop-management/crop-management.controller';
 import { CropManagementService } from './crop-management/crop-management.service';
 import { CropManagementModule } from '../crop-management/crop-management.module';
+import { ProductModule } from '../product/product.module';
 
 @Module({
-  imports: [FarmModule, UserModule, CropManagementModule],
+  imports: [FarmModule, UserModule, CropManagementModule, ProductModule],
   controllers: [FarmManagementController, UserManagementController, ProductManagementController, CropManagementController],
   providers: [FarmManagementService, UserManagementService, ProductManagementService, CropManagementService],
 })
