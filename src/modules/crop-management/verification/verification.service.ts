@@ -1,6 +1,6 @@
 import { HttpException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { AuditorProfileService } from '../auditor-profile/auditor-profile.service';
 import { VerificationAssignment } from '../entities/verification-assignment.entity';
@@ -21,6 +21,13 @@ import { Cron } from '@nestjs/schedule';
 import { VerificationRequested } from 'src/modules/blockchain/interfaces/auditor-event.interface';
 import { VerificationIdentifier } from '../enums/verification-identifier.enum';
 import { LogVerificationIdentifier } from '../enums/log-verification-identifier';
+import { SubmitVoteDto } from '../dtos/verification/submit-vote.dto';
+import { VerificationStatus } from '../enums/verification-status.enum';
+import { GetVerificationDto } from '../dtos/verification/get-verification.dto';
+import { PaginationTransform } from 'src/common/dtos/pagination/pagination-option.dto';
+import { applyPagination } from 'src/common/utils/pagination.util';
+import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
+import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
 
 const AUTO_VERIFY_THRESHOLD = 0.6;
 const SKIP_VERIFY_THRESHOLD = 0.8;
@@ -41,15 +48,28 @@ export class VerificationService {
         private readonly emitter: EventEmitter2,
     ) { }
 
-    async getPendingVerificationsByUser(userId: number): Promise<VerificationAssignment[]> {
+    async getPendingVerificationsByUser(userId: number, dto: GetVerificationDto): Promise<PaginationResult<VerificationAssignment>> {
+        const paginationOptions = plainToInstance(PaginationTransform<string>, dto);
+        const { status } = dto;
         try {
             const profileId = await this.auditorProfileService.validateAuditor(userId);
-            return this.assignmentRepo.find({
-                where: {
-                    auditor_profile_id: profileId,
-                    vote_transaction_hash: undefined
-                },
+            const queryBuilder = this.assignmentRepo.createQueryBuilder('verification_assignment')
+                .where('verification_assignment.auditor_profile_id = :id', { id: profileId })
+
+            if (status === VerificationStatus.PENDING) {
+                queryBuilder.andWhere('verification_assignment.vote_transaction_hash IS NULL')
+            } else {
+                queryBuilder.andWhere('verification_assignment.vote_transaction_hash IS NOT NULL')
+            }
+
+            const totalItems = await applyPagination(queryBuilder, paginationOptions);
+            const assignments = await queryBuilder.getMany();
+
+            const meta = new PaginationMeta({
+                paginationOptions,
+                totalItems,
             });
+            return new PaginationResult(assignments, meta);
         }
         catch (error) {
             if (error instanceof HttpException) throw error;
@@ -112,6 +132,26 @@ export class VerificationService {
             throw new InternalServerErrorException({
                 message: "Failed to get verification package",
                 code: ResponseCode.FAILED_TO_GET_VERIFICATION_PACKAGE
+            })
+        }
+    }
+
+    async setVerified(id: number, userId: number, submitVote: SubmitVoteDto): Promise<boolean> {
+        try {
+            const profileId = await this.auditorProfileService.validateAuditor(userId);
+            const result = await this.assignmentRepo.update({ id: id, auditor_profile_id: profileId }, {
+                vote_transaction_hash: submitVote.transaction_hash,
+                voted_at: new Date()
+            });
+            if (result && result.affected && result.affected > 0) return true;
+            return false;
+        }
+        catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error(`Failed to get pending verification: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: "Failed to get pending verificaton",
+                code: ResponseCode.INTERNAL_ERROR
             })
         }
     }
