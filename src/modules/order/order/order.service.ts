@@ -1461,11 +1461,10 @@ export class OrderService {
     //     return {qrToken: ''};
     // }
 
-    async getOrderDetailsByQR(qrToken: string, userId: number): Promise<OrderDto> {
+    async getOrderDetailsByQR(qrToken: string): Promise<OrderDto> {
         const order = await this.orderRepository.findOne({
             where: {
-                qr_token: qrToken,
-                cus_id: userId
+                qr_token: qrToken
             },
             relations: [
                 'order_details',
@@ -1473,26 +1472,139 @@ export class OrderService {
                 'order_details.product.farm',
                 'payment',
                 'delivery',
-                'delivery_address',
                 'farm',
                 'user'
+                // Không load 'delivery_address' để bảo mật
             ]
         });
 
         if (!order) {
             throw new NotFoundException({
-                message: 'Order not found',
+                message: 'Order not found or QR token invalid',
                 code: ResponseCode.ORDER_NOT_FOUND || 'ORDER_NOT_FOUND'
             });
         }
 
-        if (order.cus_id !== userId) {
-            throw new ForbiddenException({
-                message: 'You can only access your own orders',
-                code: ResponseCode.FORBIDDEN || 'FORBIDDEN'
+        const orderDto = plainToInstance(OrderDto, order, { excludeExtraneousValues: true });
+
+        // Xóa thông tin nhạy cảm trong payment (chỉ giữ status và method)
+        if (orderDto.payment) {
+            orderDto.payment.qr_code = null;
+            orderDto.payment.checkout_url = null;
+            orderDto.payment.transaction_id = '';
+        }
+
+        // Thêm thông tin user không nhạy cảm
+        if (order.user) {
+            (orderDto as any).customer = {
+                id: order.user.id,
+                first_name: order.user.first_name,
+                last_name: order.user.last_name,
+                avatar: order.user.avatar,
+                // Che bớt phone nếu có
+                phone: order.user.phone ? order.user.phone.substring(0, 3) + '****' + order.user.phone.substring(order.user.phone.length - 3) : null
+            };
+        }
+
+        return orderDto;
+    }
+
+    async buyerConfirmReceived(orderId: number, userId: number): Promise<OrderDto> {
+        const order = await this.orderRepository.findOne({
+            where: { id: orderId, cus_id: userId },
+            relations: [
+                'farm',
+                'order_details',
+                'order_details.product',
+                'payment',
+                'delivery'
+            ]
+        });
+
+        if (!order) {
+            throw new NotFoundException({
+                message: 'Order not found or you do not have permission to access this order',
+                code: ResponseCode.ORDER_NOT_FOUND
             });
         }
 
-        return plainToInstance(OrderDto, order, { excludeExtraneousValues: true });
+        // Nếu đã COMPLETED rồi thì không làm gì
+        if (order.status === OrderStatus.COMPLETED) {
+            throw new BadRequestException({
+                message: 'Order has already been confirmed as received',
+                code: ResponseCode.INVALID_ORDER_STATUS
+            });
+        }
+
+        // Chỉ cho phép xác nhận khi đơn hàng đã được giao hoặc đang giao
+        if (order.status !== OrderStatus.DELIVERED && order.status !== OrderStatus.SHIPPING) {
+            throw new BadRequestException({
+                message: 'Order must be in DELIVERED or SHIPPING status to confirm receipt',
+                code: ResponseCode.INVALID_ORDER_STATUS
+            });
+        }
+
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+
+        try {
+            // Cập nhật order status
+            await queryRunner.manager.update(Order, { id: orderId }, {
+                status: OrderStatus.COMPLETED
+            });
+
+            // Cập nhật delivery status nếu có
+            if (order.delivery) {
+                await queryRunner.manager.update(Delivery, { id: order.delivery.id }, {
+                    status: DeliveryStatus.DELIVERED
+                });
+            }
+
+            // Cập nhật payment status
+            if (order.payment && order.payment.status !== PaymentStatus.COMPLETED) {
+                await queryRunner.manager.update(Payment, { id: order.payment_id }, {
+                    status: PaymentStatus.COMPLETED,
+                    payment_time: new Date()
+                });
+            }
+
+            await queryRunner.commitTransaction();
+            this.logger.log(`Buyer ${userId} confirmed receipt of order ${orderId}`);
+
+            // Lấy lại order đã cập nhật
+            const updatedOrder = await this.orderRepository.findOne({
+                where: { id: orderId },
+                relations: [
+                    'farm',
+                    'order_details',
+                    'order_details.product',
+                    'payment',
+                    'delivery',
+                    'delivery_address'
+                ]
+            });
+
+            return plainToInstance(OrderDto, updatedOrder, { excludeExtraneousValues: true });
+
+        } catch (error) {
+            this.logger.error(`Error confirming order receipt: ${error.message}`, error.stack);
+            if (queryRunner.isTransactionActive) {
+                await queryRunner.rollbackTransaction();
+            }
+
+            if (error instanceof BadRequestException ||
+                error instanceof NotFoundException ||
+                error instanceof InternalServerErrorException) {
+                throw error;
+            }
+
+            throw new InternalServerErrorException({
+                message: `Failed to confirm order receipt: ${error.message}`,
+                code: ResponseCode.INTERNAL_ERROR
+            });
+        } finally {
+            await queryRunner.release();
+        }
     }
 }

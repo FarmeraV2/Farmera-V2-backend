@@ -163,10 +163,16 @@ export class OrderController {
     //     return await this.orderService.generateQRForOrder(orderId, farmerID);
     // }
 
-    @Get('details/qr/:qr_token')
-    @Roles([UserRole.FARMER, UserRole.BUYER])
-    async getOrderDetailsByQR(@User() user: UserInterface, @Param('qr_token' ) qrToken: string) {
+    @Post(':order_id/confirm-received')
+    @Roles([UserRole.BUYER, UserRole.FARMER])
+    async confirmOrderReceived(@User() user: UserInterface, @Param('order_id', ParseIntPipe) orderId: number) {
         const userId = user.id;
-        return await this.orderService.getOrderDetailsByQR(qrToken, userId);
+        return await this.orderService.buyerConfirmReceived(orderId, userId);
+    }
+
+    @Get('details/qr/:qr_token')
+    @Public()
+    async getOrderDetailsByQR(@Param('qr_token') qrToken: string) {
+        return await this.orderService.getOrderDetailsByQR(qrToken);
     }
 }
