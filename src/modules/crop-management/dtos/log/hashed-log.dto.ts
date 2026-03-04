@@ -1,6 +1,7 @@
 import { Expose, Type } from "class-transformer";
 import { LogType } from "../../enums/log-type.enum";
 import { LocationDto } from "src/common/dtos/location/location.dto";
+import { OnChainLogStatus } from "../../enums/onchain-log-status.enum";
 
 export class HashedLog {
     @Expose() id: number;
@@ -16,4 +17,5 @@ export class HashedLog {
     @Expose() created: Date;
     @Expose() season_detail_id: number;
     @Expose() farm_id: number;
+    @Expose() status: OnChainLogStatus;
 }

@@ -1,7 +1,7 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryColumn, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { SeasonDetail } from './season-detail.entity';
 import { StepType } from '../enums/step-type.enum';
-import { CropType } from '../enums/crop-type.enum';
+import { Crop } from './crop.entity';
 
 
 @Entity()
@@ -18,10 +18,6 @@ export class Step {
     @Column({ nullable: true })
     notes?: string;
 
-    @Column({ type: 'enum', enumName: 'crop_type', enum: CropType })
-    for_crop_type: CropType;
-    
-
     @Column()
     order: number;
 
@@ -37,7 +33,14 @@ export class Step {
     @Column({ type: 'enum', enumName: 'step_type', enum: StepType })
     type: StepType;
 
+    @Column({ nullable: true })
+    interval_date: number;
 
+    @Column({ nullable: true })
+    min_day_duration: number;
+
+    @Column({ nullable: true })
+    max_day_duration: number;
 
     @CreateDateColumn({ type: "timestamptz" })
     created: Date;
@@ -48,13 +51,10 @@ export class Step {
     @OneToMany(() => SeasonDetail, (detail) => detail.step)
     season_details: SeasonDetail[];
 
-    @ManyToOne(() => Step, (step) => step.children, { nullable: true })
-    @JoinColumn({ name: "parent_id" })
-    parent?: Step;
+    @ManyToOne(() => Crop)
+    @JoinColumn({ name: "crop_id" })
+    crop: Crop;
 
-    @Column({ nullable: true })
-    parent_id?: number;
-
-    @OneToMany(() => Step, (step) => step.parent)
-    children?: Step[];
+    @Column()
+    crop_id: number;
 }

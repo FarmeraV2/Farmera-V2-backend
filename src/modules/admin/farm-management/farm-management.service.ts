@@ -1,7 +1,12 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ResponseCode } from 'src/common/constants/response-code.const';
+import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
 import { UserRole } from 'src/common/enums/role.enum';
 import { CreateApprovalDto } from 'src/modules/farm/dtos/approval/create-approval.dto';
+import { GetCertDto } from 'src/modules/farm/dtos/farm-cert/get-cert.dto';
+import { AdminFarmDetailDto, FarmListResponseDto } from 'src/modules/farm/dtos/farm/farm.dto';
+import { ListFarmDto } from 'src/modules/farm/dtos/farm/list-farm.dto';
+import { FarmCertificate } from 'src/modules/farm/entities/farm-certificate.entity';
 import { ApprovalAction } from 'src/modules/farm/enums/approval-action.enum';
 import { CertificateStatus } from 'src/modules/farm/enums/certificate-status.enum';
 import { FarmStatus } from 'src/modules/farm/enums/farm-status.enum';
@@ -28,6 +33,7 @@ export class FarmManagementService {
         try {
             await this.dataSource.transaction(async (manager) => {
                 const approval = await this.farmApprovalService.createApproval(userId, createApprovalDto, manager);
+                console.log(approval);
                 switch (approval.action) {
                     case ApprovalAction.APPROVED:
                         await this.farmService.updateFarmStatus(farmId, FarmStatus.APPROVED, manager);
@@ -53,4 +59,15 @@ export class FarmManagementService {
         }
     }
 
+    async listFarm(listDto: ListFarmDto): Promise<PaginationResult<FarmListResponseDto>> {
+        return await this.farmService.adminListFarm(listDto);
+    }
+
+    async getFarmDetail(farmId: number): Promise<AdminFarmDetailDto> {
+        return await this.farmService.adminGetFarmById(farmId);
+    }
+
+    async getFarmCertificate(farmId: number, getCertDto: GetCertDto): Promise<FarmCertificate[]> {
+        return await this.farmCertificateService.getFarmCertificate(farmId, getCertDto);
+    }
 }

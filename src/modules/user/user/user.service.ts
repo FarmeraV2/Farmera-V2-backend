@@ -18,6 +18,14 @@ import { UpdateProfileDto } from '../dtos/user/update-profile.dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { UserRole } from 'src/common/enums/role.enum';
 import { DeliveryAddressService } from 'src/modules/address/delivery-address/delivery-address.service';
+import { ListUserDto } from '../dtos/user/list-user.dto';
+import { PaginationTransform } from 'src/common/dtos/pagination/pagination-option.dto';
+import { UserSortFields } from '../enums/user-sort-fields.enum';
+import { applyPagination } from 'src/common/utils/pagination.util';
+import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
+import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.dto';
+import { UpdateUserStatus } from '../dtos/user/update-user-status.dto';
+import { b } from 'pinata/dist/gateway-tools-Cd7xutmh';
 
 @Injectable()
 export class UserService {
@@ -294,12 +302,14 @@ export class UserService {
         }
     }
 
-    async updateRole(id: number, role: UserRole, manager: EntityManager): Promise<void> {
+    async updateRole(id: number, role: UserRole, manager?: EntityManager): Promise<boolean> {
         try {
-            const result = await manager.update(User, id, { role: role })
+            const repo = manager ? manager.getRepository(User) : this.userRepository;
+            const result = await repo.update({ id: id }, { role: role })
             if (!result || !result.affected || result.affected <= 0) {
                 throw new InternalServerErrorException();
             }
+            return true;
         } catch (error) {
             this.logger.error("Failed to update user role");
             throw new InternalServerErrorException({
@@ -325,110 +335,66 @@ export class UserService {
     //     }
     // }
 
-    // async listUsers(
-    //     filters: {
-    //         page?: number;
-    //         limit?: number;
-    //         role_filter?: UserRole;
-    //         status_filter?: UserStatus;
-    //         search_query?: string;
-    //         sort_by?: string;
-    //         sort_order?: "ASC" | "DESC"
-    //         created_date_range?: { start_time?: Date; end_time?: Date };
-    //     } = {},
-    // ) {
-    //     const validOrder = ["id", "email", "first_name", "last_name", "gender", "role", "status", "updated_at", "created_at", "points"]
-    //     const {
-    //         page = 1,
-    //         limit = 10,
-    //         role_filter,
-    //         status_filter,
-    //         search_query,
-    //         created_date_range,
-    //         sort_by,
-    //         sort_order = "ASC"
-    //     } = filters;
-    //     if (sort_by && !validOrder.includes(sort_by)) throw new BadRequestException(`Invalid properties ${sort_by}`)
+    async listUsers(listUserDto: ListUserDto): Promise<PaginationResult<PublicUserDto>> {
+        const paginationOptions = plainToInstance(PaginationTransform<UserSortFields>, listUserDto);
+        const { sort_by, order, search } = listUserDto;
+        try {
+            const queryBuilder = this.userRepository.createQueryBuilder('user');
 
-    //     const queryBuilder = this.usersRepository.createQueryBuilder('user');
+            if (search?.trim()) {
+                queryBuilder.andWhere(
+                    '(user.first_name ILIKE :search OR user.last_name ILIKE :search OR user.email ILIKE :search)',
+                    { search: `%${search}%` },
+                );
+            }
 
-    //     if (role_filter) {
-    //         queryBuilder.andWhere('user.role = :role', { role: role_filter });
-    //     }
+            if (sort_by || order) {
+                switch (sort_by) {
+                    case UserSortFields.ID:
+                        queryBuilder.orderBy('user.id', order);
+                        break;
+                    case UserSortFields.EMAIL:
+                        queryBuilder.orderBy('user.email', order);
+                        break;
+                    case UserSortFields.NAME:
+                        queryBuilder.orderBy('user.first_name', order).addOrderBy('user.last_name', order);
+                        break;
+                    case UserSortFields.UPDATED_AT:
+                        queryBuilder.orderBy('user.updated_at', order);
+                        break;
+                    default:
+                        queryBuilder.orderBy('user.id', order);
+                        break;
+                }
+            }
 
-    //     if (status_filter) {
-    //         queryBuilder.andWhere('user.status = :status', { status: status_filter });
-    //     }
+            const totalItems = await applyPagination(queryBuilder, paginationOptions);
+            const users = await queryBuilder.getMany();
+            const meta = new PaginationMeta({ paginationOptions, totalItems });
 
-    //     if (search_query) {
-    //         queryBuilder.andWhere(
-    //             '(user.first_name ILIKE :search OR user.last_name ILIKE :search OR user.email ILIKE :search)',
-    //             { search: `%${search_query}%` },
-    //         );
-    //     }
+            return new PaginationResult(plainToInstance(
+                PublicUserDto,
+                users,
+                { excludeExtraneousValues: true }
+            ), meta);
+        }
+        catch (error) {
+            this.logger.error("Failed to list users");
+            if (error instanceof HttpException) throw error;
+            throw new InternalServerErrorException({
+                message: "Failed to list users",
+                code: ResponseCode.INTERNAL_ERROR,
+            })
+        }
+    }
 
-    //     if (created_date_range?.start_time && created_date_range?.end_time) {
-    //         queryBuilder.andWhere('user.created_at BETWEEN :start AND :end', {
-    //             start: created_date_range.start_time,
-    //             end: created_date_range.end_time,
-    //         });
-    //     }
-
-    //     const offset = (page - 1) * limit;
-    //     queryBuilder.skip(offset).take(limit);
-    //     if (sort_by) {
-    //         switch (sort_by) {
-    //             case "id":
-    //                 queryBuilder.orderBy('user.id', sort_order);
-    //                 break;
-    //             case "email":
-    //                 queryBuilder.orderBy('user.email', sort_order);
-    //                 break;
-    //             case "first_name":
-    //                 queryBuilder.orderBy('user.first_name', sort_order);
-    //                 break;
-    //             case "last_name":
-    //                 queryBuilder.orderBy('user.last_name', sort_order);
-    //                 break;
-    //             case "gender":
-    //                 queryBuilder.orderBy('user.gender', sort_order);
-    //                 break;
-    //             case "role":
-    //                 queryBuilder.orderBy('user.role', sort_order);
-    //                 break;
-    //             case "status":
-    //                 queryBuilder.orderBy('user.status', sort_order);
-    //                 break;
-    //             case "updated_at":
-    //                 queryBuilder.orderBy('user.updated_at', sort_order);
-    //                 break;
-    //             case "created_at":
-    //                 queryBuilder.orderBy('user.created_at', sort_order);
-    //                 break;
-    //             case "points":
-    //                 queryBuilder.orderBy('user.points', sort_order);
-    //                 break;
-    //             default:
-    //                 throw new BadRequestException(`Invalid sort_by value: ${sort_by}`);
-    //         }
-    //     } else {
-    //         queryBuilder.orderBy('user.created_at', 'DESC');
-    //     }
-
-    //     const [users, total] = await queryBuilder.getManyAndCount();
-
-    //     return {
-    //         users,
-    //         pagination: {
-    //             total_items: total,
-    //             total_pages: Math.ceil(total / limit),
-    //             current_page: page,
-    //             page_size: limit,
-    //             has_next_page: page * limit < total,
-    //             has_previous_page: page > 1,
-    //         },
-    //     };
-    // }
+    async updateUserStatus(updateUserStatusDto: UpdateUserStatus): Promise<boolean> {
+        const result = await this.userRepository.update({ id: updateUserStatusDto.user_id }, { status: updateUserStatusDto.status });
+        if (!result || !result.affected || result.affected <= 0) {
+            return false;
+        }
+        return true;
+    }
 
     // async getUsersByRole(
     //     role: UserRole,

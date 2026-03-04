@@ -42,5 +42,11 @@ export class SeasonDetail {
     @OneToMany(() => Log, (log) => log.season_detail)
     logs?: Log[];
 
+    @Column({ default: 0 })
+    inactive_logs: number;
+
+    @Column({ type: "float", nullable: true })
+    transparency_score?: number;
+
     verified?: boolean;
 }

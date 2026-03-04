@@ -9,7 +9,13 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 async function bootstrap() {
-    const app = await NestFactory.create(AppModule);
+    const isProd = process.env.NODE_ENV === 'production';
+
+    const app = await NestFactory.create(AppModule, {
+        logger: isProd
+            ? ['log', 'error', 'warn']
+            : ['log', 'error', 'warn', 'debug', 'verbose'],
+    });
 
     app.setGlobalPrefix('api');
 

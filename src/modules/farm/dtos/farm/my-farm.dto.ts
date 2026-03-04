@@ -2,6 +2,7 @@ import { Expose, Type } from "class-transformer";
 import { DeliveryAddressDto } from "src/modules/address/dtos/delivery-address.dto";
 import { FarmStatus } from "../../enums/farm-status.enum";
 import { FarmCertificateDto } from "../farm-cert/farm-certificate.dto";
+import { FarmTransparencyMetricsDto } from "./farm-transparency-metrics.dto";
 
 export class MyFarmDto {
     @Expose() id: number;
@@ -17,9 +18,15 @@ export class MyFarmDto {
     @Expose() status: FarmStatus;
     @Expose() created: Date;
     @Expose() updated: Date;
+    @Expose() farm_size?: number;
+    @Expose() establish?: number;
 
     @Type(() => DeliveryAddressDto)
     @Expose() address: DeliveryAddressDto;
+
+    @Expose()
+    @Type(() => FarmTransparencyMetricsDto)
+    transparency_score?: FarmTransparencyMetricsDto;
 
     @Type(() => FarmCertificateDto)
     @Expose() certificates?: FarmCertificateDto[];

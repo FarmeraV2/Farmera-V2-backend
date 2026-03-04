@@ -27,11 +27,6 @@ export class ProductController {
         return await this.productService.updateProduct(productId, updateProductDto);
     }
 
-    // @Patch('status/:product_id')
-    // async updateProductStatus(@User() user: UserInterface, @Param('product_id', ParseIntPipe) productId: number, @Body() status: UpdateProductStatusDto) {
-    //     return await this.productService.updateProductStatus(user.id, productId, status.status);
-    // }
-
     // @Post('open-for-sale/:product_id')
     // async openProductForSale(@User() user: UserInterface, @Param('product_id', ParseIntPipe) productId: number,) {
     //     return await this.productService.openProductForSale(user.id, productId);
@@ -71,18 +66,6 @@ export class ProductController {
     @Get(':product_id')
     async getProduct(@Param('product_id') productId: number, @Query('include_categories') include_categories?: boolean) {
         return await this.productService.getProductById(productId, include_categories);
-    }
-
-    @Roles([UserRole.FARMER])
-    @Patch(':id/assign')
-    async assignSeason(@Param('id') productId: number, @Body() body: AssignSeasonDto) {
-        return await this.productService.assignSeason(productId, body.season_id);
-    }
-
-    @Roles([UserRole.FARMER])
-    @Patch(':id/status')
-    async updateProductStatus(@Param('id') productId: number, @Body() dto: UpdateProductStatusDto) {
-        return await this.productService.updateProductStatus(productId, dto);
     }
 
     /*#########################################################################

@@ -13,7 +13,7 @@ import { UpdateFarmDto } from '../dtos/farm/update-farm.dto';
 import { UpdateFarmAvatarDto, UpdateFarmImagesDto } from '../dtos/farm/update-farm-images.dto';
 import { ResponseCode } from 'src/common/constants/response-code.const';
 import { FileStorageService } from 'src/core/file-storage/interfaces/file-storage.interface';
-import { FarmDto, farmDtoSelectFields } from '../dtos/farm/farm.dto';
+import { AdminFarmDetailDto, adminFarmDtoSelectFields, FarmDto, farmDtoSelectFields, FarmListResponseDto, listFarmDtoSelectFields } from '../dtos/farm/farm.dto';
 import { publicUserFields } from 'src/modules/user/dtos/user/user.dto';
 import { MyFarmDto } from '../dtos/farm/my-farm.dto';
 import { AuditService } from 'src/core/audit/audit.service';
@@ -28,6 +28,17 @@ import { PaginationResult } from 'src/common/dtos/pagination/pagination-result.d
 import { SearchProductsDto } from 'src/modules/product/dtos/product/search-product.dto';
 import { FarmProductDetailDto } from 'src/modules/product/dtos/product/farm-product-detail.dto';
 import { FarmProductDto } from 'src/modules/product/dtos/product/farm-product.dto';
+import { ProductDto } from 'src/modules/product/dtos/product/product.dto';
+import { FptIdrCardFrontData } from '../interfaces/fpt-idr-front.interface';
+import { FptLivenessResponse } from '../interfaces/fpt-liveness.interfaces';
+import { parseDateDMY } from 'src/utils/format';
+import { IdentificationStatus } from '../enums/identification.enums';
+import { FarmOverallScore } from 'src/modules/ftes/interfaces/farm-transparency.interface';
+import { ListFarmDto } from '../dtos/farm/list-farm.dto';
+import { PaginationTransform } from 'src/common/dtos/pagination/pagination-option.dto';
+import { FarmSortField } from '../enums/farm-sort-fileds.enum';
+import { applyPagination } from 'src/common/utils/pagination.util';
+import { PaginationMeta } from 'src/common/dtos/pagination/pagination-meta.dto';
 
 @Injectable()
 export class FarmService {
@@ -129,53 +140,53 @@ export class FarmService {
         await queryRunner.connect();
         await queryRunner.startTransaction();
         try {
-            // const idrCardDataArray = await this.biometricsService.callFptIdrApiForFront(ssnImg);
-            // const idrData: FptIdrCardFrontData = idrCardDataArray[0];
+            const idrCardDataArray = await this.biometricsService.callFptIdrApiForFront(ssnImg);
+            const idrData: FptIdrCardFrontData = idrCardDataArray[0];
 
-            // await this.auditService.log({
-            //     actor_type: ActorType.USER,
-            //     audit_event_id: AuditEventID.EKYC01,
-            //     actor_id: userId,
-            //     result: AuditResult.SUCCESS,
-            // })
+            await this.auditService.log({
+                actor_type: ActorType.USER,
+                audit_event_id: AuditEventID.EKYC01,
+                actor_id: userId,
+                result: AuditResult.SUCCESS,
+            })
 
-            // const livenessData: FptLivenessResponse = await this.biometricsService.callFptLivenessApi(ssnImg, faceVideo);
+            const livenessData: FptLivenessResponse = await this.biometricsService.callFptLivenessApi(ssnImg, faceVideo);
 
-            // await this.auditService.log({
-            //     actor_type: ActorType.USER,
-            //     audit_event_id: AuditEventID.EKYC02,
-            //     actor_id: userId,
-            //     result: AuditResult.SUCCESS,
-            //     metadata: { liveness: livenessData.liveness, face_match: livenessData.face_match }
-            // })
+            await this.auditService.log({
+                actor_type: ActorType.USER,
+                audit_event_id: AuditEventID.EKYC02,
+                actor_id: userId,
+                result: AuditResult.SUCCESS,
+                metadata: { liveness: livenessData.liveness, face_match: livenessData.face_match }
+            })
 
-            // const ssnImgUrl = await this.fileStorage.uploadFile(
-            //     [ssnImg],
-            //     `private/biometric/${userId}`,
-            // );
+            const ssnImgUrl = await this.fileStorage.uploadFile(
+                [ssnImg],
+                `private/biometric/${userId}`,
+            );
 
-            // // save identification
-            // const partial: Partial<Identification> = {
-            //     full_name: idrData.name,
-            //     hashed_id_number: await this.hashService.hashPassword(idrData.id),
-            //     dob: parseDateDMY(idrData.dob),
-            //     gender: idrData.sex || 'N/A',
-            //     nationality: idrData.nationality || 'N/A',
-            //     address: idrData.address || 'N/A',
-            //     address_entity: idrData.address_entities,
-            //     doe: parseDateDMY(idrData.doe),
-            //     face_match_score: livenessData.face_match ? parseFloat(livenessData.face_match.similarity) : 0,
-            //     liveness_score: livenessData.liveness.spoof_prob ? 1 - parseFloat(livenessData.liveness.spoof_prob) : 0,
-            //     status: IdentificationStatus.APPROVED,
-            // }
+            // save identification
+            const partial: Partial<Identification> = {
+                full_name: idrData.name,
+                hashed_id_number: await this.hashService.hashPassword(idrData.id),
+                dob: parseDateDMY(idrData.dob),
+                gender: idrData.sex || 'N/A',
+                nationality: idrData.nationality || 'N/A',
+                address: idrData.address || 'N/A',
+                address_entity: idrData.address_entities,
+                doe: parseDateDMY(idrData.doe),
+                face_match_score: livenessData.face_match ? parseFloat(livenessData.face_match.similarity) : 0,
+                liveness_score: livenessData.liveness.spoof_prob ? 1 - parseFloat(livenessData.liveness.spoof_prob) : 0,
+                status: IdentificationStatus.APPROVED,
+            }
 
-            // const identification = this.identificationRepository.create(partial);
+            const identification = this.identificationRepository.create(partial);
 
-            // if (ssnImgUrl.length > 0) {
-            //     identification.id_card_image_url = ssnImgUrl[0];
-            // }
+            if (ssnImgUrl.length > 0) {
+                identification.id_card_image_url = ssnImgUrl[0];
+            }
 
-            // farm.identification = identification;
+            farm.identification = identification;
             farm.status = FarmStatus.VERIFIED;
 
             const savedFarm = await queryRunner.manager.save(farm);
@@ -332,7 +343,7 @@ export class FarmService {
             const farm = await this.farmRepository.findOne({ select: ['id', 'farm_id'], where: { user_id: userId, status: In([FarmStatus.APPROVED, FarmStatus.VERIFIED]) } });
             if (!farm || farm.id <= 0) {
                 throw new InternalServerErrorException({
-                    message: "Something ưent wrong, you're a farmer but your Farm is not found",
+                    message: "Something went wrong, you're a farmer but your Farm is not found",
                     code: ResponseCode.INTERNAL_ERROR
                 });
             }
@@ -525,8 +536,44 @@ export class FarmService {
         return await this.productService.getFarmProducts(farmId, getProductDto);
     }
 
+    async getFarmProducts(farmId: number, getProductDto: SearchProductsDto): Promise<PaginationResult<ProductDto>> {
+        return await this.productService.searchAndFilterProducts(getProductDto, farmId);
+    }
+
     async getMyFarmProductById(productId: number): Promise<FarmProductDetailDto> {
         return await this.productService.getFarmProductById(productId);
+    }
+
+    async getAllFarmIds(): Promise<number[]> {
+        try {
+            const farms = await this.farmRepository.find({
+                select: ["id"]
+            })
+            return farms.map((f) => f.id);
+        }
+        catch (error) {
+            throw Error(`Failed to get all farm ids: ${error.message}`);
+        }
+    }
+
+    async getFarmProductRating(farmId: number): Promise<number[]> {
+        return await this.productService.getProductRatings(farmId);
+    }
+
+    async updateTransparencyScore(farmId: number, score: FarmOverallScore, manager?: EntityManager): Promise<void> {
+        try {
+            const repo = manager ? manager.getRepository(Farm) : this.farmRepository;
+            await repo.update(
+                { id: farmId },
+                { transparency_score: score })
+        }
+        catch (error) {
+            this.logger.error(`Failed to update season transparency score: ${error.message}`);
+            throw new InternalServerErrorException({
+                message: "Failed to update season transparency score",
+                code: ResponseCode.FAILED_TO_UPDATE_SEASON
+            })
+        }
     }
 
     //   async findFarmsByIds(farmIds: string[]): Promise<Farm[]> {
@@ -632,123 +679,88 @@ export class FarmService {
     //     return new PaginationResult(farms, meta);
     //   }
 
-    // async searchFarm(searchDto: SearchFarmDto) {
-    //     const paginationOptions = plainToInstance(PaginationOptions, searchDto);
+    async adminListFarm(listDto: ListFarmDto): Promise<PaginationResult<FarmListResponseDto>> {
+        const paginationOptions = plainToInstance(PaginationTransform<FarmSortField>, listDto);
+        const { query, latitude, longitude, radius_km, status, sort_by, order } = listDto;
 
-    //     const qb = this.farmRepository
-    //         .createQueryBuilder('farm')
-    //         .leftJoinAndSelect('farm.address', 'address');
+        try {
+            const qb = this.farmRepository.createQueryBuilder('farm').select(listFarmDtoSelectFields);
 
-    //     if (searchDto.latitude && searchDto.longitude && searchDto.radius_km) {
-    //         qb.addSelect(
-    //             `
-    //                     6371 * acos(
-    //                     cos(radians(:lat)) *
-    //                     cos(radians(split_part(address.coordinate, ':', 1)::float)) *
-    //                     cos(radians(split_part(address.coordinate, ':', 2)::float) - radians(:lng)) +
-    //                     sin(radians(:lat)) *
-    //                     sin(radians(split_part(address.coordinate, ':', 1)::float))
-    //                     )
-    //                 `,
-    //             'distance',
-    //         ).andWhere(
-    //             `
-    //                     6371 * acos(
-    //                     cos(radians(:lat)) *
-    //                     cos(radians(split_part(address.coordinate, ':', 1)::float)) *
-    //                     cos(radians(split_part(address.coordinate, ':', 2)::float) - radians(:lng)) +
-    //                     sin(radians(:lat)) *
-    //                     sin(radians(split_part(address.coordinate, ':', 1)::float))
-    //                     ) <= :radius
-    //                 `,
-    //             {
-    //                 lat: searchDto.latitude,
-    //                 lng: searchDto.longitude,
-    //                 radius: searchDto.radius_km,
-    //             },
-    //         );
-    //     }
+            if (query?.trim()) {
+                qb.andWhere('farm.farm_name ILIKE :query', {
+                    query: `%${query}%`,
+                });
+            }
 
-    //     if (searchDto.query?.trim()) {
-    //         qb.andWhere('farm.farm_name ILIKE :query', {
-    //             query: `%${searchDto.query}%`,
-    //         });
-    //     }
+            if (status) {
+                qb.andWhere('farm.status IN (:...status)', { status: status });
+            }
 
-    //     if (searchDto.approve_only) {
-    //         qb.andWhere('farm.status = :status', { status: FarmStatus.APPROVED });
-    //     }
-    //     else {
-    //         qb.andWhere('farm.status IN (:...statuses)', {
-    //             statuses: [FarmStatus.APPROVED, FarmStatus.VERIFIED],
-    //         });
-    //     }
+            if (sort_by || order) {
+                switch (sort_by) {
+                    case FarmSortField.CREATED:
+                        qb.orderBy('farm.id', order);
+                        break;
+                    case FarmSortField.FARM_NAME:
+                        qb.orderBy('farm.farm_name', order);
+                        break;
+                    case FarmSortField.STATUS:
+                        qb.orderBy('farm.status', order);
+                        break;
+                    case FarmSortField.UPDATED:
+                        qb.orderBy('farm.updated', order);
+                    default:
+                        qb.orderBy('farm.id', order);
+                        break;
+                }
+            }
 
-    //     // Add sorting if specified
-    //     if (paginationOptions.sort_by) {
-    //         const validSortValue = ['created', 'farm_name', 'status', 'distance'];
-    //         if (!validSortValue.includes(paginationOptions.sort_by)) {
-    //             throw new BadRequestException('Cột sắp xếp không hợp lệ.');
-    //         }
-    //         const order = (paginationOptions.order || 'ASC') as 'ASC' | 'DESC';
-    //         switch (paginationOptions.sort_by) {
-    //             case 'name':
-    //                 qb.orderBy('farm.farm_name', order);
-    //                 break;
-    //             case 'created':
-    //                 qb.orderBy('farm.created', order);
-    //                 break;
-    //             case 'distance':
-    //                 qb.orderBy('distance', order);
-    //             default:
-    //                 qb.orderBy('farm.farm_name', 'ASC');
-    //         }
-    //     } else {
-    //         qb.orderBy(
-    //             'farm.farm_name',
-    //             (paginationOptions.order || 'ASC') as 'ASC' | 'DESC',
-    //         );
-    //     }
+            const totalItems = await applyPagination(qb, paginationOptions);
+            const farms = await qb.getMany();
 
-    //     // If all=true, return all results without pagination
-    //     if (paginationOptions.all) {
-    //         const farms = await qb.getMany();
-    //         if (!farms || farms.length === 0) {
-    //             this.logger.error('Không tìm thấy danh mục nào.');
-    //             throw new NotFoundException('Không tìm thấy danh mục nào.');
-    //         }
-    //         return new PaginationResult(farms);
-    //     }
+            const meta = new PaginationMeta({
+                paginationOptions,
+                totalItems,
+            });
 
-    //     // Apply pagination
-    //     const totalItems = await qb.getCount();
+            return new PaginationResult(plainToInstance(FarmListResponseDto, farms, { excludeExtraneousValues: true }), meta);
+        }
+        catch (error) {
+            this.logger.error("Failed to get farms")
+            if (error instanceof HttpException) throw error;
+            throw new InternalServerErrorException({
+                message: "Failed to get farm",
+                code: ResponseCode.INTERNAL_ERROR
+            })
+        }
+    }
 
-    //     const totalPages = Math.ceil(totalItems / (paginationOptions.limit ?? 10));
-    //     const currentPage = paginationOptions.page ?? 1;
+    async adminGetFarmById(farmId: number): Promise<AdminFarmDetailDto> {
+        try {
+            const queryBuilder = this.farmRepository.createQueryBuilder('farm').select([...adminFarmDtoSelectFields, 'farm.address_id'])
+                .where('farm.id = :id', { id: farmId })
+                .leftJoin('farm.owner', 'user').addSelect(publicUserFields.map((prop) => `user.${prop}`));
 
-    //     if (totalPages > 0 && currentPage > totalPages) {
-    //         throw new NotFoundException(
-    //             `Không tìm thấy dữ liệu ở trang ${currentPage}.`,
-    //         );
-    //     }
+            const farm = await queryBuilder.getOne();
 
-    //     const farms = await qb
-    //         .skip(paginationOptions.skip)
-    //         .take(paginationOptions.limit)
-    //         .getMany();
+            if (!farm) {
+                throw new NotFoundException({
+                    message: `Farm not found`,
+                    code: ResponseCode.FARM_NOT_FOUND,
+                });
+            }
+            const address = await this.deliveryAddressService.getAddressById(farm.address_id);
 
-    //     if (!farms || farms.length === 0) {
-    //         this.logger.error('Không tìm thấy danh mục nào.');
-    //         throw new NotFoundException('Không tìm thấy danh mục nào.');
-    //     }
-
-    //     const meta = new PaginationMeta({
-    //         paginationOptions,
-    //         totalItems,
-    //     });
-
-    //     return new PaginationResult(farms, meta);
-    // }
+            return plainToInstance(AdminFarmDetailDto, { ...farm, address: address }, { excludeExtraneousValues: true });
+        } catch (error) {
+            if (error instanceof HttpException) throw error;
+            this.logger.error(error.message);
+            throw new InternalServerErrorException({
+                message: 'Failed to find farm',
+                code: ResponseCode.FAILED_TO_GET_FARM,
+            });
+        }
+    }
 
     //   async getFarmStats(farmId: string): Promise<FarmStats> {
     //     const result = await this.productRepository

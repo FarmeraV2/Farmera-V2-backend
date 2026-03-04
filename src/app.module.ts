@@ -3,7 +3,6 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './core/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
-import { RedisModule } from './core/redis/redis.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { typeOrmAsyncConfig } from './config/typeorm.config';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -26,6 +25,10 @@ import { FileStorageModule } from './core/file-storage/file-storage.module';
 import { StringValue } from 'ms';
 import { AuditModule } from './core/audit/audit.module';
 import { QrModule } from './modules/qr/qr.module';
+import { BlockchainModule } from './modules/blockchain/blockchain.module';
+import { FtesModule } from './modules/ftes/ftes.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
     imports: [
@@ -49,6 +52,12 @@ import { QrModule } from './modules/qr/qr.module';
             }),
         }),
 
+        // Cron jobs
+        ScheduleModule.forRoot(),
+
+        // Emitter
+        EventEmitterModule.forRoot(),
+
         // Rate limiting
         // ThrottlerModule.forRootAsync({
         //   inject: [],
@@ -64,7 +73,6 @@ import { QrModule } from './modules/qr/qr.module';
 
         AuthModule,
         UserModule,
-        RedisModule,
         AdminModule,
         ProductModule,
         FarmModule,
@@ -84,11 +92,22 @@ import { QrModule } from './modules/qr/qr.module';
             {
                 path: "admin",
                 module: AdminModule
+            },
+            {
+                path: "on-chain",
+                module: BlockchainModule
+            },
+            {
+                path: "ftes",
+                module: FtesModule
             }
         ]),
         FileStorageModule,
         AuditModule,
         QrModule,
+        BlockchainModule,
+        FtesModule,
+        EventEmitterModule.forRoot(),
     ],
     controllers: [AppController],
     providers: [

@@ -4,6 +4,7 @@ import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString } from "class-valid
 import { CropType } from "../../enums/crop-type.enum";
 import { Type } from "class-transformer";
 import { ParseEnumArray } from "src/common/decorators/parse-enum-array";
+import { ParseNumberArray } from "src/common/decorators/parse-number-array";
 
 export class GetPlotDto extends PaginationOptions<PlotSortFields> {
     @IsOptional()
@@ -23,4 +24,8 @@ export class GetPlotDto extends PaginationOptions<PlotSortFields> {
     @IsBoolean()
     @Type(() => Boolean)
     is_deleted?: boolean = false;
+
+    @IsOptional()
+    @ParseNumberArray()
+    crop_id?: number[];
 }

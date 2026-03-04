@@ -1,0 +1,116 @@
+================================================================================
+          HƯỚNG DẪN CÀI ĐẶT - FARMERA BACKEND
+================================================================================
+
+------------------------------------------------------------------------
+I. CÔNG CỤ VÀ MÔI TRƯỜNG PHÁT TRIỂN CẦN CÀI ĐẶT
+------------------------------------------------------------------------
+1. Node.js (v20 LTS trở lên)
+
+Tải về tại: https://nodejs.org/
+
+Kiểm tra cài đặt:
+  node --version    (kết quả mẫu: v20.x.x)
+  npm --version     (kết quả mẫu: 10.x.x)
+
+Cài đặt qua nvm (khuyến nghị):
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+  nvm install 20
+  nvm use 20
+
+------------------------------------------------------------------------
+2. PostgreSQL (v14 trở lên)
+
+Sau khi cài đặt:
+  - Khởi động dịch vụ: sudo service postgresql start
+  - Tạo database và user cho ứng dụng:
+      sudo -u postgres psql
+      CREATE DATABASE farmera;
+      CREATE USER <username> WITH PASSWORD '<password>';
+      GRANT ALL PRIVILEGES ON DATABASE farmera TO <username>;
+      \q
+
+------------------------------------------------------------------------
+3. NestJS CLI
+
+Cài đặt toàn cục:
+  npm install -g @nestjs/cli
+
+Kiểm tra:
+  nest --version
+
+------------------------------------------------------------------------
+4. Blockchain — Foundry/Anvil (cho môi trường local)
+
+Cài đặt Foundry:
+  curl -L https://foundry.paradigm.xyz | bash
+  foundryup
+
+Kiểm tra:
+  anvil --version
+
+
+------------------------------------------------------------------------
+II. CÁC DỊCH VỤ BÊN NGOÀI (tùy chọn theo tính năng sử dụng)
+------------------------------------------------------------------------
+- Firebase Admin SDK: dùng cho push notification
+    Tạo project tại: https://console.firebase.google.com/
+    Tải file credentials JSON từ Project Settings > Service Accounts
+
+- Twilio: dùng cho gửi SMS và email
+    Đăng ký tại: https://www.twilio.com/
+    Lấy Account SID và Auth Token từ Console
+
+- SendGrid: dùng để gửi email
+    Đăng ký tại: https://sendgrid.com/
+    Tạo API Key từ Settings > API Keys
+
+- Google Cloud Vision API: dùng cho nhận dạng hình ảnh
+    Bật API tại: https://console.cloud.google.com/
+
+- File Storage:
+    + Cloudflare R2: https://www.cloudflare.com/
+
+
+------------------------------------------------------------------------
+III. CLONE VÀ CÀI ĐẶT
+------------------------------------------------------------------------
+1. Clone repository:
+  git clone https://github.com/FarmeraV2/Farmera-V2-backend.git
+  cd Farmera-V2-backend
+
+------------------------------------------------------------------------
+2. Cài đặt các thư viện Node.js:
+  npm install
+
+------------------------------------------------------------------------
+3. Cấu hình biến môi trường:
+  Sao chép file môi trường mẫu:
+    cp .env.sample .env    (hoặc tạo file .env mới)
+  Mở file .env và điền các giá trị thực tế:
+
+------------------------------------------------------------------------
+4. Chạy migration để khởi tạo seeding cho database:
+  npm run migration:run
+
+------------------------------------------------------------------------
+III. CÀI ĐẶT SMART CONTRACT (nếu dùng blockchain cục bộ với Anvil)
+------------------------------------------------------------------------
+  Xem hướng dẫn tại repository smartcontracts/ để deploy các contract:
+    ProcessTracking
+    TrustComputation
+    AuditRegistry
+
+  Sau khi deploy, cập nhật các địa chỉ contract vào file .env.
+
+------------------------------------------------------------------------
+IV. KIỂM TRA CÀI ĐẶT
+------------------------------------------------------------------------
+Sau khi hoàn tất các bước trên, chạy lệnh:
+  npm run start:dev
+
+Nếu ứng dụng khởi động thành công, terminal sẽ hiển thị:
+  [NestApplication] Nest application successfully started
+  Application is running on: http://localhost:3000
+
+Truy cập http://localhost:3000/api để kiểm tra API prefix.

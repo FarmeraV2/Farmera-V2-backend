@@ -6,7 +6,7 @@ import { DeliveryAddressService } from 'src/modules/address/delivery-address/del
 import { PaymentService } from 'src/modules/payment/payment/payment.service';
 import { Product } from 'src/modules/product/entities/product.entity';
 import { ProductStatus } from 'src/modules/product/enums/product-status.enum';
-import { Between, DataSource, FindOptionsWhere, Repository } from 'typeorm';
+import { Between, DataSource, FindOptionsWhere, In, Repository } from 'typeorm';
 import { CalculateShippingFeeRequestDto } from '../dtos/calculate-shipping-fee.request.dto';
 import { CreateBatchOrderDto } from '../dtos/create-order.dto';
 import { GetMyOrdersDto, OrderDto } from '../dtos/oder.dto';
@@ -1606,5 +1606,16 @@ export class OrderService {
         } finally {
             await queryRunner.release();
         }
+    // OFR = fulfilled / (fulfilled + cancelled)
+    // fulfilled = DELIVERED + COMPLETED; not-fulfilled = CANCELLED
+    async getOrderFulfillmentRate(farmId: number): Promise<number | null> {
+        const fulfilled = await this.orderRepository.count({
+            where: { store_id: farmId, status: In([OrderStatus.DELIVERED, OrderStatus.COMPLETED]) },
+        });
+        const cancelled = await this.orderRepository.count({
+            where: { store_id: farmId, status: OrderStatus.CANCELLED },
+        });
+        if (fulfilled + cancelled === 0) return null;
+        return fulfilled / (fulfilled + cancelled);
     }
 }

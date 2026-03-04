@@ -1,0 +1,98 @@
+================================================================================
+          HƯỚNG DẪN SỬ DỤNG - FARMERA BACKEND
+================================================================================
+
+------------------------------------------------------------------------
+I. CHẠY ỨNG DỤNG
+------------------------------------------------------------------------
+1. Chế độ phát triển (Development) — có hot-reload
+
+Lệnh:
+  npm run start:dev
+
+Mô tả:
+  - Ứng dụng tự động khởi động lại khi thay đổi mã nguồn.
+  - API chạy tại: http://localhost:3000
+  - Global prefix: /api  →  ví dụ: http://localhost:3000/api/...
+
+------------------------------------------------------------------------
+2. Chế độ debug
+
+Lệnh:
+  npm run start:debug
+
+Mô tả:
+  - Bật Node.js inspector (cổng 9229).
+  - Có thể gắn debugger từ VS Code hoặc Chrome DevTools.
+
+------------------------------------------------------------------------
+3. Chế độ thường
+
+Lệnh:
+  npm run start
+
+Mô tả:
+  - Chạy trực tiếp từ mã TypeScript (dùng ts-node).
+  - Không tự khởi động lại khi thay đổi file.
+
+------------------------------------------------------------------------
+II. BIÊN DỊCH (BUILD) ỨNG DỤNG
+------------------------------------------------------------------------
+1. Build sang JavaScript (Production)
+
+Lệnh:
+  npm run build
+
+Kết quả:
+  - Mã TypeScript được biên dịch sang JavaScript.
+  - Output tại thư mục: dist/
+
+------------------------------------------------------------------------
+2. Chạy bản đã build (Production mode)
+
+Lệnh:
+  npm run start:prod
+
+Điều kiện:
+  - Phải chạy npm run build trước.
+  - Biến môi trường NODE_ENV=production.
+
+Quy trình deploy production:
+  npm run build
+  npm run start:prod
+
+------------------------------------------------------------------------
+III. QUẢN LÝ DATABASE MIGRATION
+------------------------------------------------------------------------
+1. Tạo migration mới
+
+Trên Linux/macOS:
+  npm run migration:create-linux -- src/migrations/TenMigration
+
+Trên Windows:
+  npm run migration:create -- src/migrations/TenMigration
+
+Ví dụ:
+  npm run migration:create-linux -- src/migrations/AddProductTable
+
+Kết quả: Tạo file migration tại src/migrations/<timestamp>-TenMigration.ts
+
+------------------------------------------------------------------------
+2. Chạy tất cả migration chưa thực thi
+
+Lệnh:
+  npm run migration:run
+
+Mô tả:
+  - Áp dụng các migration mới vào database.
+  - Nên chạy sau mỗi lần pull code mới có chứa migration.
+
+------------------------------------------------------------------------
+3. Hoàn tác migration gần nhất
+
+Lệnh:
+  npm run migration:revert
+
+Lưu ý:
+  - Chỉ hoàn tác được migration gần nhất.
+  - Chạy nhiều lần để hoàn tác nhiều migration.

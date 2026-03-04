@@ -8,7 +8,7 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
+import { DataSource, In, Not, Repository, SelectQueryBuilder } from 'typeorm';
 import { Product } from '../entities/product.entity';
 import { CreateProductDto } from '../dtos/product/create-product.dto';
 import { ConfigService } from '@nestjs/config';
@@ -29,9 +29,6 @@ import { farmSummaryDtoSelectFields } from 'src/modules/farm/dtos/farm/farm.dto'
 import { ProductDetailDto, productDetailSelectFields } from '../dtos/product/product-detail.dto';
 import { FarmProductDetailDto, farmProductDetailSelectFields } from '../dtos/product/farm-product-detail.dto';
 import { FarmProductDto, farmProductSelectFields } from '../dtos/product/farm-product.dto';
-import { SeasonService } from 'src/modules/crop-management/season/season.service';
-import { SeasonStatus } from 'src/modules/crop-management/enums/season-status.enum';
-import { UpdateProductStatusDto } from '../dtos/product/update-product-status.dto';
 
 @Injectable()
 export class ProductService {
@@ -48,7 +45,6 @@ export class ProductService {
         // private readonly fileStorageService: AzureBlobService,
         private readonly categoryService: CategoryService,
         private readonly configService: ConfigService,
-        private readonly seasonService: SeasonService,
         // @InjectDataSource()
         private readonly dataSource: DataSource,
         // private readonly blockchainService: BlockchainService,
@@ -225,12 +221,15 @@ export class ProductService {
      * @throws {BadRequestException} - If an invalid status is provided or the requested page is out of range
      * @throws {InternalServerErrorException} - If the search and filtering process fails due to an unexpected error
      */
-    async searchAndFilterProducts(searchProductsDto: SearchProductsDto): Promise<PaginationResult<ProductDto>> {
+    async searchAndFilterProducts(searchProductsDto: SearchProductsDto, farmId?: number): Promise<PaginationResult<ProductDto>> {
         // todo!("optimize this fk shit")
         // extract pagination options
         const paginationOptions = plainToInstance(PaginationTransform<ProductSortField>, searchProductsDto);
         try {
             const queryBuilder = this.productsRepository.createQueryBuilder('product').select(productSelectFields)
+            if (farmId) {
+                queryBuilder.where('product.farm_id = :farmId', { farmId: farmId });
+            }
             // todo!("only get available products")
             // .where('product.status != :deletedStatus', { deletedStatus: ProductStatus.DELETED });
 
@@ -286,6 +285,28 @@ export class ProductService {
                 });
             }
             return plainToInstance(ProductDetailDto, product, { excludeExtraneousValues: true });
+        } catch (err) {
+            if (err instanceof HttpException) throw err;
+            this.logger.error(err.message);
+            throw new InternalServerErrorException({
+                message: `Failed to get product ${productId}`,
+                code: ResponseCode.FAILED_TO_GET_PRODUCT,
+            });
+        }
+    }
+
+    async findOneById(productId: number): Promise<Product> {
+        try {
+            const product = await this.productsRepository.createQueryBuilder('product').select(productDetailSelectFields)
+                .where("product.product_id = :id", { id: productId })
+                .getOne();
+            if (!product) {
+                throw new InternalServerErrorException({
+                    message: 'Product not found',
+                    code: ResponseCode.PRODUCT_NOT_FOUND,
+                });
+            }
+            return product;
         } catch (err) {
             if (err instanceof HttpException) throw err;
             this.logger.error(err.message);
@@ -468,50 +489,8 @@ export class ProductService {
         }
     }
 
-    async assignSeason(productId: number, seasonId: number): Promise<FarmProductDetailDto> {
+    async getProductSeasonStatus(productId: number): Promise<Product> {
         try {
-            const product = await this.productsRepository.findOneBy({ product_id: productId });
-            if (!product) {
-                throw new NotFoundException({
-                    message: "Product not found",
-                    code: ResponseCode.PRODUCT_NOT_FOUND
-                })
-            }
-            const season = await this.seasonService.getSeasonToAssign(seasonId);
-            if (season.status != SeasonStatus.DONE) throw new BadRequestException({
-                message: "Season is not completed",
-                code: ResponseCode.SEASON_IS_NOT_COMPLETED_TO_ASSIGN
-            })
-            product.season_id = season.id;
-            const result = await this.dataSource.transaction(async (manager) => {
-                const result = await manager.save(product);
-                await this.seasonService.updateAssigned(season.id, manager);
-                return result;
-            });
-            return plainToInstance(FarmProductDetailDto, result, { excludeExtraneousValues: true });
-        } catch (error) {
-            if (error instanceof HttpException) throw error;
-            this.logger.error(error.message);
-            throw new InternalServerErrorException({
-                message: `Failed to assign season`,
-                code: ResponseCode.FAILED_TO_ASSIGN_SEASON,
-            });
-        }
-    }
-
-    async updateProductStatus(productId: number, dto: UpdateProductStatusDto): Promise<boolean> {
-        try {
-            const newStatus = dto.status;
-            const validStatus = [
-                ProductStatus.OPEN_FOR_SALE,
-                ProductStatus.CLOSED,
-            ];
-            if (!validStatus.includes(newStatus))
-                throw new BadRequestException({
-                    message: "Invalid status",
-                    code: ResponseCode.INVALID_STATUS,
-                });
-
             const product = await this.productsRepository.findOne({
                 where: { product_id: productId },
                 select: ['status', "season_id"],
@@ -521,39 +500,37 @@ export class ProductService {
                     message: "Product not found",
                     code: ResponseCode.PRODUCT_NOT_FOUND,
                 });
-
-            if (!product.season_id) {
-                throw new BadRequestException({
-                    message: "Invalid product",
-                    code: ResponseCode.INVALID_PRODUCT_TO_UPDATE_STATUS
-                })
-            }
-
-            if (newStatus === ProductStatus.OPEN_FOR_SALE) {
-                const season = await this.seasonService.getSeasonToAssign(product.season_id);
-                if (!season || season.status !== SeasonStatus.DONE) {
-                    throw new BadRequestException({
-                        message: "Invalid product",
-                        code: ResponseCode.SEASON_IS_NOT_COMPLETED_TO_ASSIGN
-                    })
-                }
-            }
-
-            const result = await this.productsRepository.update(
-                { product_id: productId },
-                { status: newStatus },
-            );
-            if (result.affected === 0) {
-                throw new Error();
-            }
-            return true;
-        } catch (error) {
-            if (error instanceof HttpException) throw error;
-            this.logger.error(error.message);
+            return product;
+        } catch (err) {
+            if (err instanceof HttpException) throw err;
+            this.logger.error(err.message);
             throw new InternalServerErrorException({
-                message: "Failed to update product status",
-                code: ResponseCode.FAILED_TO_UPDATE_PRODUCT
+                message: `Failed to get product ${productId}`,
+                code: ResponseCode.FAILED_TO_GET_PRODUCT,
             });
+        }
+    }
+
+    async updateProductStatus(productId: number, status: ProductStatus): Promise<void> {
+        const result = await this.productsRepository.update(
+            { product_id: productId },
+            { status: status },
+        );
+        if (!result.affected || result.affected === 0) {
+            throw new Error();
+        }
+    }
+
+    async getProductRatings(farmId: number): Promise<number[]> {
+        try {
+            const products = await this.productsRepository.find({
+                select: ["average_rating"],
+                where: { farm_id: farmId, status: Not(In([ProductStatus.DELETED, ProductStatus.PRE_ORDER])) }
+            })
+            return products.map((p) => p.average_rating);
+        }
+        catch (error) {
+            throw Error(`Failed to get product rating: ${error.message}`);
         }
     }
 
