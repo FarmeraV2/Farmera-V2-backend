@@ -25,6 +25,7 @@ import { CreateGhnOrderDto, GhnPaymentTypeId, GhnRequiredNote } from 'src/module
 import { Delivery } from '../entities/delivery.entity';
 import { DeliveryPaymentType, DeliveryRequiredNote, DeliveryStatus } from '../enums/delivery-status.enum';
 import { GhnWebhookDto, GhnOrderStatus, GhnWebhookType } from '../dtos/ghn-webhook.dto';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class OrderService {
@@ -73,7 +74,7 @@ export class OrderService {
         return deliveryAddress;
     }
 
-    async getOrdersByUserId(userId: number, queryDto: GetMyOrdersDto): Promise<{ data: OrderDto[]; meta: PaginationMeta }> {
+    async getOrdersByUserId(userId: number, queryDto: GetMyOrdersDto): Promise<{ data: OrderDto[]; pagination: PaginationMeta }> {
         const {
             status,
             sort_by = OrderSortField.CREATED,
@@ -131,6 +132,7 @@ export class OrderService {
                 'order_details.product.farm',
                 'payment',
                 'delivery',
+                'delivery_address',
                 'farm'
             ],
             order: orderBy,
@@ -138,14 +140,14 @@ export class OrderService {
             take: limit,
         });
 
-        const meta: PaginationMeta = new PaginationMeta({
+        const pagination: PaginationMeta = new PaginationMeta({
             paginationOptions: queryDto,
             totalItems,
         });
 
         const orderDtos = plainToInstance(OrderDto, orders, { excludeExtraneousValues: true });
 
-        return { data: orderDtos, meta };
+        return { data: orderDtos, pagination };
     }
 
     async getOrderById(orderId: number, userId: number): Promise<OrderDto> {
@@ -175,6 +177,39 @@ export class OrderService {
         if (order.cus_id !== userId) {
             throw new ForbiddenException({
                 message: 'You can only access your own orders',
+                code: ResponseCode.FORBIDDEN || 'FORBIDDEN'
+            });
+        }
+
+        return plainToInstance(OrderDto, order, { excludeExtraneousValues: true });
+    }
+
+    async getOrderByIdForFarmer(orderId: number, farmId: number): Promise<OrderDto> {
+        const order = await this.orderRepository.findOne({
+            where: {
+                id: orderId
+            },
+            relations: [
+                'order_details',
+                'order_details.product',
+                'payment',
+                'delivery',
+                'delivery_address',
+                'farm',
+                'user'
+            ]
+        });
+
+        if (!order) {
+            throw new NotFoundException({
+                message: 'Order not found',
+                code: ResponseCode.ORDER_NOT_FOUND || 'ORDER_NOT_FOUND'
+            });
+        }
+
+        if (order.store_id !== farmId) {
+            throw new ForbiddenException({
+                message: 'You can only access orders from your own farm',
                 code: ResponseCode.FORBIDDEN || 'FORBIDDEN'
             });
         }
@@ -637,8 +672,9 @@ export class OrderService {
         };
     }
 
-    async getOrdersForFarmer(farmerId: number, queryDto: GetMyOrdersDto): Promise<{ data: OrderDto[]; meta: PaginationMeta }> {
+    async getOrdersForFarmer(farmerId: number, queryDto: GetMyOrdersDto): Promise<{ data: OrderDto[]; pagination: PaginationMeta }> {
         const {
+            order_id,
             status,
             sort_by = OrderSortField.CREATED,
             order = 'DESC',
@@ -650,6 +686,10 @@ export class OrderService {
         const whereConditions: FindOptionsWhere<Order> = {
             store_id: farmerId,
         };
+
+        if (order_id) {
+            whereConditions['id'] = order_id;
+        }
 
         if (status) {
             whereConditions['status'] = status;
@@ -710,7 +750,7 @@ export class OrderService {
 
         const orderDtos = plainToInstance(OrderDto, orders, { excludeExtraneousValues: true });
 
-        return { data: orderDtos, meta };
+        return { data: orderDtos, pagination: meta };
     }
 
     async getOrderShippingInfo(
@@ -1342,6 +1382,230 @@ export class OrderService {
         }
     }
 
+    async farmerConfirmOrder(orderId: number, farmerId: number): Promise<OrderDto> {
+        const generatedQrToken = uuidv4();
+        const result = await this.orderRepository.update(
+            {
+                id: orderId,
+                store_id: farmerId,
+                status: OrderStatus.PENDING_CONFIRMATION
+            },
+            {
+                status: OrderStatus.CONFIRMED,
+                qr_token: generatedQrToken
+            }
+        );
+
+        if (result.affected === 0) {
+            throw new BadRequestException({
+                message: 'Order is not in pending confirmation status or not found',
+                code: ResponseCode.INVALID_ORDER_STATUS
+            });
+        }
+
+        const order = await this.orderRepository.findOne({
+            where: { id: orderId },
+            relations: [
+                'farm',
+                'order_details',
+                'order_details.product',
+                'payment',
+                'delivery'
+            ]
+        });
+
+        if (!order) {
+            throw new NotFoundException({
+                message: 'Order not found'
+            });
+        }
+
+        return plainToInstance(OrderDto, order, { excludeExtraneousValues: true });
+    }
+
+    async farmerCancelOrder(orderId: number, farmerId: number): Promise<OrderDto> {
+        const order = await this.orderRepository.findOne({
+            where: { id: orderId, store_id: farmerId },
+            relations: [
+                'farm',
+                'order_details',
+                'order_details.product',
+                'payment',
+                'delivery'
+            ]
+        });
+
+        if (!order) {
+            throw new NotFoundException({
+                message: 'Order not found',
+                code: ResponseCode.ORDER_NOT_FOUND
+            });
+        }
+
+        if (order.status !== OrderStatus.PENDING_CONFIRMATION) {
+            throw new BadRequestException({
+                message: 'Order is not in pending confirmation status',
+                code: ResponseCode.INVALID_ORDER_STATUS
+            });
+        }
+
+        order.status = OrderStatus.CANCELLED;
+        await this.orderRepository.save(order);
+
+        return plainToInstance(OrderDto, order, { excludeExtraneousValues: true });
+    }
+    
+    // async generateQRForOrder(orderId: number, farmerId: number): Promise<{ qrToken: string }> {
+     
+        
+    //     return {qrToken: ''};
+    // }
+
+    async getOrderDetailsByQR(qrToken: string): Promise<OrderDto> {
+        const order = await this.orderRepository.findOne({
+            where: {
+                qr_token: qrToken
+            },
+            relations: [
+                'order_details',
+                'order_details.product',
+                'order_details.product.farm',
+                'payment',
+                'delivery',
+                'farm',
+                'user'
+                // Không load 'delivery_address' để bảo mật
+            ]
+        });
+
+        if (!order) {
+            throw new NotFoundException({
+                message: 'Order not found or QR token invalid',
+                code: ResponseCode.ORDER_NOT_FOUND || 'ORDER_NOT_FOUND'
+            });
+        }
+
+        const orderDto = plainToInstance(OrderDto, order, { excludeExtraneousValues: true });
+
+        // Xóa thông tin nhạy cảm trong payment (chỉ giữ status và method)
+        if (orderDto.payment) {
+            orderDto.payment.qr_code = null;
+            orderDto.payment.checkout_url = null;
+            orderDto.payment.transaction_id = '';
+        }
+
+        // Thêm thông tin user không nhạy cảm
+        if (order.user) {
+            (orderDto as any).customer = {
+                id: order.user.id,
+                first_name: order.user.first_name,
+                last_name: order.user.last_name,
+                avatar: order.user.avatar,
+                // Che bớt phone nếu có
+                phone: order.user.phone ? order.user.phone.substring(0, 3) + '****' + order.user.phone.substring(order.user.phone.length - 3) : null
+            };
+        }
+
+        return orderDto;
+    }
+
+    async buyerConfirmReceived(orderId: number, userId: number): Promise<OrderDto> {
+        const order = await this.orderRepository.findOne({
+            where: { id: orderId, cus_id: userId },
+            relations: [
+                'farm',
+                'order_details',
+                'order_details.product',
+                'payment',
+                'delivery'
+            ]
+        });
+
+        if (!order) {
+            throw new NotFoundException({
+                message: 'Order not found or you do not have permission to access this order',
+                code: ResponseCode.ORDER_NOT_FOUND
+            });
+        }
+
+        // Nếu đã COMPLETED rồi thì không làm gì
+        if (order.status === OrderStatus.COMPLETED) {
+            throw new BadRequestException({
+                message: 'Order has already been confirmed as received',
+                code: ResponseCode.INVALID_ORDER_STATUS
+            });
+        }
+
+        // Chỉ cho phép xác nhận khi đơn hàng đã được giao hoặc đang giao
+        if (order.status !== OrderStatus.DELIVERED && order.status !== OrderStatus.SHIPPING) {
+            throw new BadRequestException({
+                message: 'Order must be in DELIVERED or SHIPPING status to confirm receipt',
+                code: ResponseCode.INVALID_ORDER_STATUS
+            });
+        }
+
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+
+        try {
+            // Cập nhật order status
+            await queryRunner.manager.update(Order, { id: orderId }, {
+                status: OrderStatus.COMPLETED
+            });
+
+            // Cập nhật delivery status nếu có
+            if (order.delivery) {
+                await queryRunner.manager.update(Delivery, { id: order.delivery.id }, {
+                    status: DeliveryStatus.DELIVERED
+                });
+            }
+
+            // Cập nhật payment status
+            if (order.payment && order.payment.status !== PaymentStatus.COMPLETED) {
+                await queryRunner.manager.update(Payment, { id: order.payment_id }, {
+                    status: PaymentStatus.COMPLETED,
+                    payment_time: new Date()
+                });
+            }
+
+            await queryRunner.commitTransaction();
+            this.logger.log(`Buyer ${userId} confirmed receipt of order ${orderId}`);
+
+            // Lấy lại order đã cập nhật
+            const updatedOrder = await this.orderRepository.findOne({
+                where: { id: orderId },
+                relations: [
+                    'farm',
+                    'order_details',
+                    'order_details.product',
+                    'payment',
+                    'delivery',
+                    'delivery_address'
+                ]
+            });
+
+            return plainToInstance(OrderDto, updatedOrder, { excludeExtraneousValues: true });
+
+        } catch (error) {
+            this.logger.error(`Error confirming order receipt: ${error.message}`, error.stack);
+            if (queryRunner.isTransactionActive) {
+                await queryRunner.rollbackTransaction();
+            }
+
+            if (error instanceof BadRequestException ||
+                error instanceof NotFoundException ||
+                error instanceof InternalServerErrorException) {
+                throw error;
+            }
+
+            throw new InternalServerErrorException({
+                message: `Failed to confirm order receipt: ${error.message}`,
+                code: ResponseCode.INTERNAL_ERROR
+            });
+        } finally {
+            await queryRunner.release();
+        }
     // OFR = fulfilled / (fulfilled + cancelled)
     // fulfilled = DELIVERED + COMPLETED; not-fulfilled = CANCELLED
     async getOrderFulfillmentRate(farmId: number): Promise<number | null> {
