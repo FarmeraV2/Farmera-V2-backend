@@ -7,6 +7,6 @@ export class TransparencyController {
 
     @Post()
     async post() {
-        // return this.transparencyService.calcStepTransparencyScore(1);
+        return this.transparencyService.handleCalcFarmTSCron();
     }
 }
