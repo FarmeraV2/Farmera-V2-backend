@@ -89,7 +89,7 @@ export class OrderService {
         };
 
         if (status) {
-            whereConditions['status'] = status;
+            whereConditions['status'] = In(status);
         }
 
         if (start_date && end_date) {
@@ -692,7 +692,7 @@ export class OrderService {
         }
 
         if (status) {
-            whereConditions['status'] = status;
+            whereConditions['status'] = In(status);
         }
 
         if (start_date && end_date) {

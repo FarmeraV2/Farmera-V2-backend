@@ -8,6 +8,7 @@ import { FarmDto } from 'src/modules/farm/dtos/farm/farm.dto';
 import { PaymentDto } from './payment.dto';
 import { DeliveryDto } from './delivery.dto';
 import { DeliveryAddressDto } from 'src/modules/address/dtos/delivery-address.dto';
+import { ParseEnumArray } from 'src/common/decorators/parse-enum-array';
 
 export class GetMyOrdersDto extends PaginationOptions<OrderSortField> {
     @IsOptional()
@@ -16,8 +17,9 @@ export class GetMyOrdersDto extends PaginationOptions<OrderSortField> {
     order_id?: number;
 
     @IsOptional()
-    @IsEnum(OrderStatus)
-    status?: OrderStatus;
+    // @IsEnum(OrderStatus)
+    @ParseEnumArray(OrderStatus)
+    status?: OrderStatus[];
 
     @IsOptional()
     @IsEnum(OrderSortField)
@@ -104,7 +106,7 @@ export class OrderDto {
     @Expose()
     @Type(() => DeliveryAddressDto)
     delivery_address: DeliveryAddressDto;
-    
+
     @Expose()
     qr_token?: string;
 }
