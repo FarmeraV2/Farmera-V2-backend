@@ -11,6 +11,12 @@ import { FileStorageService } from 'src/core/file-storage/interfaces/file-storag
 import { ImageAnalysisResult, ImagePerImageResult } from '../interfaces/image-analysis.interface';
 import { VerificationIdentifier } from '../enums/verification-identifier.enum';
 
+const SCREEN_LABELS = [
+    'display', 'monitor', 'screen', 'multimedia', 'television', 'computer monitor',
+    'flat panel display', 'output device', 'digital media player', 'lcd', 'led display',
+    'desktop computer', 'laptop', 'tablet computer', 'smartphone',
+];
+
 const AGRICULTURAL_LABELS = [
     // General agriculture
     'agriculture', 'farm', 'crop', 'plant', 'soil', 'field', 'harvest',
@@ -500,6 +506,52 @@ export class ImageVerificationService {
             this.logger.error(`Failed to save verification result for log ${log.id}: ${error.message} `);
             throw new Error(error.message);
         }
+    }
+
+    async analyzeImageUrls(imageUrls: string[]): Promise<{
+        ai_analysis: ImageAnalysisResult;
+        overall_score: number;
+        passed: boolean;
+    }> {
+        const VERIFICATION_THRESHOLD = 0.5;
+        const imageBuffers = await this.fetchImageBuffers(imageUrls);
+        const aiAnalysis = await this.analyzeWithVision(imageBuffers);
+        const overall_score = this.calculateOverallScore(aiAnalysis, false);
+        return {
+            ai_analysis: aiAnalysis,
+            overall_score,
+            passed: overall_score >= VERIFICATION_THRESHOLD,
+        };
+    }
+
+    async analyzeRaw(imageUrls: string[]): Promise<object[]> {
+        if (!this.visionClient) {
+            throw new Error('Google Cloud Vision API not initialized');
+        }
+
+        const imageBuffers = await this.fetchImageBuffers(imageUrls);
+        const results: object[] = [];
+
+        for (const img of imageBuffers) {
+            const resizedBuffer = await sharp(img.buffer)
+                .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
+                .toBuffer();
+
+            const [result] = await this.visionClient.annotateImage({
+                image: { content: resizedBuffer.toString('base64') },
+                features: [
+                    { type: 'LABEL_DETECTION', maxResults: 30 },
+                    { type: 'OBJECT_LOCALIZATION', maxResults: 20 },
+                    { type: 'WEB_DETECTION', maxResults: 20 },
+                    { type: 'SAFE_SEARCH_DETECTION' },
+                    { type: 'IMAGE_PROPERTIES' },
+                ],
+            });
+
+            results.push({ image_url: img.url, result });
+        }
+
+        return results;
     }
 
     async getLogVerificationResultByLogId(logId: number): Promise<LogImageVerificationResult | null> {

@@ -28,6 +28,7 @@ import { ImageVerificationService } from './image-verification/image-verificatio
 import { ImageHash } from './entities/image-hash.entity';
 import { LogImageVerificationResult } from './entities/log-image-verification-result.entity';
 import { FileStorageModule } from 'src/core/file-storage/file-storage.module';
+import { ImageVerificationController } from './image-verification/image-verification.controller';
 
 @Module({
     imports: [
@@ -46,7 +47,7 @@ import { FileStorageModule } from 'src/core/file-storage/file-storage.module';
     ],
     controllers: [
         PlotController, SeasonController, StepController, LogController, CropController,
-        AuditorProfileController, VerificationController
+        AuditorProfileController, VerificationController, ImageVerificationController
     ],
     exports: [
         SeasonService, CropService, StepService, LogService, PlotService, ImageVerificationService,
