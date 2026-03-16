@@ -62,6 +62,8 @@ export class VerificationService {
                 queryBuilder.andWhere('verification_assignment.vote_transaction_hash IS NOT NULL')
             }
 
+            queryBuilder.orderBy('verification_assignment.id', 'DESC');
+
             const totalItems = await applyPagination(queryBuilder, paginationOptions);
             const assignments = await queryBuilder.getMany();
 
