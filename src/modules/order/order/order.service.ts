@@ -1388,7 +1388,10 @@ export class OrderService {
             {
                 id: orderId,
                 store_id: farmerId,
-                status: OrderStatus.PENDING_CONFIRMATION
+                status: In([
+                    OrderStatus.PENDING_CONFIRMATION,
+                    OrderStatus.PAID
+                ])
             },
             {
                 status: OrderStatus.CONFIRMED,
